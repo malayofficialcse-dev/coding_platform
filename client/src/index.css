@@ -1,0 +1,171 @@
+:root {
+  --cc-radius: 3px;
+  --cc-primary: #1d4ed8;
+  --cc-primary-dark: #1e3a8a;
+  --cc-primary-soft: #dbeafe;
+  --cc-accent: #0f766e;
+  --cc-danger: #b91c1c;
+  --cc-warning: #b45309;
+  --cc-success: #15803d;
+  --cc-surface: #ffffff;
+  --cc-surface-muted: #f8fafc;
+  --cc-border: #d9e2ec;
+  --cc-text: #111827;
+  --cc-muted: #64748b;
+
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--cc-text);
+  background-color: #eef2f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #eef2f7;
+  color: var(--cc-text);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--cc-primary);
+  font-weight: 500;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: var(--cc-primary-dark);
+}
+
+button {
+  border-radius: var(--cc-radius);
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 2px solid rgba(29, 78, 216, 0.35);
+  outline-offset: 2px;
+}
+
+*, *::before, *::after {
+  border-radius: var(--cc-radius) !important;
+}
+
+.rounded,
+.rounded-1,
+.rounded-2,
+.rounded-3,
+.rounded-4,
+.rounded-5,
+.rounded-circle,
+.rounded-pill,
+.card,
+.btn,
+.form-control,
+.form-select,
+.modal-content,
+.dropdown-menu,
+.badge,
+.alert,
+.toast,
+input,
+textarea,
+select,
+button,
+img {
+  border-radius: var(--cc-radius) !important;
+}
+
+.text-primary {
+  color: var(--cc-primary) !important;
+}
+
+.text-success {
+  color: var(--cc-success) !important;
+}
+
+.text-danger {
+  color: var(--cc-danger) !important;
+}
+
+.text-muted,
+.text-secondary {
+  color: var(--cc-muted) !important;
+}
+
+.bg-primary,
+.btn-primary {
+  background-color: var(--cc-primary) !important;
+  border-color: var(--cc-primary) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--cc-primary-dark) !important;
+  border-color: var(--cc-primary-dark) !important;
+}
+
+.btn-outline-primary {
+  color: var(--cc-primary) !important;
+  border-color: var(--cc-primary) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+  background-color: var(--cc-primary) !important;
+  color: #ffffff !important;
+}
+
+.btn-success,
+.bg-success {
+  background-color: var(--cc-success) !important;
+  border-color: var(--cc-success) !important;
+}
+
+.btn-danger,
+.bg-danger {
+  background-color: var(--cc-danger) !important;
+  border-color: var(--cc-danger) !important;
+}
+
+.btn-warning,
+.bg-warning {
+  background-color: var(--cc-warning) !important;
+  border-color: var(--cc-warning) !important;
+}
+
+.card,
+.modal-content,
+.dropdown-menu {
+  border-color: var(--cc-border) !important;
+}
+
+.form-control,
+.form-select,
+input,
+textarea,
+select {
+  border-color: var(--cc-border) !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--cc-primary) !important;
+  box-shadow: 0 0 0 0.2rem rgba(29, 78, 216, 0.12) !important;
+}

@@ -1,0 +1,32 @@
+/* src/styles/main.css */
+body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; background:#f7f8fb; color:#1a1a1a }
+.wrap { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:12px; }
+.topbar { background:white; border-bottom:1px solid #e6e9ee; position:sticky; top:0; z-index:20 }
+.brand { font-weight:700; color:#111; text-decoration:none; font-size:20px; margin-right:20px }
+nav a { margin-right:12px; color:#333; text-decoration:none }
+.btn { background:#1d4ed8; color:white; border:none; padding:8px 12px; border-radius:3px; cursor:pointer; }
+.btn.ghost { background:transparent; color:#2563eb; border:1px solid #dbeafe }
+.btn.small { padding:6px 8px; font-size:14px }
+.card { background:white; border:1px solid #e6e9ee; padding:16px; border-radius:3px; margin:12px 0 }
+.form-card { max-width:700px; margin:28px auto; }
+input, textarea { width:100%; padding:10px; margin:6px 0; border-radius:3px; border:1px solid #e6e9ee }
+.hero { padding:40px; background:linear-gradient(90deg,#ffffff,#f8fafc); border-radius:3px; margin:20px 0 }
+.footer { margin-top:40px; padding:18px 0; border-top:1px solid #e6e9ee; background:white }
+.question-block { padding:10px; border:1px dashed #eef2ff; border-radius:3px; margin-bottom:10px }
+.options { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px }
+.option-btn { padding:10px 14px; border-radius:3px; border:1px solid #e6e9ee; background:white; cursor:pointer }
+.option-btn.selected { background:#eef2ff; border-color:#c7ddff }
+.small { font-size:12px; color:#666 }
+.muted { color:#666 }
+@media (min-width: 992px) {
+  nav.d-lg-flex {
+    position: static !important;
+    background: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    min-width: unset !important;
+    top: unset !important;
+    right: unset !important;
+    display: flex !important;
+  }
+}
