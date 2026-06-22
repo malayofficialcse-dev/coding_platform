@@ -76,7 +76,7 @@ export default function PostCard({ post, user, onUpdate }) {
     link.click();
     document.body.removeChild(link);
   };
-
+  //test
   // Single Image Rules
   const isSingleImage =
     !post.text && !post.codeBlocks?.length && post.images?.length === 1;
