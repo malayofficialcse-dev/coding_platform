@@ -17,16 +17,28 @@ const LANGUAGES = [
   "bash",
   "json",
   "sql",
+  "dockerfile",
+  "yaml"
 ];
 
 export default function AdminCourseEdit() {
   const { id } = useParams();
   const nav = useNavigate();
+  
+  // State for course basic details
   const [course, setCourse] = useState(null);
   const [form, setForm] = useState({ title: "", description: "", image: "" });
   const [imageFile, setImageFile] = useState(null);
-  const [editingContent, setEditingContent] = useState(null);
-  const [contentForm, setContentForm] = useState({
+
+  // State for Topics management
+  const [newTopic, setNewTopic] = useState({ title: "", order: 0 });
+  const [editingTopicId, setEditingTopicId] = useState(null);
+  const [topicForm, setTopicForm] = useState({ title: "", order: 0 });
+
+  // State for Subtopics editing
+  const [editingSubtopicId, setEditingSubtopicId] = useState(null);
+  const [editingSubtopicTopicId, setEditingSubtopicTopicId] = useState(null);
+  const [subtopicForm, setSubtopicForm] = useState({
     title: "",
     body: "",
     order: 0,
@@ -37,6 +49,10 @@ export default function AdminCourseEdit() {
   const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
+    fetchCourse();
+  }, [id]);
+
+  const fetchCourse = () => {
     api.get(`/courses/${id}`).then((res) => {
       setCourse(res.data);
       setForm({
@@ -45,14 +61,14 @@ export default function AdminCourseEdit() {
         image: res.data.image || "",
       });
     });
-  }, [id]);
+  };
 
-  // Handle course image file change
+  // Handle course basic details file change
   const handleImageFileChange = (e) => {
     setImageFile(e.target.files[0]);
   };
 
-  // Edit course
+  // Submit Course Basic Details
   const submitCourse = async (e) => {
     e.preventDefault();
     const data = new FormData();
@@ -63,132 +79,125 @@ export default function AdminCourseEdit() {
     } else {
       data.append("image", form.image);
     }
-    await api.put(`/courses/${id}`, data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    nav("/admin/courses");
-  };
-
-  // Edit content
-  const startEditContent = (content) => {
-    setEditingContent(content._id);
-    setContentForm({
-      title: content.title,
-      body: content.body,
-      order: content.order,
-      images: content.images && content.images.length ? content.images : [""],
-      imageFiles: [],
-      codeBlocks:
-        content.codeBlocks && content.codeBlocks.length
-          ? content.codeBlocks
-          : [],
-    });
-  };
-
-  // Image handlers for content
-  const handleImageChange = (idx, value) => {
-    const newImages = [...contentForm.images];
-    newImages[idx] = value;
-    setContentForm({ ...contentForm, images: newImages });
-  };
-  const addImageField = () => {
-    if (contentForm.images.length + contentForm.imageFiles.length < 10) {
-      setContentForm({ ...contentForm, images: [...contentForm.images, ""] });
+    try {
+      await api.put(`/courses/${id}`, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert("Course details saved successfully!");
+      fetchCourse();
+    } catch (err) {
+      alert("Failed to update course details");
     }
   };
-  const removeImageField = (idx) => {
-    const newImages = contentForm.images.filter((_, i) => i !== idx);
-    setContentForm({ ...contentForm, images: newImages });
+
+  // --- Topic handlers ---
+  const handleAddTopic = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.post(`/courses/${id}/topics`, newTopic);
+      setCourse(res.data);
+      setNewTopic({ title: "", order: 0 });
+    } catch (err) {
+      alert("Failed to add topic");
+    }
   };
 
-  // Handle local image files for content
-  const handleContentImageFiles = (e) => {
+  const handleUpdateTopic = async (e, topicId) => {
+    e.preventDefault();
+    try {
+      const res = await api.put(`/courses/${id}/topics/${topicId}`, topicForm);
+      setCourse(res.data);
+      setEditingTopicId(null);
+    } catch (err) {
+      alert("Failed to update topic");
+    }
+  };
+
+  const handleDeleteTopic = async (topicId) => {
+    if (!window.confirm("Are you sure you want to delete this topic and all its subtopics?")) return;
+    try {
+      const res = await api.delete(`/courses/${id}/topics/${topicId}`);
+      // Handle either structure of backend response
+      setCourse(res.data.course || res.data);
+    } catch (err) {
+      alert("Failed to delete topic");
+    }
+  };
+
+  // --- Subtopic handlers ---
+  const startEditSubtopic = (topicId, subtopic) => {
+    setEditingSubtopicId(subtopic._id);
+    setEditingSubtopicTopicId(topicId);
+    setSubtopicForm({
+      title: subtopic.title,
+      body: subtopic.body || "",
+      order: subtopic.order || 0,
+      images: subtopic.images && subtopic.images.length ? subtopic.images : [""],
+      imageFiles: [],
+      codeBlocks: subtopic.codeBlocks && subtopic.codeBlocks.length ? subtopic.codeBlocks : [],
+    });
+  };
+
+  const handleSubtopicImageChange = (idx, value) => {
+    const newImages = [...subtopicForm.images];
+    newImages[idx] = value;
+    setSubtopicForm({ ...subtopicForm, images: newImages });
+  };
+
+  const addSubtopicImageField = () => {
+    if (subtopicForm.images.length + subtopicForm.imageFiles.length < 10) {
+      setSubtopicForm({ ...subtopicForm, images: [...subtopicForm.images, ""] });
+    }
+  };
+
+  const removeSubtopicImageField = (idx) => {
+    const newImages = subtopicForm.images.filter((_, i) => i !== idx);
+    setSubtopicForm({ ...subtopicForm, images: newImages });
+  };
+
+  const handleSubtopicImageFiles = (e) => {
     const files = Array.from(e.target.files);
-    // Limit total images to 10
-    const allowed = Math.max(0, 10 - contentForm.images.length);
-    setContentForm({
-      ...contentForm,
+    const allowed = Math.max(0, 10 - subtopicForm.images.length);
+    setSubtopicForm({
+      ...subtopicForm,
       imageFiles: files.slice(0, allowed),
     });
   };
 
-  // Code block handlers
   const handleCodeChange = (idx, field, value) => {
-    const newBlocks = [...contentForm.codeBlocks];
+    const newBlocks = [...subtopicForm.codeBlocks];
     newBlocks[idx][field] = value;
-    setContentForm({ ...contentForm, codeBlocks: newBlocks });
+    setSubtopicForm({ ...subtopicForm, codeBlocks: newBlocks });
   };
+
   const addCodeBlock = () => {
-    if (contentForm.codeBlocks.length < 10)
-      setContentForm({
-        ...contentForm,
+    if (subtopicForm.codeBlocks.length < 10) {
+      setSubtopicForm({
+        ...subtopicForm,
         codeBlocks: [
-          ...contentForm.codeBlocks,
+          ...subtopicForm.codeBlocks,
           { language: "python", code: "" },
         ],
       });
-  };
-  const removeCodeBlock = (idx) => {
-    const newBlocks = contentForm.codeBlocks.filter((_, i) => i !== idx);
-    setContentForm({ ...contentForm, codeBlocks: newBlocks });
-  };
-
-  // Upload local images to Cloudinary and get URLs
-  const uploadImagesToCloudinary = async (files) => {
-    const urls = [];
-    for (const file of files) {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "online-exam"); // Your Cloudinary unsigned preset
-      data.append("folder", "online-exam/course-images");
-      // Direct upload to Cloudinary REST API
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dykpztnpu/image/upload",
-        {
-          method: "POST",
-          body: data,
-        }
-      );
-      const result = await res.json();
-      if (result.secure_url) urls.push(result.secure_url);
     }
-    return urls;
   };
 
-  // const submitContent = async (e) => {
-  //   e.preventDefault();
-  //   setUploadingImages(true);
-  //   let imageUrls = contentForm.images.filter((img) => img.trim() !== "");
-  //   // Upload local files if any
-  //   if (contentForm.imageFiles.length > 0) {
-  //     const uploadedUrls = await uploadImagesToCloudinary(
-  //       contentForm.imageFiles
-  //     );
-  //     imageUrls = [...imageUrls, ...uploadedUrls].slice(0, 10);
-  //   }
-  //   setUploadingImages(false);
-  //   await api.put(`/courses/${id}/content/${editingContent}`, {
-  //     ...contentForm,
-  //     images: imageUrls,
-  //     codeBlocks: contentForm.codeBlocks.filter((cb) => cb.code.trim() !== ""),
-  //   });
-  //   // Refresh course data
-  //   const res = await api.get(`/courses/${id}`);
-  //   setCourse(res.data);
-  //   setEditingContent(null);
-  // };
+  const removeCodeBlock = (idx) => {
+    const newBlocks = subtopicForm.codeBlocks.filter((_, i) => i !== idx);
+    setSubtopicForm({ ...subtopicForm, codeBlocks: newBlocks });
+  };
 
-  const submitContent = async (e) => {
+  const submitSubtopic = async (e) => {
     e.preventDefault();
     setUploadingImages(true);
 
-    const codeBlocks = contentForm.codeBlocks.filter(
+    const codeBlocks = subtopicForm.codeBlocks.filter(
       (cb) => cb.code.trim() !== ""
     );
     const data = new FormData();
-    data.append("title", contentForm.title);
-    data.append("body", contentForm.body);
-    data.append("order", contentForm.order);
+    data.append("title", subtopicForm.title);
+    data.append("body", subtopicForm.body);
+    data.append("order", subtopicForm.order);
 
     // Add code blocks
     codeBlocks.forEach((cb, i) => {
@@ -197,79 +206,84 @@ export default function AdminCourseEdit() {
     });
 
     // Add image URLs
-    contentForm.images
+    subtopicForm.images
       .filter((img) => img.trim() !== "")
       .forEach((img) => data.append("images", img));
 
     // Add local image files
-    contentForm.imageFiles.forEach((img) => data.append("images", img));
+    subtopicForm.imageFiles.forEach((img) => data.append("images", img));
 
     try {
-      await api.put(`/courses/${id}/content/${editingContent}`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      // Refresh course data
-      const res = await api.get(`/courses/${id}`);
+      const res = await api.put(
+        `/courses/${id}/topics/${editingSubtopicTopicId}/subtopics/${editingSubtopicId}`,
+        data,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
       setCourse(res.data);
-      setEditingContent(null);
+      setEditingSubtopicId(null);
+      setEditingSubtopicTopicId(null);
+      alert("Subtopic updated successfully!");
     } catch (err) {
-      alert("Failed to update content");
+      alert("Failed to update subtopic");
     }
     setUploadingImages(false);
+  };
+
+  const handleDeleteSubtopic = async (topicId, subtopicId) => {
+    if (!window.confirm("Are you sure you want to delete this subtopic?")) return;
+    try {
+      const res = await api.delete(`/courses/${id}/topics/${topicId}/subtopics/${subtopicId}`);
+      setCourse(res.data.course || res.data);
+    } catch (err) {
+      alert("Failed to delete subtopic");
+    }
   };
 
   if (!course)
     return <div className="container py-5 text-center">Loading...</div>;
 
   return (
-    <div className="container py-4">
-      <h2 className="fw-bold mb-3">Edit Course</h2>
-      <form className="mb-4" onSubmit={submitCourse}>
-        <div className="mb-3">
-          <input
-            className="form-control"
-            placeholder="Title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <textarea
-            className="form-control"
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Update Course Image:</label>
-          <input
-            type="file"
-            className="form-control"
-            accept="image/*"
-            onChange={handleImageFileChange}
-          />
-          {imageFile ? (
-            <div className="mt-2">
-              <img
-                src={URL.createObjectURL(imageFile)}
-                alt="preview"
-                style={{
-                  width: 120,
-                  height: 120,
-                  objectFit: "cover",
-                  borderRadius: 8,
-                }}
-              />
-            </div>
-          ) : (
-            form.image && (
+    <div className="container py-4" style={{ maxWidth: "900px" }}>
+      <h2 className="fw-bold mb-4 text-primary">Course Editor & Builder</h2>
+
+      {/* Course General Settings */}
+      <div className="card shadow-sm border-0 rounded-4 p-4 mb-5 bg-white">
+        <h4 className="fw-bold text-dark mb-3 border-bottom pb-2">Course Details</h4>
+        <form onSubmit={submitCourse}>
+          <div className="mb-3">
+            <label className="form-label fw-bold">Course Title:</label>
+            <input
+              className="form-control"
+              placeholder="Title"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-bold">Course Description:</label>
+            <textarea
+              className="form-control"
+              placeholder="Description"
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="form-label fw-bold">Course Cover Image:</label>
+            <input
+              type="file"
+              className="form-control"
+              accept="image/*"
+              onChange={handleImageFileChange}
+            />
+            {imageFile ? (
               <div className="mt-2">
                 <img
-                  src={form.image}
-                  alt="current"
+                  src={URL.createObjectURL(imageFile)}
+                  alt="preview"
                   style={{
                     width: 120,
                     height: 120,
@@ -278,220 +292,351 @@ export default function AdminCourseEdit() {
                   }}
                 />
               </div>
-            )
-          )}
-          <div className="form-text">
-            Or paste an image URL below (will be used if no file is selected):
+            ) : (
+              form.image && (
+                <div className="mt-2">
+                  <img
+                    src={form.image}
+                    alt="current"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                    }}
+                  />
+                </div>
+              )
+            )}
+            <div className="form-text mt-2">
+              Or paste a cover image URL (will be ignored if a local file is selected):
+            </div>
+            <input
+              className="form-control mt-1"
+              placeholder="Cover Image URL"
+              value={form.image}
+              onChange={(e) => setForm({ ...form, image: e.target.value })}
+            />
           </div>
-          <input
-            className="form-control mt-2"
-            placeholder="Image URL"
-            value={form.image}
-            onChange={(e) => setForm({ ...form, image: e.target.value })}
-          />
-        </div>
-        <button className="btn btn-success">Save Course</button>
-      </form>
-      <h3 className="fw-bold mb-3">Edit Contents</h3>
-      {course.contents && course.contents.length > 0 ? (
-        course.contents
+          <button className="btn btn-success px-4">Save Course Details</button>
+        </form>
+      </div>
+
+      {/* Curriculum Section */}
+      <h3 className="fw-bold mb-4 mt-5 border-top pt-4 text-dark">Syllabus Curriculum Builder</h3>
+      
+      {/* Add Topic Form */}
+      <div className="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-light">
+        <h5 className="fw-bold text-dark mb-3">Add New Topic</h5>
+        <form onSubmit={handleAddTopic} className="row g-2">
+          <div className="col-md-7">
+            <input
+              className="form-control"
+              placeholder="Topic Title (e.g., Intro to DevOps)"
+              value={newTopic.title}
+              onChange={(e) => setNewTopic({ ...newTopic, title: e.target.value })}
+              required
+            />
+          </div>
+          <div className="col-md-3">
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Order index (0)"
+              value={newTopic.order || ""}
+              onChange={(e) => setNewTopic({ ...newTopic, order: Number(e.target.value) })}
+            />
+          </div>
+          <div className="col-md-2">
+            <button type="submit" className="btn btn-primary w-100">+ Add Topic</button>
+          </div>
+        </form>
+      </div>
+
+      {/* Topics & Subtopics List */}
+      {course.topics && course.topics.length > 0 ? (
+        course.topics
           .sort((a, b) => a.order - b.order)
-          .map((content, idx) => (
-            <div key={content._id} className="card mb-3">
-              <div className="card-body">
-                <h5 className="fw-bold">{content.title}</h5>
-                <p className="text-muted">{content.body.slice(0, 100)}...</p>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => startEditContent(content)}
-                >
-                  Edit Content
-                </button>
-              </div>
-              {editingContent === content._id && (
-                <form className="p-3 border-top" onSubmit={submitContent}>
-                  <div className="mb-2">
+          .map((topic) => (
+            <div key={topic._id} className="card border shadow-sm rounded-4 mb-4 overflow-hidden">
+              <div className="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom-0">
+                {editingTopicId === topic._id ? (
+                  <form onSubmit={(e) => handleUpdateTopic(e, topic._id)} className="d-flex gap-2 align-items-center w-75">
                     <input
-                      className="form-control"
-                      placeholder="Title"
-                      value={contentForm.title}
-                      onChange={(e) =>
-                        setContentForm({
-                          ...contentForm,
-                          title: e.target.value,
-                        })
-                      }
+                      className="form-control form-control-sm"
+                      value={topicForm.title}
+                      onChange={(e) => setTopicForm({ ...topicForm, title: e.target.value })}
                       required
                     />
-                  </div>
-                  <div className="mb-2">
-                    <textarea
-                      className="form-control"
-                      placeholder="Body (Markdown/HTML allowed)"
-                      rows={4}
-                      value={contentForm.body}
-                      onChange={(e) =>
-                        setContentForm({ ...contentForm, body: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="mb-2">
                     <input
                       type="number"
-                      className="form-control"
-                      placeholder="Order"
-                      value={contentForm.order}
-                      onChange={(e) =>
-                        setContentForm({
-                          ...contentForm,
-                          order: Number(e.target.value),
-                        })
-                      }
+                      className="form-control form-control-sm"
+                      value={topicForm.order}
+                      style={{ width: "80px" }}
+                      onChange={(e) => setTopicForm({ ...topicForm, order: Number(e.target.value) })}
                     />
+                    <button type="submit" className="btn btn-success btn-sm">Save</button>
+                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setEditingTopicId(null)}>Cancel</button>
+                  </form>
+                ) : (
+                  <div>
+                    <h5 className="fw-bold m-0 text-dark">
+                      {topic.title} <span className="badge bg-secondary-subtle text-secondary ms-2 small">Order: {topic.order}</span>
+                    </h5>
                   </div>
-                  <div className="mb-2">
-                    <label className="form-label">
-                      Image URLs (paste or upload, up to 10):
-                    </label>
-                    {contentForm.images.map((img, idx) => (
-                      <div key={idx} className="d-flex mb-2">
-                        <input
-                          type="url"
-                          className="form-control"
-                          placeholder={`Image URL #${idx + 1}`}
-                          value={img}
-                          onChange={(e) =>
-                            handleImageChange(idx, e.target.value)
-                          }
-                        />
-                        {contentForm.images.length > 1 && (
-                          <button
-                            type="button"
-                            className="btn btn-danger ms-2"
-                            onClick={() => removeImageField(idx)}
-                            tabIndex={-1}
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {contentForm.images.length + contentForm.imageFiles.length <
-                      10 && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm mt-2"
-                        onClick={addImageField}
-                      >
-                        + Add Image URL
-                      </button>
-                    )}
-                    <div className="mt-2">
-                      <label className="form-label">
-                        Or upload images from your computer (max{" "}
-                        {10 - contentForm.images.length}):
-                      </label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        className="form-control"
-                        onChange={handleContentImageFiles}
-                        disabled={
-                          contentForm.images.length +
-                            contentForm.imageFiles.length >=
-                          10
-                        }
-                      />
-                      {contentForm.imageFiles.length > 0 && (
-                        <div className="mt-2">
-                          {contentForm.imageFiles.map((file, idx) => (
-                            <span key={idx} className="badge bg-info me-2">
-                              {file.name}
-                            </span>
-                          ))}
+                )}
+                
+                {editingTopicId !== topic._id && (
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => {
+                        setEditingTopicId(topic._id);
+                        setTopicForm({ title: topic.title, order: topic.order });
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => handleDeleteTopic(topic._id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="card-body bg-light-subtle px-4 border-top">
+                {/* Subtopics Header */}
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="fw-bold text-muted m-0">Subtopics (Contents)</h6>
+                  <Link
+                    to={`/admin/courses/${course._id}/content?topicId=${topic._id}`}
+                    className="btn btn-sm btn-link text-decoration-none fw-semibold p-0"
+                  >
+                    + Add Subtopic
+                  </Link>
+                </div>
+
+                <div className="list-group mb-2">
+                  {topic.subtopics && topic.subtopics.length > 0 ? (
+                    topic.subtopics
+                      .sort((a, b) => a.order - b.order)
+                      .map((sub) => (
+                        <div key={sub._id} className="list-group-item d-flex justify-content-between align-items-center p-3 rounded-3 mb-2 border">
+                          <div>
+                            <span className="fw-bold text-primary">{sub.title}</span>
+                            <span className="badge bg-light text-dark border ms-2">Order: {sub.order}</span>
+                            {sub.body && <p className="text-muted small m-0 mt-1">{sub.body.substring(0, 100)}...</p>}
+                          </div>
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => startEditSubtopic(topic._id, sub)}
+                            >
+                              Edit Subtopic
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => handleDeleteSubtopic(topic._id, sub._id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                      )}
+                      ))
+                  ) : (
+                    <div className="text-muted p-3 bg-white rounded border border-dashed text-center mb-2">
+                      No subtopics in this topic yet. Click "+ Add Subtopic" to populate content.
                     </div>
-                  </div>
-                  <div className="mb-2">
-                    <label className="form-label">
-                      Code Blocks (up to 10):
-                    </label>
-                    {contentForm.codeBlocks.map((cb, idx) => (
-                      <div
-                        key={idx}
-                        className="mb-2 p-2 border rounded bg-light"
-                      >
-                        <div className="d-flex mb-2">
-                          <select
-                            className="form-select me-2"
-                            value={cb.language}
-                            onChange={(e) =>
-                              handleCodeChange(idx, "language", e.target.value)
-                            }
-                            style={{ maxWidth: 180 }}
-                          >
-                            {LANGUAGES.map((lang) => (
-                              <option key={lang} value={lang}>
-                                {lang}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => removeCodeBlock(idx)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        <textarea
-                          className="form-control font-monospace"
-                          rows={6}
-                          placeholder="Paste or write code here..."
-                          value={cb.code}
-                          onChange={(e) =>
-                            handleCodeChange(idx, "code", e.target.value)
-                          }
-                          style={{ background: "#222", color: "#fff" }}
-                        />
-                      </div>
-                    ))}
-                    {contentForm.codeBlocks.length < 10 && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm mt-2"
-                        onClick={addCodeBlock}
-                      >
-                        + Add Code Block
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    className="btn btn-success btn-sm me-2"
-                    disabled={uploadingImages}
-                  >
-                    {uploadingImages ? "Uploading Images..." : "Save Content"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => setEditingContent(null)}
-                  >
-                    Cancel
-                  </button>
-                </form>
-              )}
+                  )}
+                </div>
+              </div>
             </div>
           ))
       ) : (
-        <div className="alert alert-info">No contents yet.</div>
+        <div className="alert alert-info rounded-4 text-center py-4 shadow-sm">
+          No curriculum created yet. Create a Topic above!
+        </div>
       )}
-      <Link to="/admin/courses" className="btn btn-link mt-3">
-        Back to Courses
-      </Link>
+
+      {/* Subtopic Editor Modal/Overlay */}
+      {editingSubtopicId && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50" style={{ zIndex: 1050 }}>
+          <div className="card shadow-lg border-0 rounded-4 w-100 m-3 p-4 overflow-auto bg-white" style={{ maxWidth: "800px", maxHeight: "90vh" }}>
+            <div className="card-header bg-white border-0 pb-3 d-flex justify-content-between align-items-center border-bottom">
+              <h4 className="fw-bold text-primary m-0">Edit Subtopic Content</h4>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => {
+                  setEditingSubtopicId(null);
+                  setEditingSubtopicTopicId(null);
+                }}
+              ></button>
+            </div>
+            <form onSubmit={submitSubtopic} className="card-body pt-3">
+              <div className="mb-3">
+                <label className="form-label fw-bold">Title:</label>
+                <input
+                  className="form-control"
+                  value={subtopicForm.title}
+                  onChange={(e) => setSubtopicForm({ ...subtopicForm, title: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-bold">Body Content (Markdown):</label>
+                <textarea
+                  className="form-control font-monospace"
+                  rows={6}
+                  value={subtopicForm.body}
+                  onChange={(e) => setSubtopicForm({ ...subtopicForm, body: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-bold">Display Order:</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={subtopicForm.order}
+                  onChange={(e) => setSubtopicForm({ ...subtopicForm, order: Number(e.target.value) })}
+                />
+              </div>
+
+              {/* Subtopic Image fields */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">Image URLs (max 10 total):</label>
+                {subtopicForm.images.map((img, idx) => (
+                  <div key={idx} className="d-flex mb-2">
+                    <input
+                      type="url"
+                      className="form-control"
+                      placeholder={`Image URL #${idx + 1}`}
+                      value={img}
+                      onChange={(e) => handleSubtopicImageChange(idx, e.target.value)}
+                    />
+                    {subtopicForm.images.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-danger ms-2"
+                        onClick={() => removeSubtopicImageField(idx)}
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {subtopicForm.images.length + subtopicForm.imageFiles.length < 10 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm mt-2"
+                    onClick={addSubtopicImageField}
+                  >
+                    + Add Image URL Field
+                  </button>
+                )}
+                <div className="mt-3">
+                  <label className="form-label fw-bold">Or upload local images:</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="form-control"
+                    onChange={handleSubtopicImageFiles}
+                    disabled={subtopicForm.images.length + subtopicForm.imageFiles.length >= 10}
+                  />
+                  {subtopicForm.imageFiles.length > 0 && (
+                    <div className="mt-2">
+                      {subtopicForm.imageFiles.map((file, idx) => (
+                        <span key={idx} className="badge bg-info me-2">
+                          {file.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtopic Code blocks */}
+              <div className="mb-4">
+                <label className="form-label fw-bold">Code Blocks (max 10):</label>
+                {subtopicForm.codeBlocks.map((cb, idx) => (
+                  <div key={idx} className="mb-3 p-3 border rounded bg-light">
+                    <div className="d-flex mb-2 align-items-center justify-content-between">
+                      <span className="badge bg-secondary">Block #{idx + 1}</span>
+                      <div className="d-flex gap-2">
+                        <select
+                          className="form-select form-select-sm"
+                          value={cb.language}
+                          onChange={(e) => handleCodeChange(idx, "language", e.target.value)}
+                          style={{ width: 140 }}
+                        >
+                          {LANGUAGES.map((lang) => (
+                            <option key={lang} value={lang}>
+                              {lang}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => removeCodeBlock(idx)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      className="form-control font-monospace text-light bg-dark"
+                      rows={5}
+                      placeholder="Paste or write code here..."
+                      value={cb.code}
+                      onChange={(e) => handleCodeChange(idx, "code", e.target.value)}
+                    />
+                  </div>
+                ))}
+                {subtopicForm.codeBlocks.length < 10 && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={addCodeBlock}
+                  >
+                    + Add Code Block
+                  </button>
+                )}
+              </div>
+
+              <div className="d-flex gap-2 border-top pt-3">
+                <button
+                  type="submit"
+                  className="btn btn-success px-4"
+                  disabled={uploadingImages}
+                >
+                  {uploadingImages ? "Uploading..." : "Save Subtopic"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    setEditingSubtopicId(null);
+                    setEditingSubtopicTopicId(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <Link to="/admin/courses" className="btn btn-link text-decoration-none">
+          ← Back to Courses List
+        </Link>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ export default function EnrollCourse() {
   const [course, setCourse] = useState(null);
   const [days, setDays] = useState(90);
   const [loading, setLoading] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
   const nav = useNavigate();
   const { user } = useContext(AuthContext);
 
@@ -21,6 +22,23 @@ export default function EnrollCourse() {
     api.get(`/courses/${id}`).then((res) => setCourse(res.data));
   }, [id]);
 
+  // Pre-check: if already enrolled, redirect straight to the course
+  useEffect(() => {
+    if (!user) return;
+    api
+      .get("/enrollments/mine")
+      .then((res) => {
+        const alreadyEnrolled = res.data.find(
+          (e) => e.course && String(e.course._id) === String(id)
+        );
+        if (alreadyEnrolled) {
+          nav(`/courses/${id}`);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingEnrollment(false));
+  }, [user, id, nav]);
+
   const enroll = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -28,12 +46,19 @@ export default function EnrollCourse() {
       await api.post("/enrollments", { courseId: id, days });
       nav(`/courses/${id}`);
     } catch (err) {
-      alert(err.response?.data?.error || "Enrollment failed");
+      const message = err.response?.data?.error || "Enrollment failed";
+      if (message === "Already enrolled") {
+        // Safety net: just navigate to the course
+        nav(`/courses/${id}`);
+      } else {
+        alert(message);
+      }
     }
     setLoading(false);
   };
 
   if (!user) return null;
+  if (checkingEnrollment) return <div className="container py-5 text-center"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Checking enrollment...</span></div></div>;
 
   if (!course)
     return <div className="container py-5 text-center">Loading...</div>;
@@ -65,3 +90,4 @@ export default function EnrollCourse() {
     </div>
   );
 }
+

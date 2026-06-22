@@ -43,7 +43,7 @@ export default function AdminCourseList() {
               <tr key={c._id}>
                 <td>{c.title}</td>
                 <td>{c.description}</td>
-                <td>{c.contents?.length || 0}</td>
+                <td>{c.topics?.length || 0} Topics</td>
                 <td>
                   <Link
                     to={`/admin/courses/${c._id}/edit`}

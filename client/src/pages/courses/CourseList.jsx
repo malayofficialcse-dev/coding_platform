@@ -12,7 +12,7 @@ export default function CourseList() {
   const filtered = courses.filter(
     (c) =>
       c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.description.toLowerCase().includes(search.toLowerCase())
+      (c.description || "").toLowerCase().includes(search.toLowerCase())
   );
 
   // Only show course.image, fallback to placeholder if not valid

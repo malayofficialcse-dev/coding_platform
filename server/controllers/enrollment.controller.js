@@ -33,7 +33,9 @@ export const getMyEnrollments = async (req, res) => {
     const enrollments = await Enrollment.find({ user: req.user.id }).populate(
       "course"
     );
-    res.json(enrollments);
+    // Filter out enrollments where the course has been deleted (null after populate)
+    const valid = enrollments.filter((e) => e.course !== null);
+    res.json(valid);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

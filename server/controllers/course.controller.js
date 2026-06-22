@@ -41,20 +41,68 @@ export const getCourseById = async (req, res) => {
   }
 };
 
-export const addContentToCourse = async (req, res) => {
+export const addTopicToCourse = async (req, res) => {
+  try {
+    const { title, order } = req.body;
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+
+    course.topics.push({
+      title,
+      order: order || 0,
+      subtopics: [],
+    });
+    await course.save();
+    res.status(201).json(course);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const updateTopicInCourse = async (req, res) => {
+  try {
+    const { title, order } = req.body;
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+
+    const topic = course.topics.id(req.params.topicId);
+    if (!topic) return res.status(404).json({ error: "Topic not found" });
+
+    if (title !== undefined) topic.title = title;
+    if (order !== undefined) topic.order = order;
+
+    await course.save();
+    res.json(course);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const deleteTopicFromCourse = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+
+    course.topics.pull({ _id: req.params.topicId });
+    await course.save();
+    res.json({ message: "Topic deleted successfully", course });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const addSubtopicToTopic = async (req, res) => {
   try {
     const { title, body, order } = req.body;
-    // Parse codeBlocks from FormData
+
     let codeBlocks = [];
     if (req.body["codeBlocks[0][language]"]) {
-      // If only one code block
       if (!Array.isArray(req.body["codeBlocks[0][language]"])) {
         codeBlocks.push({
           language: req.body["codeBlocks[0][language]"],
           code: req.body["codeBlocks[0][code]"],
         });
       } else {
-        // Multiple code blocks
         for (let i = 0; req.body[`codeBlocks[${i}][language]`]; i++) {
           codeBlocks.push({
             language: req.body[`codeBlocks[${i}][language]`],
@@ -62,20 +110,34 @@ export const addContentToCourse = async (req, res) => {
           });
         }
       }
+    } else if (req.body.codeBlocks) {
+      if (typeof req.body.codeBlocks === "string") {
+        try {
+          codeBlocks = JSON.parse(req.body.codeBlocks);
+        } catch (e) {}
+      } else if (Array.isArray(req.body.codeBlocks)) {
+        codeBlocks = req.body.codeBlocks;
+      }
     }
+
     const images = req.files ? req.files.map((f) => f.path) : [];
+
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ error: "Course not found" });
 
-    course.contents.push({
+    const topic = course.topics.id(req.params.topicId);
+    if (!topic) return res.status(404).json({ error: "Topic not found" });
+
+    topic.subtopics.push({
       title,
       body,
-      order,
+      order: order || 0,
       images,
       codeBlocks,
     });
+
     await course.save();
-    res.json(course);
+    res.status(201).json(course);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -92,20 +154,22 @@ export const deleteCourse = async (req, res) => {
   }
 };
 
-export const updateCourseContent = async (req, res) => {
+export const updateSubtopicInTopic = async (req, res) => {
   try {
-    const { contentId } = req.params;
     const { title, body, order } = req.body;
 
-    // Parse codeBlocks from FormData or JSON
     let codeBlocks = [];
-    if (req.body.codeBlocks && Array.isArray(req.body.codeBlocks)) {
-      // If sent as array (JSON)
-      codeBlocks = req.body.codeBlocks.filter(
-        (cb) => cb.code && cb.code.trim() !== ""
-      );
+    if (req.body.codeBlocks) {
+      if (typeof req.body.codeBlocks === "string") {
+        try {
+          codeBlocks = JSON.parse(req.body.codeBlocks);
+        } catch (e) {}
+      } else if (Array.isArray(req.body.codeBlocks)) {
+        codeBlocks = req.body.codeBlocks.filter(
+          (cb) => cb.code && cb.code.trim() !== ""
+        );
+      }
     } else if (req.body["codeBlocks[0][language]"]) {
-      // If sent as FormData
       if (!Array.isArray(req.body["codeBlocks[0][language]"])) {
         codeBlocks.push({
           language: req.body["codeBlocks[0][language]"],
@@ -121,7 +185,6 @@ export const updateCourseContent = async (req, res) => {
       }
     }
 
-    // Merge image URLs and uploaded files
     let imageUrls = [];
     if (req.body.images) {
       if (Array.isArray(req.body.images)) {
@@ -140,16 +203,36 @@ export const updateCourseContent = async (req, res) => {
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ error: "Course not found" });
 
-    const content = course.contents.id(contentId);
-    if (!content) return res.status(404).json({ error: "Content not found" });
+    const topic = course.topics.id(req.params.topicId);
+    if (!topic) return res.status(404).json({ error: "Topic not found" });
 
-    content.title = title;
-    content.body = body;
-    content.order = order;
-    content.images = imageUrls;
-    content.codeBlocks = codeBlocks;
+    const subtopic = topic.subtopics.id(req.params.subtopicId);
+    if (!subtopic) return res.status(404).json({ error: "Subtopic not found" });
+
+    if (title !== undefined) subtopic.title = title;
+    if (body !== undefined) subtopic.body = body;
+    if (order !== undefined) subtopic.order = order;
+    subtopic.images = imageUrls;
+    subtopic.codeBlocks = codeBlocks;
+
     await course.save();
-    res.json(content);
+    res.json(course);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const deleteSubtopicFromTopic = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+
+    const topic = course.topics.id(req.params.topicId);
+    if (!topic) return res.status(404).json({ error: "Topic not found" });
+
+    topic.subtopics.pull({ _id: req.params.subtopicId });
+    await course.save();
+    res.json({ message: "Subtopic deleted successfully", course });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
