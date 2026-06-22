@@ -19,7 +19,7 @@ import codingRoutes from "./routes/coding.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import { initSocket } from "./lib/socket.js";
-import messageRoutes from "./routes/message.route.js"; 
+import messageRoutes from "./routes/message.route.js";
 import notificationRoutes from "./routes/notification.routes.js";
 
 
@@ -85,7 +85,7 @@ app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/coding", codingRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/messages",messageRoutes);
+app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 // Serve frontend for all other routes (for SPA)
@@ -101,5 +101,5 @@ app.get(/.*/, (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`Server running on http://localhost:${PORT}`)
 );

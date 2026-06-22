@@ -191,7 +191,7 @@ export default function Profile() {
     profileCard: {
       padding: 18,
       borderRadius: 12,
-      background: "#fff",
+      background: "var(--cc-surface)",
       boxShadow: "0 6px 18px rgba(20,20,40,0.06)",
     },
     profileImage: {
@@ -199,14 +199,14 @@ export default function Profile() {
       height: 160,
       borderRadius: 16,
       objectFit: "cover",
-      border: "3px solid #fff",
+      border: "3px solid var(--cc-surface)",
       boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
     },
     infoRow: { display: "flex", gap: 8, alignItems: "center", marginTop: 12 },
     rightPanelCard: {
       padding: 18,
       borderRadius: 12,
-      background: "#fff",
+      background: "var(--cc-surface)",
       boxShadow: "0 6px 18px rgba(20,20,40,0.04)",
       marginBottom: 18,
     },
@@ -271,7 +271,7 @@ export default function Profile() {
                   position: "absolute",
                   right: -6,
                   bottom: -6,
-                  background: "#fff",
+                  background: "var(--cc-surface)",
                   padding: 8,
                   borderRadius: 10,
                   boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
@@ -319,7 +319,7 @@ export default function Profile() {
           </div>
 
           {/* brief bio / details area */}
-          <div style={{ marginTop: 18, color: "#374151", fontSize: 14 }}>
+          <div style={{ marginTop: 18, color: "var(--cc-text)", fontSize: 14 }}>
             <p style={{ margin: 0 }}>
               <strong>About:</strong>{" "}
               {user?.bio || "No bio provided. Add a short bio to let others know about you."}
@@ -381,7 +381,7 @@ export default function Profile() {
 
               {showAnalytics && attempts.length > 0 && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-                  <div style={{ background: "#fff", padding: 8, borderRadius: 8 }}>
+                  <div style={{ background: "var(--cc-surface)", padding: 8, borderRadius: 8 }}>
                     <Bar
                       data={{
                         labels: examTitles,
@@ -393,7 +393,7 @@ export default function Profile() {
                       options={{ maintainAspectRatio: true, plugins: { legend: { display: false } } }}
                     />
                   </div>
-                  <div style={{ background: "#fff", padding: 8, borderRadius: 8 }}>
+                  <div style={{ background: "var(--cc-surface)", padding: 8, borderRadius: 8 }}>
                     <Line
                       data={{
                         labels: examTitles,

@@ -12,12 +12,15 @@ import {
   FaSearch,
   FaTimes,
   FaUserShield,
+  FaSun,
+  FaMoon,
 } from "react-icons/fa";
 import api from "../api/api";
 import { AuthContext } from "../contexts/AuthContext";
 import NotificationBell from "./NotificationBell";
 import ProfileIcon from "../assets/user-solid-full.svg";
 import CodeCampus from "../assets/image1.jpeg";
+import { useTheme } from "../contexts/ThemeContext";
 
 const navItems = [
   { to: "/", label: "Home", icon: FaHome, iconOnly: true },
@@ -29,6 +32,7 @@ const navItems = [
 ];
 
 export default function Header() {
+  const { theme, toggleTheme } = useTheme();
   const { user, logout } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -57,8 +61,8 @@ export default function Header() {
       style={{
         width: "100%",
         minHeight: 68,
-        background: "#ffffff",
-        borderBottom: "1px solid #d9e2ec",
+        background: "var(--cc-surface)",
+        borderBottom: "1px solid var(--cc-border)",
         position: "sticky",
         top: 0,
         zIndex: 500,
@@ -89,7 +93,7 @@ export default function Header() {
             objectFit: "cover",
           }}
         />
-        <span style={{ fontSize: 22, fontWeight: 700, color: "#1d4ed8" }}>
+        <span style={{ fontSize: 22, fontWeight: 700, color: "var(--cc-primary)" }}>
           Code Campus
         </span>
       </Link>
@@ -115,12 +119,30 @@ export default function Header() {
       </nav>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginLeft: "auto" }}>
+        <button
+          type="button"
+          className="btn btn-sm d-flex align-items-center justify-content-center"
+          onClick={toggleTheme}
+          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          style={{
+            background: "var(--cc-surface-muted)",
+            color: "var(--cc-text)",
+            border: "1px solid var(--cc-border)",
+            width: 32,
+            height: 32,
+            padding: 0,
+          }}
+        >
+          {theme === "light" ? <FaMoon size={16} /> : <FaSun size={16} />}
+        </button>
+
         <div style={{ position: "relative" }}>
           <button
             type="button"
             className="btn btn-light btn-sm"
             onClick={() => setSearchOpen((v) => !v)}
             title="Search users"
+            style={{ background: "var(--cc-surface-muted)", color: "var(--cc-text)", border: "1px solid var(--cc-border)" }}
           >
             <FaSearch />
           </button>
@@ -132,10 +154,10 @@ export default function Header() {
                 top: 42,
                 right: 0,
                 width: 300,
-                background: "#ffffff",
+                background: "var(--cc-surface)",
                 boxShadow: "0 8px 24px rgba(15, 23, 42, 0.16)",
                 padding: 12,
-                border: "1px solid #d9e2ec",
+                border: "1px solid var(--cc-border)",
                 borderRadius: 3,
                 zIndex: 999,
               }}
@@ -146,10 +168,11 @@ export default function Header() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search users..."
                 className="form-control mb-2"
+                style={{ background: "var(--cc-surface)", color: "var(--cc-text)" }}
               />
               <div style={{ maxHeight: 250, overflowY: "auto" }}>
                 {filtered.length === 0 && (
-                  <div style={{ padding: 8, color: "#64748b" }}>No users found</div>
+                  <div style={{ padding: 8, color: "var(--cc-muted)" }}>No users found</div>
                 )}
                 {filtered.map((u) => (
                   <button
@@ -159,8 +182,8 @@ export default function Header() {
                       closeAndNavigate(`/profile/${u._id}`);
                       setQuery("");
                     }}
-                    className="w-100 border-0 bg-white text-start d-flex align-items-center"
-                    style={{ padding: "8px 6px", gap: 10 }}
+                    className="w-100 border-0 text-start d-flex align-items-center"
+                    style={{ padding: "8px 6px", gap: 10, background: "var(--cc-surface)", color: "var(--cc-text)" }}
                   >
                     <img
                       src={
@@ -174,7 +197,7 @@ export default function Header() {
                       <span style={{ display: "block", fontWeight: 600 }}>
                         {u.name || u.username}
                       </span>
-                      <span style={{ display: "block", fontSize: 12, color: "#64748b" }}>
+                      <span style={{ display: "block", fontSize: 12, color: "var(--cc-muted)" }}>
                         @{u.username}
                       </span>
                     </span>
@@ -235,7 +258,7 @@ export default function Header() {
               right: 0,
               height: "100%",
               width: 260,
-              background: "#ffffff",
+              background: "var(--cc-surface)",
               boxShadow: "-3px 0 14px rgba(15, 23, 42, 0.22)",
               padding: 20,
               zIndex: 1000,

@@ -140,14 +140,14 @@ export default function PostCard({ post, user, onUpdate }) {
           <div
             className="d-flex justify-content-between align-items-center px-3 py-2"
             style={{
-              background: "#f8f9fa",
-              borderBottom: "1px solid #ddd",
+              background: "var(--cc-surface-muted)",
+              borderBottom: "1px solid var(--cc-border)",
             }}
           >
             <div className="d-flex align-items-center gap-2">
               <div
                 style={{
-                  background: "#fff",
+                  background: "var(--cc-surface)",
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
@@ -155,12 +155,13 @@ export default function PostCard({ post, user, onUpdate }) {
                   alignItems: "center",
                   justifyContent: "center",
                   boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                  color: "var(--cc-text)",
                 }}
               >
                 <FaCode size={14} />
               </div>
 
-              <span style={{ fontSize: 13, fontWeight: 600 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--cc-text)" }}>
                 {data.codeBlocks[codeIndex].language}
               </span>
             </div>
@@ -175,8 +176,8 @@ export default function PostCard({ post, user, onUpdate }) {
                 setTimeout(() => setCopiedIdx(null), 1200);
               }}
               style={{
-                background: "#fff",
-                border: "1px solid #ccc",
+                background: "var(--cc-surface)",
+                border: "1px solid var(--cc-border)",
                 borderRadius: "50%",
                 width: 30,
                 height: 30,
@@ -184,6 +185,7 @@ export default function PostCard({ post, user, onUpdate }) {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
+                color: "var(--cc-text)",
               }}
             >
               {copiedIdx === codeIndex ? (
@@ -207,14 +209,15 @@ export default function PostCard({ post, user, onUpdate }) {
                 top: "45%",
                 left: 10,
                 zIndex: 5,
-                background: "#fff",
+                background: "var(--cc-surface)",
                 borderRadius: "50%",
-                border: "1px solid #ccc",
+                border: "1px solid var(--cc-border)",
                 width: 32,
                 height: 32,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                color: "var(--cc-text)",
               }}
             >
               <FaChevronLeft />
@@ -289,14 +292,15 @@ export default function PostCard({ post, user, onUpdate }) {
                 top: "45%",
                 right: 10,
                 zIndex: 5,
-                background: "#fff",
+                background: "var(--cc-surface)",
                 borderRadius: "50%",
-                border: "1px solid #ccc",
+                border: "1px solid var(--cc-border)",
                 width: 32,
                 height: 32,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                color: "var(--cc-text)",
               }}
             >
               <FaChevronRight />
@@ -333,7 +337,7 @@ export default function PostCard({ post, user, onUpdate }) {
               position: "fixed",
               top: 20,
               right: 20,
-              background: "#fff",
+              background: "var(--cc-surface)",
               borderRadius: "50%",
               width: 38,
               height: 38,
@@ -343,6 +347,7 @@ export default function PostCard({ post, user, onUpdate }) {
               border: "none",
               cursor: "pointer",
               boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              color: "var(--cc-text)",
             }}
           >
             <FaTimes size={18} />
@@ -358,7 +363,7 @@ export default function PostCard({ post, user, onUpdate }) {
               position: "fixed",
               top: 20,
               right: 70,
-              background: "#fff",
+              background: "var(--cc-surface)",
               borderRadius: "50%",
               width: 38,
               height: 38,
@@ -368,6 +373,7 @@ export default function PostCard({ post, user, onUpdate }) {
               border: "none",
               cursor: "pointer",
               boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              color: "var(--cc-text)",
             }}
           >
             <FaDownload size={18} />

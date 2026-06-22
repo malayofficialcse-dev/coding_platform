@@ -15,19 +15,19 @@ import UserMinus from "../assets/user-minus-solid-full.svg";
    • Ink       #0f172a  slate-900    → headings, text
 ───────────────────────────────────────────────────────────────────────*/
 const C = {
-  primary: "#4f46e5",
-  secondary: "#0ea5e9",
-  surface: "#f8faff",
-  ink: "#0f172a",
+  primary: "var(--cc-primary, #4f46e5)",
+  secondary: "var(--cc-secondary, #0ea5e9)",
+  surface: "var(--cc-background, #f8faff)",
+  ink: "var(--cc-text, #0f172a)",
 
-  // derived tints (not extra brand colours — just alpha of the 4 above)
-  primaryLight: "#eef2ff",
-  primaryMid: "#c7d2fe",
-  secondaryLight: "#e0f2fe",
-  inkMuted: "#64748b",
-  inkSoft: "#94a3b8",
-  white: "#ffffff",
-  border: "#e2e8f0",
+  // derived tints
+  primaryLight: "var(--cc-primary-soft, #eef2ff)",
+  primaryMid: "var(--cc-primary-dark, #c7d2fe)",
+  secondaryLight: "var(--cc-primary-soft, #e0f2fe)",
+  inkMuted: "var(--cc-muted, #64748b)",
+  inkSoft: "var(--cc-muted, #94a3b8)",
+  white: "var(--cc-surface, #ffffff)",
+  border: "var(--cc-border, #e2e8f0)",
 };
 
 /* shared card style */
