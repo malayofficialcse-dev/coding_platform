@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import CommentSection from "./CommentSection";
+import { EditorView } from "@codemirror/view";
 
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
@@ -37,7 +38,7 @@ export default function PostCard({ post, user, onUpdate }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [codeIndex, setCodeIndex] = useState(0);
 
-  // 🔥 IMAGE MODAL
+  // IMAGE MODAL
   const [previewImage, setPreviewImage] = useState(null);
 
   const handleLike = async () => {
@@ -221,10 +222,56 @@ export default function PostCard({ post, user, onUpdate }) {
           )}
 
           {/* CODE VIEW */}
-          <CodeMirror
+          {/* <CodeMirror
             value={data.codeBlocks[codeIndex].code}
             height="220px"
             extensions={[LANGUAGES[data.codeBlocks[codeIndex].language]?.()]}
+            theme="dark"
+            readOnly
+          /> */}
+
+          <CodeMirror
+            value={data.codeBlocks[codeIndex].code}
+            height="220px"
+            extensions={[
+              LANGUAGES[data.codeBlocks[codeIndex].language]?.(),
+              EditorView.theme({
+                "&": {
+                  fontSize: "14px",
+                },
+
+                ".cm-scroller": {
+                  overflow: "auto",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#6366f1 transparent",
+                },
+
+                ".cm-scroller::-webkit-scrollbar": {
+                  width: "5px",
+                  height: "5px",
+                },
+
+                ".cm-scroller::-webkit-scrollbar-track": {
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: "10px",
+                },
+
+                ".cm-scroller::-webkit-scrollbar-thumb": {
+                  background:
+                    "linear-gradient(180deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%)",
+                  borderRadius: "10px",
+                },
+
+                ".cm-scroller::-webkit-scrollbar-thumb:hover": {
+                  background:
+                    "linear-gradient(180deg, #a855f7 0%, #7c3aed 50%, #2563eb 100%)",
+                },
+
+                ".cm-scroller::-webkit-scrollbar-corner": {
+                  background: "transparent",
+                },
+              }),
+            ]}
             theme="dark"
             readOnly
           />

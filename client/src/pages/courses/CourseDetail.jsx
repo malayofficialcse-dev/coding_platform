@@ -43,10 +43,11 @@ const S = {
     position: "sticky",
     top: "20px",
     zIndex: 100,
-    maxHeight: "calc(100vh - 120px)",
+    maxHeight: "calc(100vh - 140px)",
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
+    alignSelf: "start",
   },
   sidebarTitle: {
     fontWeight: 700,
@@ -468,7 +469,7 @@ export default function CourseDetail() {
 
   return (
     <div style={S.page}>
-      <div className="container-fluid px-md-4 py-4">
+      <div style={{ width: "100%", padding: "1.25rem 1.5rem" }}>
         {/* ── Banner ── */}
         <div style={S.banner}>
           <div style={S.bannerGlow} />
@@ -504,9 +505,9 @@ export default function CourseDetail() {
           </div>
         </div>
 
-        <div className="row g-4">
+        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "1.25rem", alignItems: "start" }}>
           {/* ── Sidebar ── */}
-          <div className="col-lg-3 col-md-4">
+          <div style={{ minWidth: 0 }}>
             <div style={S.sidebar}>
               <div style={S.sidebarTitle}>Course Syllabus</div>
               <input
@@ -562,7 +563,7 @@ export default function CourseDetail() {
           </div>
 
           {/* ── Content ── */}
-          <div className="col-lg-9 col-md-8" ref={contentRef}>
+          <div style={{ minWidth: 0 }} ref={contentRef}>
             {activeSubtopic ? (
               <div style={S.contentCard}>
                 {/* Progress */}
