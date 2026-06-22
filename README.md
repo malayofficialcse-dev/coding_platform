@@ -1,8 +1,8 @@
-# 🚀 **Full-Stack MERN Social Learning Platform**  
+# **Full-Stack MERN Social Learning Platform**  
 ### **Posts • Code Editor • Followers • Profile • Cloudinary • Auth • Charts Analytics**
 
 
-## 📸 Screenshots
+##  Screenshots
 
 Below are the UI screenshots of the Stock Market Trading Platform:
 
@@ -113,7 +113,7 @@ my-project/
 
 ---
 
-## 🔧 **Backend Setup**
+##  **Backend Setup**
 
 ### 1. Install dependencies:
 ```sh
@@ -140,7 +140,7 @@ npm start
 
 ---
 
-## 🎨 **Frontend Setup**
+##  **Frontend Setup**
 
 ```sh
 cd frontend
@@ -155,18 +155,18 @@ VITE_API_URL=http://localhost:5000/api
 
 ---
 
-## 📝 **API Routes**
+##  **API Routes**
 (Full details provided earlier)
 
 ---
 
-## 🐳 Docker
+##  Docker
 ```sh
 docker-compose up --build
 ```
 
 ---
 
-## 🙌 Author
+##  Author
 Malay Maity
 
