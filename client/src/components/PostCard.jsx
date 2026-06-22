@@ -9,10 +9,6 @@ import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
 
-import LikeButton from "../assets/thumbs-up-regular-full.svg";
-import CommentButton from "../assets/comment-regular-full.svg";
-import ShareButton from "../assets/share-nodes-solid-full.svg";
-
 import {
   FaCode,
   FaCopy,
@@ -21,6 +17,9 @@ import {
   FaChevronRight,
   FaTimes,
   FaDownload,
+  FaHeart,
+  FaComment,
+  FaShare,
 } from "react-icons/fa";
 
 const LANGUAGES = { javascript, python, java };
@@ -420,42 +419,38 @@ export default function PostCard({ post, user, onUpdate }) {
           <PostContent data={post} />
 
           {/* ACTION BUTTONS */}
-          <div
-            className="d-flex justify-content-center gap-4 mt-3"
-            style={{ fontSize: 14 }}
-          >
-            <div
-              className="d-flex align-items-center gap-1"
+          <div className="d-flex flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary d-flex align-items-center gap-2"
               onClick={handleLike}
-              style={{ cursor: "pointer" }}
+              style={{ minWidth: 110 }}
             >
-              <img
-                src={LikeButton}
-                alt="like"
-                style={{
-                  height: 22,
-                  filter: liked ? "drop-shadow(0 0 2px green)" : "none",
-                }}
-              />
-              {likes}
-            </div>
+              <FaHeart color={liked ? "#dc2626" : "#1d4ed8"} />
+              <span>Like</span>
+              <span className="badge bg-secondary">{likes}</span>
+            </button>
 
-            <div
-              className="d-flex align-items-center gap-1"
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
               onClick={() => setShowComments((v) => !v)}
-              style={{ cursor: "pointer" }}
+              style={{ minWidth: 120 }}
             >
-              <img src={CommentButton} alt="comment" style={{ height: 22 }} />
-              {comments.length}
-            </div>
+              <FaComment />
+              <span>Comment</span>
+              <span className="badge bg-secondary">{comments.length}</span>
+            </button>
 
-            <div
-              className="d-flex align-items-center gap-1"
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-success d-flex align-items-center gap-2"
               onClick={handleRepost}
-              style={{ cursor: "pointer" }}
+              style={{ minWidth: 110 }}
             >
-              <img src={ShareButton} alt="share" style={{ height: 22 }} />
-            </div>
+              <FaShare />
+              <span>Repost</span>
+            </button>
           </div>
 
           {showComments && (
