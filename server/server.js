@@ -57,7 +57,7 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-app.use(cors(corsOptions)); // keep this single instance
+app.use(cors(corsOptions));
 
 
 // Middleware

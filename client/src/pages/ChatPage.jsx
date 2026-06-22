@@ -31,7 +31,7 @@ export default function ChatPage() {
   if (!user) return <div>Please login to use messages</div>;
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 16, background: "var(--cc-background)", color: "var(--cc-text)", minHeight: "100vh" }}>
       <ChatPanel user={user} />
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/api";
 import { AuthContext } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import ReactMarkdown from "react-markdown";
@@ -10,9 +11,10 @@ import remarkGfm from "remark-gfm";
 /* ─── Inline styles ─────────────────────────────────────────────────── */
 const S = {
   page: {
-    background: "linear-gradient(135deg, #f0f4ff 0%, #fafbff 100%)",
+    background: "var(--cc-background)",
     minHeight: "100vh",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    color: "var(--cc-text)",
   },
   banner: {
     background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%)",
@@ -35,10 +37,10 @@ const S = {
     pointerEvents: "none",
   },
   sidebar: {
-    background: "#fff",
+    background: "var(--cc-surface)",
     borderRadius: "1.25rem",
     boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-    border: "1px solid #e8edf5",
+    border: "1px solid var(--cc-border)",
     padding: "1.25rem",
     position: "sticky",
     top: "20px",
@@ -58,15 +60,15 @@ const S = {
     marginBottom: "0.75rem",
   },
   searchInput: {
-    border: "1.5px solid #e2e8f0",
+    border: "1.5px solid var(--cc-border)",
     borderRadius: "0.75rem",
     padding: "0.5rem 0.85rem",
     fontSize: "0.85rem",
     outline: "none",
     width: "100%",
     marginBottom: "0.85rem",
-    background: "#f8fafc",
-    color: "#1e293b",
+    background: "var(--cc-surface-muted)",
+    color: "var(--cc-text)",
   },
   topicBtn: (active) => ({
     background: active ? "linear-gradient(90deg, #eef2ff, #e0e7ff)" : "transparent",
@@ -75,7 +77,7 @@ const S = {
     padding: "0.55rem 0.85rem",
     fontWeight: 700,
     fontSize: "0.82rem",
-    color: active ? "#4f46e5" : "#374151",
+    color: active ? "#4f46e5" : "var(--cc-text)",
     width: "100%",
     textAlign: "left",
     cursor: "pointer",
@@ -91,7 +93,7 @@ const S = {
     borderRadius: "0.5rem",
     padding: "0.4rem 0.75rem 0.4rem 1.25rem",
     fontSize: "0.8rem",
-    color: active ? "#fff" : "#64748b",
+    color: active ? "#fff" : "var(--cc-text)",
     width: "100%",
     textAlign: "left",
     cursor: "pointer",
@@ -104,17 +106,17 @@ const S = {
     gap: "0.4rem",
   }),
   contentCard: {
-    background: "#fff",
+    background: "var(--cc-surface)",
     borderRadius: "1.25rem",
     boxShadow: "0 4px 32px rgba(0,0,0,0.08)",
-    border: "1px solid #e8edf5",
+    border: "1px solid var(--cc-border)",
     padding: "2.5rem",
     minHeight: "60vh",
   },
   subtopicTitle: {
     fontWeight: 800,
     fontSize: "1.75rem",
-    color: "#1e293b",
+    color: "var(--cc-text)",
     marginBottom: "0.25rem",
     lineHeight: 1.3,
   },
@@ -131,7 +133,7 @@ const S = {
   },
   divider: {
     border: "none",
-    borderTop: "2px solid #f1f5f9",
+    borderTop: "2px solid var(--cc-border)",
     margin: "2rem 0",
   },
   codeHeader: (dark) => ({
@@ -171,8 +173,8 @@ const S = {
     overflow: "hidden",
     boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
     marginBottom: "2rem",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
+    background: "var(--cc-surface-muted)",
+    border: "1px solid var(--cc-border)",
   },
   navBtn: (variant) => ({
     background: variant === "next"
@@ -193,7 +195,7 @@ const S = {
   }),
   progressBar: {
     height: "4px",
-    background: "#f1f5f9",
+    background: "var(--cc-surface-muted)",
     borderRadius: "999px",
     overflow: "hidden",
     marginBottom: "1.5rem",
@@ -244,7 +246,7 @@ function StyledBody({ body }) {
         i++;
       }
       elements.push(
-        <ol key={i} style={{ paddingLeft: "1.5rem", margin: "1rem 0", color: "#374151" }}>
+        <ol key={i} style={{ paddingLeft: "1.5rem", margin: "1rem 0", color: "var(--cc-text)" }}>
           {items.map((item, k) => (
             <li key={k} style={{ marginBottom: "0.4rem", fontSize: "1rem", lineHeight: 1.7 }}>
               {item}
@@ -267,10 +269,10 @@ function StyledBody({ body }) {
           {items.map((item, k) => (
             <li key={k} style={{
               marginBottom: "0.4rem", fontSize: "1rem", lineHeight: 1.7,
-              color: "#374151", display: "flex", alignItems: "flex-start", gap: "0.5rem",
+              color: "var(--cc-text)", display: "flex", alignItems: "flex-start", gap: "0.5rem",
             }}>
               <span style={{
-                color: "#6366f1", fontWeight: 700, marginTop: "2px", flexShrink: 0, fontSize: "0.85rem",
+                color: "var(--cc-primary)", fontWeight: 700, marginTop: "2px", flexShrink: 0, fontSize: "0.85rem",
               }}>▸</span>
               <span>{item}</span>
             </li>
@@ -289,11 +291,11 @@ function StyledBody({ body }) {
           margin: "0.35rem 0", fontSize: "0.95rem",
         }}>
           <span style={{
-            background: "#eef2ff", color: "#4f46e5", borderRadius: "5px",
+            background: "rgba(99, 102, 241, 0.12)", color: "var(--cc-primary)", borderRadius: "5px",
             padding: "2px 10px", fontWeight: 600, fontSize: "0.85rem",
           }}>{parts[0]}</span>
-          <span style={{ color: "#94a3b8", fontWeight: 700 }}>→</span>
-          <span style={{ color: "#374151" }}>{parts.slice(1).join(" → ")}</span>
+          <span style={{ color: "var(--cc-muted)", fontWeight: 700 }}>→</span>
+          <span style={{ color: "var(--cc-text)" }}>{parts.slice(1).join(" → ")}</span>
         </div>
       );
       i++; continue;
@@ -304,15 +306,15 @@ function StyledBody({ body }) {
       elements.push(
         <div key={i} style={{
           display: "inline-block",
-          background: "linear-gradient(90deg, #f0fdf4, #dcfce7)",
-          color: "#166534",
+          background: "rgba(30, 41, 59, 0.16)",
+          color: "var(--cc-text)",
           borderRadius: "6px",
           padding: "3px 12px",
           fontSize: "0.82rem",
           fontWeight: 700,
           fontFamily: "monospace",
           margin: "3px 3px",
-          border: "1px solid #bbf7d0",
+          border: "1px solid rgba(148, 163, 184, 0.4)",
         }}>
           {trimmed}
         </div>
@@ -324,7 +326,7 @@ function StyledBody({ body }) {
     if (trimmed.endsWith(":") && trimmed.length < 60 && !trimmed.includes(".")) {
       elements.push(
         <div key={i} style={{
-          fontWeight: 800, fontSize: "1.05rem", color: "#1e293b",
+          fontWeight: 800, fontSize: "1.05rem", color: "var(--cc-text)",
           marginTop: "1.5rem", marginBottom: "0.35rem",
           borderLeft: "4px solid #6366f1",
           paddingLeft: "0.75rem",
@@ -339,7 +341,7 @@ function StyledBody({ body }) {
     // Regular paragraph
     elements.push(
       <p key={i} style={{
-        fontSize: "1rem", lineHeight: 1.85, color: "#374151",
+        fontSize: "1rem", lineHeight: 1.85, color: "var(--cc-text)",
         margin: "0.5rem 0",
       }}>
         {trimmed}
@@ -357,7 +359,8 @@ export default function CourseDetail() {
   const [course, setCourse] = useState(null);
   const [enrolled, setEnrolled] = useState(false);
   const [expired, setExpired] = useState(false);
-  const [darkCode, setDarkCode] = useState(true);
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   const [activeSubtopic, setActiveSubtopic] = useState(null);
   const [activeTopicTitle, setActiveTopicTitle] = useState("");
   const [expandedTopics, setExpandedTopics] = useState({});
@@ -493,14 +496,14 @@ export default function CourseDetail() {
               </p>
             </div>
             <button
-              onClick={() => setDarkCode((d) => !d)}
+              onClick={toggleTheme}
               style={{
                 background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
                 color: "#fff", borderRadius: "0.6rem", padding: "0.4rem 0.9rem",
                 cursor: "pointer", fontSize: "0.82rem", whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
-              {darkCode ? "☀️ Light Code" : "🌙 Dark Code"}
+              {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
             </button>
           </div>
         </div>
@@ -554,7 +557,7 @@ export default function CourseDetail() {
                     );
                   })
                 ) : (
-                  <div style={{ textAlign: "center", color: "#9ca3af", padding: "1rem", fontSize: "0.85rem" }}>
+                  <div style={{ textAlign: "center", color: "var(--cc-muted)", padding: "1rem", fontSize: "0.85rem" }}>
                     No matching topics
                   </div>
                 )}
@@ -597,7 +600,7 @@ export default function CourseDetail() {
                             src={img}
                             className="d-block w-100"
                             alt={`Slide ${i + 1}`}
-                            style={{ maxHeight: 360, objectFit: "contain", background: "#f8fafc" }}
+                            style={{ maxHeight: 360, objectFit: "contain", background: "var(--cc-surface-muted)" }}
                           />
                         </div>
                       ))}
@@ -624,32 +627,32 @@ export default function CourseDetail() {
                       marginBottom: "1.75rem",
                       borderRadius: "0.85rem",
                       overflow: "hidden",
-                      boxShadow: darkCode
+                      boxShadow: isDark
                         ? "0 4px 24px rgba(0,0,0,0.35)"
                         : "0 2px 12px rgba(0,0,0,0.08)",
-                      border: darkCode ? "1px solid #1e293b" : "1px solid #e2e8f0",
+                      border: isDark ? "1px solid #1e293b" : "1px solid #e2e8f0",
                     }}>
-                      <div style={S.codeHeader(darkCode)}>
+                      <div style={S.codeHeader(isDark)}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <span style={{ color: "#ef4444", fontSize: "0.55rem" }}>●</span>
                           <span style={{ color: "#f59e0b", fontSize: "0.55rem" }}>●</span>
                           <span style={{ color: "#22c55e", fontSize: "0.55rem" }}>●</span>
-                          <span style={S.langBadge(darkCode)}>{cb.language || "code"}</span>
+                          <span style={S.langBadge(isDark)}>{cb.language || "code"}</span>
                         </div>
-                        <CopyButton code={cb.code} dark={darkCode} />
+                        <CopyButton code={cb.code} dark={isDark} />
                       </div>
                       <SyntaxHighlighter
                         language={cb.language || "javascript"}
-                        style={darkCode ? vscDarkPlus : oneLight}
+                        style={isDark ? vscDarkPlus : oneLight}
                         showLineNumbers
                         customStyle={{
                           margin: 0,
                           borderRadius: 0,
                           fontSize: "0.88rem",
-                          background: darkCode ? "#0d1117" : "#f8fafc",
+                          background: isDark ? "#0d1117" : "#f8fafc",
                           padding: "1.25rem 1rem",
                         }}
-                        lineNumberStyle={{ color: darkCode ? "#4a5568" : "#cbd5e1", minWidth: "2.5em" }}
+                        lineNumberStyle={{ color: isDark ? "#4a5568" : "#cbd5e1", minWidth: "2.5em" }}
                       >
                         {cb.code}
                       </SyntaxHighlighter>
@@ -659,8 +662,8 @@ export default function CourseDetail() {
                 {/* Body */}
                 {activeSubtopic.body && (
                   <div style={{
-                    background: "linear-gradient(135deg, #fafbff 0%, #f8fafc 100%)",
-                    border: "1px solid #e8edf5",
+                    background: "var(--cc-surface-muted)",
+                    border: "1px solid var(--cc-border)",
                     borderRadius: "1rem",
                     padding: "1.75rem 2rem",
                     marginTop: "0.5rem",
@@ -675,7 +678,7 @@ export default function CourseDetail() {
                   justifyContent: "space-between",
                   marginTop: "2.5rem",
                   paddingTop: "1.5rem",
-                  borderTop: "2px solid #f1f5f9",
+                  borderTop: "2px solid var(--cc-border)",
                   gap: "1rem",
                 }}>
                   {prevSub ? (
@@ -683,9 +686,9 @@ export default function CourseDetail() {
                       style={S.navBtn("prev")}
                       onClick={() => handleSelectSubtopic(prevSub, prevSub.topicId, prevSub.topicTitle)}
                     >
-                      <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginBottom: "2px" }}>← Previous</span>
+                      <span style={{ fontSize: "0.72rem", color: "var(--cc-muted)", marginBottom: "2px" }}>← Previous</span>
                       <span style={{
-                        fontWeight: 700, color: "#374151", fontSize: "0.9rem",
+                        fontWeight: 700, color: "var(--cc-text)", fontSize: "0.9rem",
                         maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
                       }}>
                         {prevSub.title}
@@ -714,8 +717,8 @@ export default function CourseDetail() {
                 alignItems: "center", justifyContent: "center", minHeight: "60vh"
               }}>
                 <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚀</div>
-                <h4 style={{ fontWeight: 700, color: "#1e293b" }}>Welcome to {course.title}</h4>
-                <p style={{ color: "#64748b" }}>Select a topic from the syllabus to begin learning!</p>
+                <h4 style={{ fontWeight: 700, color: "var(--cc-text)" }}>Welcome to {course.title}</h4>
+                <p style={{ color: "var(--cc-muted)" }}>Select a topic from the syllabus to begin learning!</p>
               </div>
             )}
           </div>

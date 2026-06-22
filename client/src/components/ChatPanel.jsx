@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
 import api from "../api/api";
 import { initSocket } from "../socket";
+import { useTheme } from "../contexts/ThemeContext";
 import CloseIcon from "../assets/circle-xmark-solid-full.svg";
 import PaperPlane from "../assets/paper-plane-solid-full.svg";
 import ImageLogo from "../assets/images-regular-full.svg";
 import ChatBox from "../assets/chat2.jpg";
 
 export default function ChatPanel({ user }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -255,10 +258,12 @@ export default function ChatPanel({ user }) {
         display: "flex",
         flexDirection: isMobile && selected ? "column" : "row",
         height: "82vh",
-        border: "1px solid #e5e5e5",
+        border: "1px solid var(--cc-border)",
         borderRadius: 10,
         overflow: "hidden",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        background: "var(--cc-background)",
+        color: "var(--cc-text)",
       }}
     >
       {/* LEFT PANEL */}
@@ -266,10 +271,10 @@ export default function ChatPanel({ user }) {
         <aside
           style={{
             width: isMobile ? "100%" : 300,
-            borderRight: isMobile ? "none" : "1px solid #eee",
+            borderRight: isMobile ? "none" : "1px solid var(--cc-border)",
             padding: 12,
             overflowY: "auto",
-            background: "#fff",
+            background: "var(--cc-surface)",
             scrollbarWidth: "thin",
             flexShrink: 0,
             maxHeight: "100%",
@@ -285,7 +290,7 @@ export default function ChatPanel({ user }) {
               gap: 8,
               padding: "8px 10px",
               margin: "12px 0",
-              background: "#f0f2f5",
+              background: "var(--cc-surface-muted)",
               borderRadius: 10,
               boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
             }}
@@ -300,6 +305,7 @@ export default function ChatPanel({ user }) {
                 border: "none",
                 outline: "none",
                 background: "transparent",
+                color: "var(--cc-text)",
               }}
             />
           </div>
@@ -334,10 +340,10 @@ export default function ChatPanel({ user }) {
                 />
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>
+                  <div style={{ fontWeight: 600, color: "var(--cc-text)" }}>
                     {u.name || u.username || u.email}
                   </div>
-                  <div style={{ fontSize: 12, color: "#777" }}>{u.email}</div>
+                  <div style={{ fontSize: 12, color: "var(--cc-muted)" }}>{u.email}</div>
                 </div>
 
                 {/* ONLINE DOT A1 (right of username) */}
@@ -366,25 +372,26 @@ export default function ChatPanel({ user }) {
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            background: "#fafafa",
+            background: "var(--cc-background)",
             minHeight: 0,
             width: isMobile ? "100%" : "auto",
+            color: "var(--cc-text)",
           }}
         >
           {/* HEADER */}
           <div
             style={{
               padding: 14,
-              borderBottom: "1px solid #eee",
+              borderBottom: "1px solid var(--cc-border)",
               display: "flex",
               alignItems: "center",
               gap: 12,
-              background: "#fff",
+              background: "var(--cc-surface)",
               flexShrink: 0,
             }}
           >
             {!selected ? (
-              <div style={{ color: "#888", fontWeight: 600 }}>
+              <div style={{ color: "var(--cc-muted)", fontWeight: 600 }}>
                 Select a user to start chat
               </div>
             ) : (
@@ -399,7 +406,7 @@ export default function ChatPanel({ user }) {
                     objectFit: "cover",
                   }}
                 />
-                <div style={{ flex: 1, fontWeight: 700 }}>
+                <div style={{ flex: 1, fontWeight: 700, color: "var(--cc-text)" }}>
                   {selected.name || selected.email}
                 </div>
 
@@ -408,9 +415,10 @@ export default function ChatPanel({ user }) {
                   style={{
                     padding: "4px 10px",
                     borderRadius: 6,
-                    border: "1px solid #ddd",
-                    background: "#f5f5f5",
+                    border: "1px solid var(--cc-border)",
+                    background: "var(--cc-surface-muted)",
                     cursor: "pointer",
+                    color: "var(--cc-text)",
                   }}
                 >
                   <img src={CloseIcon} style={{ width: 18 }} alt="close" />
@@ -429,7 +437,7 @@ export default function ChatPanel({ user }) {
               flexDirection: "column",
               gap: 10,
               scrollbarWidth: "thin",
-              backgroundColor: "#EDEDED",
+              backgroundColor: "var(--cc-surface-muted)",
             }}
           >
             {messages.map((m) => {
@@ -442,11 +450,12 @@ export default function ChatPanel({ user }) {
                   key={m._id || m.createdAt}
                   style={{
                     alignSelf: fromMe ? "flex-end" : "flex-start",
-                    background: fromMe ? "#dcf8c6" : "#fff",
+                    background: fromMe ? (isDark ? "#2a3b50" : "#dcf8c6") : "var(--cc-surface)",
                     padding: "10px 14px",
                     borderRadius: 10,
                     maxWidth: "70%",
                     boxShadow: "0 0 2px rgba(0,0,0,0.1)",
+                    color: "var(--cc-text)",
                   }}
                 >
                   {m.text && <div>{m.text}</div>}
@@ -464,7 +473,7 @@ export default function ChatPanel({ user }) {
                   <div
                     style={{
                       fontSize: 10,
-                      color: "#888",
+                      color: "var(--cc-muted)",
                       marginTop: 6,
                       textAlign: "right",
                     }}
@@ -487,8 +496,8 @@ export default function ChatPanel({ user }) {
                 display: "flex",
                 gap: 8,
                 alignItems: "center",
-                borderTop: "1px solid #ddd",
-                background: "#fff",
+                borderTop: "1px solid var(--cc-border)",
+                background: "var(--cc-surface)",
                 flexShrink: 0,
               }}
             >
@@ -502,8 +511,10 @@ export default function ChatPanel({ user }) {
                   flex: 1,
                   padding: 10,
                   borderRadius: 8,
-                  border: "1px solid #ddd",
+                  border: "1px solid var(--cc-border)",
                   outline: "none",
+                  background: "var(--cc-surface)",
+                  color: "var(--cc-text)",
                 }}
               />
 
@@ -525,9 +536,10 @@ export default function ChatPanel({ user }) {
                 style={{
                   padding: "6px 10px",
                   borderRadius: 8,
-                  border: "1px solid #ddd",
-                  background: "#dbeafe",
+                  border: "1px solid var(--cc-border)",
+                  background: "var(--cc-surface-muted)",
                   cursor: "pointer",
+                  color: "var(--cc-text)",
                 }}
               >
                 <img src={ImageLogo} style={{ width: 18 }} alt="attach" />
@@ -539,8 +551,9 @@ export default function ChatPanel({ user }) {
                 style={{
                   padding: "6px 10px",
                   borderRadius: 3,
-                  background: "#1d4ed8",
+                  background: "var(--cc-primary)",
                   border: "none",
+                  color: "#fff",
                 }}
               >
                 <img src={PaperPlane} style={{ width: 18 }} alt="send" />
