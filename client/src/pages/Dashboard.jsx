@@ -15,19 +15,19 @@ import UserMinus from "../assets/user-minus-solid-full.svg";
    • Ink       #0f172a  slate-900    → headings, text
 ───────────────────────────────────────────────────────────────────────*/
 const C = {
-  primary:   "#4f46e5",
+  primary: "#4f46e5",
   secondary: "#0ea5e9",
-  surface:   "#f8faff",
-  ink:       "#0f172a",
+  surface: "#f8faff",
+  ink: "#0f172a",
 
   // derived tints (not extra brand colours — just alpha of the 4 above)
-  primaryLight:   "#eef2ff",
-  primaryMid:     "#c7d2fe",
+  primaryLight: "#eef2ff",
+  primaryMid: "#c7d2fe",
   secondaryLight: "#e0f2fe",
-  inkMuted:       "#64748b",
-  inkSoft:        "#94a3b8",
-  white:          "#ffffff",
-  border:         "#e2e8f0",
+  inkMuted: "#64748b",
+  inkSoft: "#94a3b8",
+  white: "#ffffff",
+  border: "#e2e8f0",
 };
 
 /* shared card style */
@@ -39,10 +39,10 @@ const card = {
 };
 
 export default function Dashboard() {
-  const [posts,         setPosts]         = useState([]);
-  const [users,         setUsers]         = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
-  const [search,        setSearch]        = useState("");
+  const [search, setSearch] = useState("");
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function Dashboard() {
     api.get("/users/all").then((res) => setUsers(res.data));
   }, []);
 
-  const handleNewPost    = () => { api.get("/posts/all").then((r) => setPosts(r.data)); setShowPostModal(false); };
+  const handleNewPost = () => { api.get("/posts/all").then((r) => setPosts(r.data)); setShowPostModal(false); };
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
 
   const handleFollow = async (id) => {
@@ -178,10 +178,10 @@ export default function Dashboard() {
                 Quick Links
               </div>
               {[
-                { emoji: "📚", label: "Courses",         href: "/courses" },
-                { emoji: "📝", label: "Exams",           href: "/exams" },
+                { emoji: "📚", label: "Courses", href: "/courses" },
+                { emoji: "📝", label: "Exams", href: "/exams" },
                 { emoji: "💻", label: "Coding Problems", href: "/code" },
-                { emoji: "👤", label: "My Profile",      href: `/profile/${user?._id}` },
+                { emoji: "👤", label: "My Profile", href: `/profile/${user?._id}` },
               ].map(({ emoji, label, href }) => (
                 <a key={label} href={href} style={{
                   display: "flex", alignItems: "center", gap: 10,
@@ -193,7 +193,7 @@ export default function Dashboard() {
                   onMouseEnter={(e) => { e.currentTarget.style.background = C.primaryLight; e.currentTarget.style.color = C.primary; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.inkMuted; }}
                 >
-                  <span>{emoji}</span>
+                  {/* <span>{emoji}</span> */}
                   <span>{label}</span>
                 </a>
               ))}
@@ -291,7 +291,7 @@ export default function Dashboard() {
                     background: C.surface, color: C.ink,
                   }}
                   onFocus={(e) => (e.target.style.borderColor = C.primary)}
-                  onBlur={(e)  => (e.target.style.borderColor = C.border)}
+                  onBlur={(e) => (e.target.style.borderColor = C.border)}
                 />
               </div>
 
@@ -327,8 +327,10 @@ export default function Dashboard() {
                           }}
                         />
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, color: C.ink, fontSize: "0.82rem",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{
+                            fontWeight: 700, color: C.ink, fontSize: "0.82rem",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                          }}>
                             {person.name || person.username}
                           </div>
                           <div style={{ color: C.inkSoft, fontSize: "0.72rem" }}>@{person.username}</div>

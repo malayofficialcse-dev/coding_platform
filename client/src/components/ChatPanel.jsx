@@ -140,7 +140,7 @@ export default function ChatPanel({ user }) {
       })
       .catch(() => setUsers([]));
 
-    // CLEANUP: remove listeners and disconnect safely
+    // CLEANUP: remove listeners safely
     return () => {
       const sock = socketRef.current;
       if (sock) {
@@ -150,13 +150,6 @@ export default function ChatPanel({ user }) {
           sock.off && sock.off("newMessage", handleNewMessage);
         } catch (e) {
           // ignore off errors
-        }
-        try {
-          // Prefer disconnect if available, else close if present
-          if (typeof sock.disconnect === "function") sock.disconnect();
-          else if (typeof sock.close === "function") sock.close();
-        } catch (e) {
-          // ignore disconnect errors
         }
       }
       socketRef.current = null;

@@ -3,6 +3,13 @@ import io from "socket.io-client";
 let socket;
 
 export const initSocket = (userId) => {
+  if (socket) {
+    if (socket.connected && socket.auth?.userId === userId) {
+      return socket;
+    }
+    socket.disconnect();
+  }
+
   const BACKEND_URL =
     import.meta.env.VITE_SOCKET_URL ||
     import.meta.env.VITE_API_URL?.replace("/api", "") ||
