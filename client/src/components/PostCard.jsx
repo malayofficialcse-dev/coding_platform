@@ -422,34 +422,34 @@ export default function PostCard({ post, user, onUpdate }) {
           <div className="d-flex flex-wrap gap-2 mt-3">
             <button
               type="button"
-              className="btn btn-sm btn-outline-primary d-flex align-items-center gap-2"
+              className="btn btn-sm  d-flex align-items-center gap-2"
               onClick={handleLike}
               style={{ minWidth: 110 }}
             >
               <FaHeart color={liked ? "#dc2626" : "#1d4ed8"} />
-              <span>Like</span>
+              {/* <span>Like</span> */}
               <span className="badge bg-secondary">{likes}</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
+              className="btn btn-sm  d-flex align-items-center gap-2"
               onClick={() => setShowComments((v) => !v)}
               style={{ minWidth: 120 }}
             >
               <FaComment />
-              <span>Comment</span>
+              
               <span className="badge bg-secondary">{comments.length}</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-success d-flex align-items-center gap-2"
+              className="btn btn-sm  d-flex align-items-center gap-2"
               onClick={handleRepost}
               style={{ minWidth: 110 }}
             >
               <FaShare />
-              <span>Repost</span>
+              {/* <span>Repost</span> */}
             </button>
           </div>
 
