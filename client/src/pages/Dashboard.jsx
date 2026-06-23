@@ -52,6 +52,7 @@ export default function Dashboard() {
 
   const handleNewPost = () => { api.get("/posts/all").then((r) => setPosts(r.data)); setShowPostModal(false); };
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
+  const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
   const handleFollow = async (id) => {
     await api.post(`/users/${id}/follow`);
@@ -83,14 +84,23 @@ export default function Dashboard() {
                 borderRadius: "999px", padding: "2px 10px", fontSize: "0.72rem", fontWeight: 700,
               }}>Reposted</span>
             </div>
-            <PostCard post={post.repostedPost} user={user} onUpdate={handleUpdatePost} fullWidth />
+            <PostCard
+              post={post.repostedPost}
+              user={user}
+              onUpdate={handleUpdatePost}
+              onDelete={handleDeletePost}
+              fullWidth
+            />
           </div>
         </div>
       );
     }
     return (
       <PostCard
-        post={post} user={user} onUpdate={handleUpdatePost}
+        post={post}
+        user={user}
+        onUpdate={handleUpdatePost}
+        onDelete={handleDeletePost}
         fullWidth={post.codeBlocks?.length > 0 && post.codeBlocks.some((cb) => cb.code?.length > 200)}
       />
     );
@@ -182,7 +192,7 @@ export default function Dashboard() {
                 { emoji: "📝", label: "Exams", href: "/exams" },
                 { emoji: "💻", label: "Coding Problems", href: "/code" },
                 { emoji: "👤", label: "My Profile", href: `/profile/${user?._id}` },
-              ].map(({ emoji, label, href }) => (
+              ].map(({ label, href }) => (
                 <a key={label} href={href} style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "0.45rem 0.6rem", borderRadius: "0.6rem",
@@ -373,7 +383,11 @@ export default function Dashboard() {
       </div>
 
       {/* Post modal */}
-      <PostFormModal show={showPostModal} onClose={() => setShowPostModal(false)} onPost={handleNewPost} />
+      <PostFormModal
+        show={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        onPost={handleNewPost}
+      />
 
       {/* Mobile people FAB */}
       <div className="d-lg-none position-fixed" style={{ bottom: 16, right: 16, zIndex: 200 }}>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
@@ -11,15 +11,29 @@ const LANGUAGES = [
   { label: "Java", value: "java", extension: java },
 ];
 
-export default function PostForm({ onPost, onClose }) {
-  const [text, setText] = useState("");
+export default function PostForm({
+  post = null,
+  submitLabel = "Post",
+  onPost,
+  onClose,
+}) {
+  const [text, setText] = useState(post?.text || "");
   const [images, setImages] = useState([]);
-  const [codeBlocks, setCodeBlocks] = useState([]);
+  const [codeBlocks, setCodeBlocks] = useState(post?.codeBlocks || []);
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [loading, setLoading] = useState(false);
 
-  const handleImageChange = (e) => setImages(Array.from(e.target.files));
+  useEffect(() => {
+    setText(post?.text || "");
+    setImages([]);
+    setCodeBlocks(post?.codeBlocks || []);
+    setCode("");
+    setLanguage("javascript");
+  }, [post]);
+
+  const handleImageChange = (e) => setImages(Array.from(e.target.files || []));
+
   const handleAddCodeBlock = () => {
     if (code.trim()) {
       setCodeBlocks([...codeBlocks, { language, code }]);
@@ -30,19 +44,26 @@ export default function PostForm({ onPost, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const data = new FormData();
-    data.append("text", text);
-    data.append("codeBlocks", JSON.stringify(codeBlocks));
-    images.forEach((img) => data.append("images", img));
-    const res = await api.post("/posts", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    onPost(res.data);
-    setText("");
-    setImages([]);
-    setCodeBlocks([]);
-    setLoading(false);
-    if (onClose) onClose();
+
+    try {
+      const data = new FormData();
+      data.append("text", text);
+      data.append("codeBlocks", JSON.stringify(codeBlocks));
+      images.forEach((img) => data.append("images", img));
+
+      const config = { headers: { "Content-Type": "multipart/form-data" } };
+      const res = post?._id
+        ? await api.put(`/posts/${post._id}`, data, config)
+        : await api.post("/posts", data, config);
+
+      onPost?.(res.data);
+      setText("");
+      setImages([]);
+      setCodeBlocks([]);
+      if (onClose) onClose();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,7 +116,7 @@ export default function PostForm({ onPost, onClose }) {
         />
       </div>
       <button className="btn btn-primary w-100" disabled={loading}>
-        {loading ? "Posting..." : "Post"}
+        {loading ? "Saving..." : submitLabel}
       </button>
     </form>
   );

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import CommentSection from "./CommentSection";
+import PostFormModal from "./PostFormModal";
 import { EditorView } from "@codemirror/view";
 
 import { javascript } from "@codemirror/lang-javascript";
@@ -20,11 +21,13 @@ import {
   FaHeart,
   FaComment,
   FaShare,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
 const LANGUAGES = { javascript, python, java };
 
-export default function PostCard({ post, user, onUpdate }) {
+export default function PostCard({ post, user, onUpdate, onDelete }) {
   const likesArray = Array.isArray(post.likes) ? post.likes : [];
   const [liked, setLiked] = useState(likesArray.includes(user?._id));
   const [likes, setLikes] = useState(
@@ -36,9 +39,14 @@ export default function PostCard({ post, user, onUpdate }) {
 
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [codeIndex, setCodeIndex] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // IMAGE MODAL
   const [previewImage, setPreviewImage] = useState(null);
+  const isOwner =
+    user?._id &&
+    post.author?._id &&
+    user._id.toString() === post.author._id.toString();
 
   const handleLike = async () => {
     try {
@@ -66,6 +74,22 @@ export default function PostCard({ post, user, onUpdate }) {
 
   const handleRepost = async () => {
     await api.post(`/posts/${post._id}/repost`);
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      "Delete this post? This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/posts/${post._id}`);
+      if (onDelete) onDelete(post._id);
+      else window.location.reload();
+    } catch (err) {
+      console.error("Error deleting post:", err);
+      alert("Failed to delete post.");
+    }
   };
 
   const downloadImage = (url) => {
@@ -396,23 +420,46 @@ export default function PostCard({ post, user, onUpdate }) {
       <div className="card shadow-sm mb-3 border-0 rounded-4">
         <div className="card-body">
           {/* Author */}
-          <div className="d-flex align-items-center mb-2">
-            <img
-              src={
-                post.author.profileImage ||
-                "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
-              }
-              alt="Profile"
-              className="rounded-circle border me-2"
-              style={{ width: 36, height: 36, objectFit: "cover" }}
-            />
+          <div className="d-flex align-items-start justify-content-between mb-2 gap-2">
+            <div className="d-flex align-items-center">
+              <img
+                src={
+                  post.author.profileImage ||
+                  "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
+                }
+                alt="Profile"
+                className=" border me-2"
+                style={{ width: 36, height: 36, objectFit: "cover" ,borderRadius:"50%"}}
+              />
 
-            <Link
-              to={`/profile/${post.author._id}`}
-              className="fw-bold text-dark text-decoration-none"
-            >
-              {post.author.name || post.author.username}
-            </Link>
+              <Link
+                to={`/profile/${post.author._id}`}
+                className="fw-bold text-dark text-decoration-none"
+              >
+                {post.author.name || post.author.username}
+              </Link>
+            </div>
+
+            {isOwner && (
+              <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                  onClick={() => setShowEditModal(true)}
+                >
+                  <FaEdit size={12} />
+                  {/* <span>Edit</span> */}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                  onClick={handleDelete}
+                >
+                  <FaTrash size={12} />
+                  {/* <span>Delete</span> */}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* CONTENT */}
@@ -458,6 +505,18 @@ export default function PostCard({ post, user, onUpdate }) {
           )}
         </div>
       </div>
+
+      <PostFormModal
+        show={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onPost={(updatedPost) => {
+          setShowEditModal(false);
+          onUpdate?.(updatedPost);
+        }}
+        post={post}
+        title="Edit Post"
+        submitLabel="Save Changes"
+      />
     </>
   );
 }
