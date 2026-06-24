@@ -60,7 +60,7 @@ export const deleteExam = async (req, res) => {
 
 export const submitAttempt = async (req, res) => {
   try {
-    const { examId, answers } = req.body;
+    const { examId, answers, warningsCount, autoSubmitted, cheatingLogged } = req.body;
 
     // Check if exam exists
     const exam = await Exam.findById(examId);
@@ -90,6 +90,9 @@ export const submitAttempt = async (req, res) => {
       user: req.user.id,
       answers,
       score,
+      warningsCount: warningsCount || 0,
+      autoSubmitted: !!autoSubmitted,
+      cheatingLogged: !!cheatingLogged,
     });
 
     await attempt.save();

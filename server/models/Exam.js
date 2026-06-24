@@ -9,6 +9,7 @@ const questionSchema = new mongoose.Schema({
 const examSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
+  duration: { type: Number, default: 30 },
   questions: [questionSchema],
   createdAt: { type: Date, default: Date.now },
 });

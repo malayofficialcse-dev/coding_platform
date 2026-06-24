@@ -31,6 +31,7 @@ function MyAttempts() {
             <tr>
               <th>Exam</th>
               <th>Score</th>
+              <th>Status</th>
               <th>Date</th>
             </tr>
           </thead>
@@ -40,6 +41,15 @@ function MyAttempts() {
                 <td>{attempt.exam?.title || "N/A"}</td>
                 <td>
                   <span className="badge bg-success">{attempt.score}</span>
+                </td>
+                <td>
+                  {attempt.cheatingLogged ? (
+                    <span className="badge bg-danger">Flagged (Cheating)</span>
+                  ) : attempt.autoSubmitted ? (
+                    <span className="badge bg-warning text-dark">Auto-Submitted</span>
+                  ) : (
+                    <span className="badge bg-secondary">Normal</span>
+                  )}
                 </td>
                 <td>{new Date(attempt.createdAt).toLocaleString()}</td>
               </tr>
