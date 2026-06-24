@@ -57,6 +57,7 @@ export const createPost = async (req, res) => {
 
     const post = new Post({
       author: userId,
+      group: req.body.group || "General Feed",
       text: req.body.text || "",
       codeBlocks: Array.isArray(codeBlocks) ? codeBlocks : [],
       images,
@@ -94,7 +95,11 @@ export const getFeed = async (req, res) => {
 
 export const getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    const filter = {};
+    if (req.query.group && req.query.group !== "General Feed") {
+      filter.group = req.query.group;
+    }
+    const posts = await Post.find(filter)
       .populate("author", "name username profileImage")
       .populate({
         path: "comments",

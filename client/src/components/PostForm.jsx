@@ -4,11 +4,23 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const LANGUAGES = [
   { label: "JavaScript", value: "javascript", extension: javascript },
   { label: "Python", value: "python", extension: python },
   { label: "Java", value: "java", extension: java },
+];
+
+const STUDY_GROUPS = [
+  "General Feed",
+  "Python Learners 🐍",
+  "JavaScript Hub 🟨",
+  "Java Specialists ☕",
+  "C++ Wizards 🟦",
+  "Algorithms & DS 📊",
+  "Web Dev Bootcamp 🌐"
 ];
 
 export default function PostForm({ onPost, onClose }) {
@@ -17,6 +29,8 @@ export default function PostForm({ onPost, onClose }) {
   const [codeBlocks, setCodeBlocks] = useState([]);
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
+  const [group, setGroup] = useState("General Feed");
+  const [editorTab, setEditorTab] = useState("edit"); // "edit" | "preview"
   const [loading, setLoading] = useState(false);
 
   const handleImageChange = (e) => setImages(Array.from(e.target.files));
@@ -32,6 +46,7 @@ export default function PostForm({ onPost, onClose }) {
     setLoading(true);
     const data = new FormData();
     data.append("text", text);
+    data.append("group", group);
     data.append("codeBlocks", JSON.stringify(codeBlocks));
     images.forEach((img) => data.append("images", img));
     const res = await api.post("/posts", data, {
@@ -47,13 +62,64 @@ export default function PostForm({ onPost, onClose }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <textarea
-        className="form-control mb-2"
-        placeholder="Ask a question or share something..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        required
-      />
+      {/* Group Selector */}
+      <div className="mb-3">
+        <label className="form-label fw-semibold text-muted small">Post to Study Group / Community</label>
+        <select
+          className="form-select border-primary"
+          value={group}
+          onChange={(e) => setGroup(e.target.value)}
+        >
+          {STUDY_GROUPS.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Editor Tabs */}
+      <div className="d-flex mb-2 border-bottom">
+        <button
+          type="button"
+          className={`btn btn-sm ${editorTab === "edit" ? "btn-primary" : "btn-light"} me-1`}
+          onClick={() => setEditorTab("edit")}
+          style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+        >
+          Write (Markdown)
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${editorTab === "preview" ? "btn-primary" : "btn-light"}`}
+          onClick={() => setEditorTab("preview")}
+          style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+        >
+          Preview
+        </button>
+      </div>
+
+      {editorTab === "edit" ? (
+        <textarea
+          className="form-control mb-2"
+          rows="5"
+          placeholder="Write in Markdown (**bold**, *italics*, # headers, - lists)..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          required
+        />
+      ) : (
+        <div
+          className="border rounded p-3 mb-2 bg-light cc-scroll"
+          style={{ minHeight: "120px", maxHeight: "250px", overflowY: "auto" }}
+        >
+          {text.trim() ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+          ) : (
+            <span className="text-muted small">Nothing to preview yet.</span>
+          )}
+        </div>
+      )}
+
       <input
         type="file"
         multiple

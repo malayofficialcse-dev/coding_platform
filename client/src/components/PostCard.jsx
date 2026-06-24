@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import api from "../api/api";
 import CommentSection from "./CommentSection";
 import { EditorView } from "@codemirror/view";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
@@ -83,7 +85,11 @@ export default function PostCard({ post, user, onUpdate }) {
 
   const PostContent = ({ data }) => (
     <>
-      {data.text && <p className="mb-2">{data.text}</p>}
+      {data.text && (
+        <div className="mb-2 cc-markdown-text">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.text}</ReactMarkdown>
+        </div>
+      )}
 
       {/* Images */}
       {data.images?.length > 0 && (
@@ -407,12 +413,19 @@ export default function PostCard({ post, user, onUpdate }) {
               style={{ width: 36, height: 36, objectFit: "cover" }}
             />
 
-            <Link
-              to={`/profile/${post.author._id}`}
-              className="fw-bold text-dark text-decoration-none"
-            >
-              {post.author.name || post.author.username}
-            </Link>
+            <div className="d-flex flex-column">
+              <Link
+                to={`/profile/${post.author._id}`}
+                className="fw-bold text-dark text-decoration-none"
+              >
+                {post.author.name || post.author.username}
+              </Link>
+              {post.group && post.group !== "General Feed" && (
+                <span className="badge bg-light text-primary border border-primary align-self-start mt-1" style={{ fontSize: "0.7rem" }}>
+                  {post.group}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* CONTENT */}

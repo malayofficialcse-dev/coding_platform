@@ -7,6 +7,7 @@ const codeBlockSchema = new mongoose.Schema({
 
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  group: { type: String, default: "General Feed" },
   text: String,
   images: [String],
   codeBlocks: [codeBlockSchema],

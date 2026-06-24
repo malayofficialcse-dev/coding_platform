@@ -38,19 +38,33 @@ const card = {
   boxShadow: "0 2px 16px rgba(15,23,42,0.06)",
 };
 
+const STUDY_GROUPS = [
+  "General Feed",
+  "Python Learners 🐍",
+  "JavaScript Hub 🟨",
+  "Java Specialists ☕",
+  "C++ Wizards 🟦",
+  "Algorithms & DS 📊",
+  "Web Dev Bootcamp 🌐"
+];
+
 export default function Dashboard() {
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [search, setSearch] = useState("");
   const { user } = useContext(AuthContext);
+  const [activeGroup, setActiveGroup] = useState("General Feed");
 
   useEffect(() => {
-    api.get("/posts/all").then((res) => setPosts(res.data));
     api.get("/users/all").then((res) => setUsers(res.data));
   }, []);
 
-  const handleNewPost = () => { api.get("/posts/all").then((r) => setPosts(r.data)); setShowPostModal(false); };
+  useEffect(() => {
+    api.get("/posts/all", { params: { group: activeGroup } }).then((res) => setPosts(res.data));
+  }, [activeGroup]);
+
+  const handleNewPost = () => { api.get("/posts/all", { params: { group: activeGroup } }).then((r) => setPosts(r.data)); setShowPostModal(false); };
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
 
   const handleFollow = async (id) => {
@@ -197,6 +211,52 @@ export default function Dashboard() {
                   <span>{label}</span>
                 </a>
               ))}
+            </div>
+
+            {/* Study Groups */}
+            <div style={{ ...card, padding: "1rem 1.25rem", marginTop: "1rem" }}>
+              <div style={{ fontWeight: 700, color: C.ink, fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.65rem" }}>
+                Study Groups
+              </div>
+              {STUDY_GROUPS.map((g) => {
+                const isActive = activeGroup === g;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setActiveGroup(g)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                      textAlign: "left",
+                      border: "none",
+                      background: isActive ? C.primaryLight : "transparent",
+                      color: isActive ? C.primary : C.inkMuted,
+                      padding: "0.45rem 0.6rem",
+                      borderRadius: "0.6rem",
+                      fontSize: "0.82rem",
+                      fontWeight: isActive ? 700 : 500,
+                      cursor: "pointer",
+                      marginBottom: 2,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = C.primaryLight;
+                        e.currentTarget.style.color = C.primary;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = C.inkMuted;
+                      }
+                    }}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
