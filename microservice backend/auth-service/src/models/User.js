@@ -1,0 +1,20 @@
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    username: { type: String, unique: true, sparse: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin", "student", "teacher"], default: "student" },
+    college: { type: String, default: "" },
+    degree: { type: String, default: "" },
+    yearOfPassing: { type: String, default: "" },
+    profileImage: { type: String, default: "" },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  },
+  { timestamps: true }
+);
+
+export default mongoose.models.User || mongoose.model("User", userSchema);

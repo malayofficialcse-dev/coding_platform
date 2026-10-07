@@ -7,11 +7,9 @@ import CodingSubmission from "../models/CodingSubmission.js";
 import CodingProblem from "../models/CodingProblem.js";
 import { checkPlagiarism } from "../utils/plagiarism.js";
 
-// Piston API — free, no API key required, supports 70+ languages
-const PISTON_URL = "https://emkc.org/api/v2/piston/execute";
+const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
 const ENABLE_LOCAL_EXEC = process.env.ENABLE_LOCAL_EXEC === "true";
 
-// Map language names -> Piston runtime names & versions
 const PISTON_LANG_MAP = {
   javascript: { language: "javascript", version: "18.15.0" },
   python:     { language: "python",     version: "3.10.0"  },
@@ -22,10 +20,6 @@ const PISTON_LANG_MAP = {
   c:          { language: "c",          version: "10.2.0"  },
 };
 
-/**
- * Run code via the Piston API.
- * Returns { stdout, stderr, exitCode }
- */
 async function runWithPiston(langKey, codeStr, stdin) {
   const runtime = PISTON_LANG_MAP[langKey];
   if (!runtime) throw new Error(`Unsupported language for Piston: ${langKey}`);
@@ -34,7 +28,7 @@ async function runWithPiston(langKey, codeStr, stdin) {
     PISTON_URL,
     {
       language: runtime.language,
-      version:  runtime.version,
+      version: runtime.version,
       files: [{ name: "main", content: codeStr }],
       stdin: stdin || "",
     },
@@ -43,15 +37,12 @@ async function runWithPiston(langKey, codeStr, stdin) {
 
   const run = response.data.run;
   return {
-    stdout:   (run.stdout || "").trim(),
-    stderr:   (run.stderr || "").trim(),
+    stdout: (run.stdout || "").trim(),
+    stderr: (run.stderr || "").trim(),
     exitCode: run.code ?? 0,
   };
 }
 
-/**
- * Local execution fallback (JS & Python only).
- */
 async function runLocal(codeStr, langKey, stdin) {
   const ext =
     langKey.startsWith("py") || langKey === "python3"
@@ -61,7 +52,7 @@ async function runLocal(codeStr, langKey, stdin) {
       : null;
   if (!ext) throw new Error("Local exec unsupported for language");
 
-  const tmpFile = path.join(os.tmpdir(), `code-${Date.now()}.${ext}`);
+  const tmpFile = path.join(os.tmpdir(), `code-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`);
   await writeFile(tmpFile, codeStr, "utf8");
 
   const runner =
@@ -72,7 +63,7 @@ async function runLocal(codeStr, langKey, stdin) {
         ? "python"
         : "python3"
       : null;
-  if (!runner) throw new Error("No local runner");
+  if (!runner) throw new Error("No local runner configured");
 
   return await new Promise((resolve, reject) => {
     const child = spawn(runner, [tmpFile], { stdio: ["pipe", "pipe", "pipe"] });
@@ -84,7 +75,7 @@ async function runLocal(codeStr, langKey, stdin) {
       if (!finished) {
         child.kill("SIGKILL");
         finished = true;
-        reject(new Error("Timeout"));
+        reject(new Error("Time Limit Exceeded"));
       }
     }, 4000);
 
@@ -112,14 +103,14 @@ export const submitCode = async (req, res) => {
   try {
     const { code, language } = req.body;
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user?._id || req.user?.id;
 
     const problem = await CodingProblem.findById(id);
     if (!problem) return res.status(404).json({ error: "Problem not found" });
 
     const langKey = (language || "").toLowerCase();
     if (!PISTON_LANG_MAP[langKey]) {
-      return res.status(400).json({ error: "Unsupported language" });
+      return res.status(400).json({ error: "Unsupported programming language" });
     }
 
     let passedCount = 0;
@@ -129,7 +120,6 @@ export const submitCode = async (req, res) => {
     for (let i = 0; i < totalCount; i++) {
       const tc = problem.testCases[i];
       try {
-        // Primary: Piston API (free, no key required)
         const out = await runWithPiston(langKey, code, tc.input);
         const userOutput = out.stdout;
         const expectedOutput = (tc.output || "").trim();
@@ -145,10 +135,6 @@ export const submitCode = async (req, res) => {
           visible: !!tc.visible,
         });
       } catch (err) {
-        // Fallback: local execution (JS & Python only)
-        const errMsg = err?.response?.data || err?.message || err;
-        console.error("Piston API error:", errMsg);
-
         if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
           try {
             const out = await runLocal(code, langKey, tc.input);
@@ -166,11 +152,10 @@ export const submitCode = async (req, res) => {
             });
             continue;
           } catch (le) {
-            console.error("Local exec error:", le.message || le);
+            console.error("Local exec error:", le.message);
           }
         }
 
-        // Could not execute
         results.push({
           index: i,
           input: tc.input,
@@ -182,7 +167,7 @@ export const submitCode = async (req, res) => {
       }
     }
 
-    // Plagiarism check
+    // Plagiarism comparison against past submissions
     const prevSubs = await CodingSubmission.find({ problem: id });
     let maxPlagiarism = 0;
     for (const sub of prevSubs) {
@@ -191,21 +176,10 @@ export const submitCode = async (req, res) => {
       if (percent > maxPlagiarism) maxPlagiarism = percent;
     }
 
-    // Save logic: save only when all testcases passed (override with ?save=true/false)
     const saveParam = req.query.save;
-    const saveIfAllPassed = req.query.saveIfAllPassed === "true";
+    const shouldSave = saveParam === "true" || passedCount === totalCount;
 
     let savedSubmission = null;
-    let shouldSave = false;
-    if (saveParam === "true") {
-      shouldSave = true;
-    } else if (saveParam === "false") {
-      shouldSave = false;
-    } else {
-      shouldSave = passedCount === totalCount;
-      if (saveIfAllPassed) shouldSave = passedCount === totalCount;
-    }
-
     if (shouldSave) {
       const submissionDoc = new CodingSubmission({
         user: userId,
@@ -234,7 +208,31 @@ export const submitCode = async (req, res) => {
       submissionId: savedSubmission ? savedSubmission._id : null,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error executing code" });
+    console.error("[Coding Service Execution Error]:", err);
+    res.status(500).json({ error: "Error executing code submission" });
+  }
+};
+
+export const getSubmissionsByProblem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const submissions = await CodingSubmission.find({ problem: id })
+      .populate("user", "name username")
+      .sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getMySubmissions = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    const submissions = await CodingSubmission.find({ user: userId })
+      .populate("problem", "title difficulty dsaTopic")
+      .sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

@@ -1,0 +1,26 @@
+{
+  "name": "code-campus-microservices-root",
+  "version": "1.0.0",
+  "description": "Production-grade microservices orchestrator for Code Campus",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix shared && npm install --prefix api-gateway && npm install --prefix auth-service && npm install --prefix user-service && npm install --prefix post-service && npm install --prefix exam-service && npm install --prefix course-service && npm install --prefix enrollment-service && npm install --prefix coding-service && npm install --prefix notification-service && npm install --prefix chat-service",
+    "dev:gateway": "nodemon api-gateway/src/index.js",
+    "dev:auth": "nodemon auth-service/src/index.js",
+    "dev:user": "nodemon user-service/src/index.js",
+    "dev:post": "nodemon post-service/src/index.js",
+    "dev:exam": "nodemon exam-service/src/index.js",
+    "dev:course": "nodemon course-service/src/index.js",
+    "dev:enrollment": "nodemon enrollment-service/src/index.js",
+    "dev:coding": "nodemon coding-service/src/index.js",
+    "dev:notification": "nodemon notification-service/src/index.js",
+    "dev:chat": "nodemon chat-service/src/index.js",
+    "dev": "concurrently -n \"GATEWAY,AUTH,USER,POST,EXAM,COURSE,ENROLL,CODE,NOTIF,CHAT\" -c \"magenta,blue,green,yellow,cyan,red,black,gray,white,yellowBright\" \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:user\" \"npm run dev:post\" \"npm run dev:exam\" \"npm run dev:course\" \"npm run dev:enrollment\" \"npm run dev:coding\" \"npm run dev:notification\" \"npm run dev:chat\"",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
+  }
+}
