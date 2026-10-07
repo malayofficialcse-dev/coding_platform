@@ -1,7 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import PostForm from "./PostForm";
 
-export default function PostFormModal({ show, onClose, onPost }) {
+export default function PostFormModal({
+  show,
+  onClose,
+  onPost,
+  post = null,
+  title = "Create a Post",
+  submitLabel = "Post",
+}) {
   if (!show) return null;
   return (
     <div
@@ -14,8 +21,13 @@ export default function PostFormModal({ show, onClose, onPost }) {
         style={{ minWidth: 350, maxWidth: 500, width: "90%" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h5 className="fw-bold mb-3">Create a Post</h5>
-        <PostForm onPost={onPost} onClose={onClose} />
+        <h5 className="fw-bold mb-3">{title}</h5>
+        <PostForm
+          post={post}
+          submitLabel={submitLabel}
+          onPost={onPost}
+          onClose={onClose}
+        />
       </div>
     </div>
   );

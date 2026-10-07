@@ -37,6 +37,14 @@ export default function PostToProfile() {
     });
   }, [id]);
 
+  const handleUpdatePost = (updatedPost) => {
+    setPosts((prev) => prev.map((post) => (post._id === updatedPost._id ? updatedPost : post)));
+  };
+
+  const handleDeletePost = (postId) => {
+    setPosts((prev) => prev.filter((post) => post._id !== postId));
+  };
+
   if (loading) return <div className="text-center py-5">Loading...</div>;
   if (!profile)
     return <div className="text-center py-5 text-danger">User not found</div>;
@@ -79,7 +87,12 @@ export default function PostToProfile() {
         )}
         {posts.map((post) => (
           <div className="col-md-6 col-lg-4" key={post._id}>
-            <PostCard post={post} user={currentUser} />
+            <PostCard
+              post={post}
+              user={currentUser}
+              onUpdate={handleUpdatePost}
+              onDelete={handleDeletePost}
+            />
           </div>
         ))}
       </div>
