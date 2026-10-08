@@ -47,7 +47,7 @@ export default function CodingAnalytics() {
   const [topics, setTopics] = useState({});
 
   useEffect(() => {
-    api.get("/coding/submissions/me").then((res) => setSubmissions(res.data));
+    api.get("/coding/submissions/my").then((res) => setSubmissions(res.data));
     api.get("/coding/problems").then((res) => {
       setProblems(res.data);
       const topicMap = {};

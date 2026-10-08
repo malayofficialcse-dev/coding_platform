@@ -82,6 +82,13 @@ export const getFeed = async (req, res) => {
     const posts = await Post.find({ author: { $in: ids } })
       .populate("author", "name username profileImage")
       .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },
       })
@@ -101,6 +108,13 @@ export const getAllPosts = async (req, res) => {
     }
     const posts = await Post.find(filter)
       .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
       .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },
@@ -124,6 +138,13 @@ export const getPostsByUser = async (req, res) => {
 
     const posts = await Post.find({ author: userId })
       .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
       .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },

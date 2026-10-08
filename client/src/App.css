@@ -1,12 +1,5 @@
-*{
-  background-color: #767676;
-}
-
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
 }
 
 .logo {
@@ -44,6 +37,8 @@
 .read-the-docs {
   color: #888;
 }
+
+/* App-level chrome is styled by the individual page layouts. */
 @media (min-width: 992px) {
   nav.d-lg-flex {
     position: static !important;

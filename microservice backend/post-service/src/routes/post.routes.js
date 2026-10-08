@@ -1,4 +1,7 @@
 import express from "express";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
@@ -27,6 +30,13 @@ import {
   getPostDashboardMetrics,
 } from "../controllers/dashboard.controller.js";
 import { protect, requireAdmin } from "../middleware/auth.middleware.js";
+
+// This module is evaluated before the service entrypoint, so load env values
+// before configuring the Cloudinary client below.
+dotenv.config({
+  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env"),
+});
+dotenv.config();
 
 const router = express.Router();
 

@@ -26,7 +26,7 @@ export default function Login() {
       toast.success("Login successful!");
       nav("/");
     } catch (err) {
-      const errorMsg = err.response?.data?.error || "Login failed";
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Login failed";
       toast.error(errorMsg);
       console.error("Login error:", err);
     } finally {
@@ -80,4 +80,3 @@ export default function Login() {
     </div>
   );
 }
-

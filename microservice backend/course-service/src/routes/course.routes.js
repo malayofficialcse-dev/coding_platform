@@ -1,4 +1,7 @@
 import express from "express";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
@@ -12,8 +15,15 @@ import {
   updateTopicInCourse,
   deleteTopicFromCourse,
   addSubtopicToTopic,
+  updateSubtopicInTopic,
+  deleteSubtopicFromTopic,
 } from "../controllers/course.controller.js";
 import { protect, requireAdmin } from "../middleware/auth.middleware.js";
+
+dotenv.config({
+  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env"),
+});
+dotenv.config();
 
 const router = express.Router();
 
@@ -43,7 +53,8 @@ router.delete("/:id", protect, requireAdmin, deleteCourse);
 router.post("/:id/topics", protect, requireAdmin, addTopicToCourse);
 router.put("/:id/topics/:topicId", protect, requireAdmin, updateTopicInCourse);
 router.delete("/:id/topics/:topicId", protect, requireAdmin, deleteTopicFromCourse);
-router.post("/:id/topics/:topicId/subtopics", protect, requireAdmin, addSubtopicToTopic);
+router.post("/:id/topics/:topicId/subtopics", protect, requireAdmin, upload.array("images", 10), addSubtopicToTopic);
+router.put("/:id/topics/:topicId/subtopics/:subtopicId", protect, requireAdmin, upload.array("images", 10), updateSubtopicInTopic);
+router.delete("/:id/topics/:topicId/subtopics/:subtopicId", protect, requireAdmin, deleteSubtopicFromTopic);
 
 export default router;
-

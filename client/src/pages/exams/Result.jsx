@@ -9,11 +9,12 @@ export default function Result() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get(`/attempts/mine`);
+        const res = await api.get(`/attempts/my`);
         const attempt =
           res.data.find((a) => a._id === attemptId) || res.data[0];
         if (!attempt) return setData(null);
-        const examRes = await api.get(`/exams/${attempt.exam}`);
+        const examId = attempt.exam?._id || attempt.exam;
+        const examRes = await api.get(`/exams/${examId}`);
         setData({ attempt, exam: examRes.data });
       } catch (err) {
         console.error(err);

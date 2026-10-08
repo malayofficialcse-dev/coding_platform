@@ -9,7 +9,7 @@ Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This 
 ```
                          [ React Frontend Client ]
                                      │
-                        (Port 5000 / HTTP & WS)
+                        (Port 5100 local / 5000 Docker)
                                      ▼
                     ┌─────────────────────────────────┐
                     │       API GATEWAY (:5000)       │
@@ -39,7 +39,7 @@ Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This 
 
 | Service Name | Port | Description & Responsibilities | Key Routes |
 |---|---|---|---|
-| **API Gateway** | `5000` | Central Reverse Proxy & WS Tunnel | `/api/*`, `/socket.io`, `/health` |
+| **API Gateway** | `5100` local, `5000` Docker | Central Reverse Proxy & WS Tunnel | `/api/*`, `/socket.io`, `/health` |
 | **Auth Service** | `5001` | JWT Auth, Registration, Login | `/api/auth/register`, `/api/auth/login`, `/api/auth/me` |
 | **User Service** | `5002` | User Profiles, Follows, Directory | `/api/users`, `/api/users/follow/:id`, `/api/users/search` |
 | **Post Service** | `5003` | Posts, Comments, Feeds, **Dashboard Controller** | `/api/posts`, `/api/posts/feed`, `/api/posts/admin/*`, `/api/posts/dashboard/metrics` |
@@ -71,6 +71,45 @@ npm run dev
 ```
 This runs `concurrently` across all 10 services with colored terminal outputs.
 
+### Load local demo content
+
+With MongoDB running locally, populate each microservice collection with 20
+linked demo records:
+
+```powershell
+cd "microservice backend"
+npm.cmd run seed:demo
+```
+
+The seeder is safe to rerun and only inserts records that are not already
+present. It defaults to the local `code_campus` database and refuses remote
+databases unless `--allow-remote` is explicitly passed, for example
+`npm.cmd run seed:demo -- --allow-remote`.
+Use this local-only demo account to sign in:
+
+- Email: `admin@demo.codecampus.local`
+- Password: `CampusDemo2026!`
+
+Do not use these demo credentials in production.
+
+### Standalone React frontend
+
+The separate `frontend/` folder contains a React + Tailwind CSS app for this
+microservices backend. Start the gateway and services first, then open a second
+PowerShell window:
+
+```powershell
+cd "microservice backend\frontend"
+npm.cmd install
+npm.cmd run dev
+```
+
+Open the Vite URL printed in the terminal (normally `http://localhost:5173`).
+The development server proxies API requests to the local gateway at
+`http://localhost:5100` (separate from the existing server on port 5000).
+See [frontend/README.md](./frontend/README.md) for
+available pages and deployment configuration.
+
 ### 4. Running with Docker Compose
 To spin up all services in isolated Docker containers:
 ```bash
@@ -89,8 +128,10 @@ docker-compose down
 You can verify the gateway and individual microservices via `curl` or browser:
 
 ```bash
-# 1. API Gateway Health Check
-curl http://localhost:5000/health
+# 1. API Gateway Health Check (local)
+curl http://localhost:5100/health
+
+# Docker Compose maps the gateway to port 5000 instead
 
 # 2. Individual Service Health Checks
 curl http://localhost:5001/health  # Auth Service
@@ -106,5 +147,5 @@ curl http://localhost:5009/health  # Chat Service
 
 ---
 
-## 🔗 Client Compatibility Notice
-The API Gateway preserves the identical URL patterns expected by the React frontend (`client/src/api/api.js` points to `http://localhost:5000/api`). No frontend modifications are needed to connect to this microservice architecture.
+## 🔗 React Client Configuration
+The root `client` app uses `/api` as its default API base and the Vite development proxy forwards API and Socket.IO traffic to the local gateway at `http://localhost:5100`. Override the proxy target with `VITE_API_PROXY_TARGET` when running the gateway elsewhere. For production builds, set `VITE_API_URL` to the API gateway origin (with or without the `/api` suffix); set `VITE_SOCKET_URL` if Socket.IO is hosted on a different origin.

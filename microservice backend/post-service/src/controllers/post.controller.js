@@ -17,7 +17,7 @@ export const createPost = async (req, res) => {
     }
 
     const images = Array.isArray(req.files)
-      ? req.files.map((f) => f.path || f.filename || f.location || "")
+      ? req.files.map((f) => f.path || f.secure_url || f.url || f.filename || f.location || "")
       : [];
 
     const post = new Post({
@@ -44,6 +44,13 @@ export const getFeed = async (req, res) => {
     const posts = await Post.find()
       .populate("author", "name username profileImage")
       .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },
       })
@@ -65,6 +72,13 @@ export const getAllPosts = async (req, res) => {
     const posts = await Post.find(filter)
       .populate("author", "name username profileImage")
       .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },
       })
@@ -83,6 +97,13 @@ export const getPostsByUser = async (req, res) => {
 
     const posts = await Post.find({ author: userId })
       .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
       .populate({
         path: "comments",
         populate: { path: "author", select: "name username profileImage" },
@@ -226,7 +247,7 @@ export const updatePost = async (req, res) => {
     }
 
     if (req.files && req.files.length > 0) {
-      post.images = req.files.map((f) => f.path || f.location);
+      post.images = req.files.map((f) => f.path || f.secure_url || f.url || f.location).filter(Boolean);
     }
 
     await post.save();

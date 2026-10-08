@@ -5,4 +5,4 @@ npm-debug.log*
 dist/
 .DS_Store
 Thumbs.db
-.env.example
+!.env.example

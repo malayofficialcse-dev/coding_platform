@@ -21,9 +21,7 @@ export default function AddCourse() {
     data.append("description", form.description);
     if (imageFile) data.append("image", imageFile);
     try {
-      await api.post("/courses", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/courses", data);
       nav("/admin/courses");
     } catch (err) {
       alert("Failed to add course");

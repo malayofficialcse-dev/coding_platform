@@ -1,0 +1,189 @@
+/* Code Campus design system
+ * Keep page-level UI aligned to these tokens instead of introducing new colors,
+ * radii, shadows, or spacing values in individual components.
+ */
+:root {
+  /* Brand and semantic colors */
+  --cc-primary: #0078d4;
+  --cc-primary-dark: #005a9e;
+  --cc-primary-soft: #e6f2fb;
+  --cc-secondary: #50e6ff;
+  --cc-accent: #107c10;
+  --cc-danger: #b91c1c;
+  --cc-warning: #b45309;
+  --cc-success: #15803d;
+
+  /* Surfaces and content */
+  --cc-surface: #ffffff;
+  --cc-surface-muted: #f5f7fa;
+  --cc-background: #f3f6f8;
+  --cc-border: #d6dbe1;
+  --cc-border-strong: #aeb8c4;
+  --cc-text: #1b1b1b;
+  --cc-muted: #5f6b7a;
+  --cc-text-soft: #7a8694;
+
+  /* Typography */
+  --cc-font-sans: "Segoe UI", Inter, system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --cc-font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --cc-text-xs: 0.75rem;
+  --cc-text-sm: 0.875rem;
+  --cc-text-md: 1rem;
+  --cc-text-lg: 1.125rem;
+  --cc-text-xl: 1.5rem;
+  --cc-text-2xl: 2rem;
+  --cc-leading-tight: 1.2;
+  --cc-leading-normal: 1.5;
+
+  /* 4px spacing scale and shape */
+  --cc-space-1: 4px;
+  --cc-space-2: 8px;
+  --cc-space-3: 12px;
+  --cc-space-4: 16px;
+  --cc-space-5: 20px;
+  --cc-space-6: 24px;
+  --cc-space-8: 32px;
+  --cc-space-10: 40px;
+  --cc-radius: 4px;
+  --cc-radius-round: 999px;
+  --cc-shadow-sm: 0 2px 8px rgba(27, 45, 66, 0.10);
+  --cc-shadow-md: 0 8px 24px rgba(27, 45, 66, 0.14);
+  --cc-focus-ring: 0 0 0 3px rgba(0, 120, 212, 0.18);
+}
+
+[data-theme="dark"] {
+  --cc-primary: #50b5f2;
+  --cc-primary-dark: #8bd3ff;
+  --cc-primary-soft: #123b59;
+  --cc-secondary: #50e6ff;
+  --cc-accent: #6ccb6c;
+  --cc-danger: #f87171;
+  --cc-warning: #fbbf24;
+  --cc-success: #4ade80;
+  --cc-surface: #1e293b;
+  --cc-surface-muted: #172033;
+  --cc-background: #0f172a;
+  --cc-border: #334155;
+  --cc-border-strong: #64748b;
+  --cc-text: #f8fafc;
+  --cc-muted: #c0cad6;
+  --cc-text-soft: #94a3b8;
+  --cc-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --cc-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+body {
+  font-family: var(--cc-font-sans);
+  color: var(--cc-text);
+  background: var(--cc-background);
+}
+
+/* Layout primitives */
+.cc-container {
+  width: min(100% - 32px, 1200px);
+  margin-inline: auto;
+}
+
+.cc-section {
+  padding-block: var(--cc-space-10);
+}
+
+.cc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4);
+}
+
+.cc-grid {
+  display: grid;
+  gap: var(--cc-space-4);
+}
+
+/* Surface primitives */
+.cc-card {
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
+  box-shadow: var(--cc-shadow-sm);
+  color: var(--cc-text);
+}
+
+.cc-card-header,
+.cc-card-body,
+.cc-card-footer {
+  padding: var(--cc-space-4);
+}
+
+.cc-card-header { border-bottom: 1px solid var(--cc-border); }
+.cc-card-footer { border-top: 1px solid var(--cc-border); }
+
+/* Buttons */
+.cc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cc-space-2);
+  min-height: 36px;
+  padding: 0 var(--cc-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--cc-radius);
+  font: 600 var(--cc-text-sm)/1 var(--cc-font-sans);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.cc-btn:focus-visible,
+.cc-input:focus-visible,
+.cc-select:focus-visible,
+.cc-textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--cc-focus-ring);
+}
+
+.cc-btn-primary { background: var(--cc-primary); color: #fff; }
+.cc-btn-primary:hover { background: var(--cc-primary-dark); }
+.cc-btn-secondary { background: var(--cc-surface); color: var(--cc-primary); border-color: var(--cc-primary); }
+.cc-btn-secondary:hover { background: var(--cc-primary-soft); }
+.cc-btn-quiet { background: var(--cc-surface-muted); color: var(--cc-text); border-color: var(--cc-border); }
+.cc-btn-danger { background: var(--cc-danger); color: #fff; }
+.cc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Forms */
+.cc-form-group { display: flex; flex-direction: column; gap: var(--cc-space-2); }
+.cc-form-label { color: var(--cc-text); font-size: var(--cc-text-sm); font-weight: 600; }
+.cc-form-help { color: var(--cc-muted); font-size: var(--cc-text-xs); }
+.cc-input,
+.cc-select,
+.cc-textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--cc-space-3);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-surface);
+  color: var(--cc-text);
+  font: 400 var(--cc-text-sm)/var(--cc-leading-normal) var(--cc-font-sans);
+}
+.cc-textarea { padding-block: var(--cc-space-3); resize: vertical; }
+.cc-input::placeholder,
+.cc-textarea::placeholder { color: var(--cc-text-soft); }
+
+/* Tables */
+.cc-table-wrap { overflow-x: auto; border: 1px solid var(--cc-border); border-radius: var(--cc-radius); background: var(--cc-surface); }
+.cc-table { width: 100%; border-collapse: collapse; color: var(--cc-text); font-size: var(--cc-text-sm); }
+.cc-table th { background: var(--cc-surface-muted); color: var(--cc-muted); font-size: var(--cc-text-xs); font-weight: 700; letter-spacing: 0.04em; text-align: left; text-transform: uppercase; }
+.cc-table th,
+.cc-table td { padding: var(--cc-space-3) var(--cc-space-4); border-bottom: 1px solid var(--cc-border); vertical-align: middle; }
+.cc-table tbody tr:hover { background: var(--cc-primary-soft); }
+.cc-table tbody tr:last-child td { border-bottom: 0; }
+
+.cc-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--cc-space-2); border-radius: var(--cc-radius); background: var(--cc-primary-soft); color: var(--cc-primary-dark); font-size: var(--cc-text-xs); font-weight: 700; }
+.cc-divider { height: 1px; border: 0; background: var(--cc-border); margin-block: var(--cc-space-4); }
+
+@media (max-width: 768px) {
+  .cc-container { width: min(100% - 24px, 1200px); }
+  .cc-section { padding-block: var(--cc-space-6); }
+  .cc-card-header,
+  .cc-card-body,
+  .cc-card-footer { padding: var(--cc-space-3); }
+}

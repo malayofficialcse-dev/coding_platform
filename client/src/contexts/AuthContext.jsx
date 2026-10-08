@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
     if (userObj?._id) {
       initSocket(userObj._id);
     }
+    return true;
   };
 
   const logout = () => {
@@ -58,4 +59,3 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
-

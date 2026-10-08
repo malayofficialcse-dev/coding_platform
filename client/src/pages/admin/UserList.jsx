@@ -14,10 +14,13 @@ export default function UserList({ type }) {
   // Fetch users
   useEffect(() => {
     (async () => {
-      const url = type === "admin" ? "/admin/admins" : "/admin/users";
-      const res = await api.get(url);
-      setUsers(res.data);
-      setFiltered(res.data);
+      const res = await api.get("/users");
+      const filteredUsers =
+        type === "admin"
+          ? res.data.filter((user) => user.role === "admin")
+          : res.data.filter((user) => user.role !== "admin");
+      setUsers(filteredUsers);
+      setFiltered(filteredUsers);
     })();
   }, [type]);
 
@@ -46,7 +49,7 @@ export default function UserList({ type }) {
       // Fetch attempts
       let attemptsRes = [];
       try {
-        const res = await api.get(`/admin/user/${user._id}/attempts`);
+        const res = await api.get(`/attempts/user/${user._id}`);
         attemptsRes = res.data || [];
       } catch (e) {
         attemptsRes = [];
@@ -56,7 +59,7 @@ export default function UserList({ type }) {
       // Fetch enrollments (courses)
       let enrollmentsRes = [];
       try {
-        const res = await api.get(`/enrollments?userId=${user._id}`);
+        const res = await api.get(`/enrollments/user/${user._id}`);
         enrollmentsRes = Array.isArray(res.data) ? res.data : [];
       } catch (e) {
         enrollmentsRes = [];

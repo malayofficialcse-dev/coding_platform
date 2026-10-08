@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-brand: var(--cc-brand);
+  --color-brand-strong: var(--cc-brand-strong);
+  --color-brand-soft: var(--cc-brand-soft);
+  --color-canvas: var(--cc-canvas);
+  --color-surface: var(--cc-surface);
+  --color-surface-subtle: var(--cc-surface-subtle);
+  --color-ink: var(--cc-ink);
+  --color-muted: var(--cc-muted);
+  --color-line: var(--cc-line);
+  --color-positive: var(--cc-positive);
+  --color-warning: var(--cc-warning);
+  --color-negative: var(--cc-negative);
+}
+
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --cc-brand: #0067b8;
+  --cc-brand-strong: #005a9e;
+  --cc-brand-soft: #e8f2fb;
+  --cc-canvas: #f5f7fa;
+  --cc-surface: #ffffff;
+  --cc-surface-subtle: #f8f9fb;
+  --cc-ink: #1c2733;
+  --cc-muted: #687786;
+  --cc-line: #e1e6eb;
+  --cc-positive: #107c41;
+  --cc-warning: #986f0b;
+  --cc-negative: #c42b1c;
+  --cc-shadow: 0 1px 3px rgb(16 24 40 / 7%), 0 8px 24px rgb(16 24 40 / 4%);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --cc-brand: #60b5f6;
+  --cc-brand-strong: #8bcaff;
+  --cc-brand-soft: #17334a;
+  --cc-canvas: #111820;
+  --cc-surface: #1a242e;
+  --cc-surface-subtle: #202c37;
+  --cc-ink: #edf2f7;
+  --cc-muted: #a0adba;
+  --cc-line: #34414e;
+  --cc-positive: #5cc994;
+  --cc-warning: #e5be54;
+  --cc-negative: #ff8176;
+  --cc-shadow: 0 1px 3px rgb(0 0 0 / 20%), 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 4px !important;
+}
+
+html {
+  min-width: 320px;
+  background: var(--cc-canvas);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--cc-canvas);
+  color: var(--cc-ink);
+  font-size: 14px;
+  line-height: 1.55;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--cc-brand);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--cc-brand-soft);
+  color: var(--cc-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

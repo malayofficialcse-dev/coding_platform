@@ -15,27 +15,40 @@ export default function PostToProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    // Fetch user profile, posts, courses, and exams
-    api.get(`/users/${id}`).then((profileRes) => {
-      setProfile(profileRes.data);
-      // Fetch posts
-      api.get(`/posts/user/${id}`).then((postsRes) => setPosts(postsRes.data));
-      // Fetch enrollments for this user, then fetch course details
-      api.get(`/enrollments/user/${id}`).then((enrollRes) => {
-        const courseList = enrollRes.data
-          .map((en) => en.course)
-          .filter(Boolean);
-        setCourses(courseList);
-      });
-      // Fetch exam attempts for this user, then fetch exam details
-      api.get(`/attempts/user/${id}`).then((attemptRes) => {
-        const examList = attemptRes.data.map((a) => a.exam).filter(Boolean);
-        setExams(examList);
+    const loadProfile = async () => {
+      setLoading(true);
+      try {
+        const [profileRes, postsRes] = await Promise.all([
+          api.get(`/users/${id}`),
+          api.get(`/posts/user/${id}`),
+        ]);
+        setProfile(profileRes.data);
+        setPosts(postsRes.data);
+
+        const isOwnProfile = currentUser?._id === id;
+        const canViewLearningData = isOwnProfile || currentUser?.role === "admin";
+        if (!canViewLearningData) {
+          setCourses([]);
+          setExams([]);
+          return;
+        }
+
+        const [enrollmentsRes, attemptsRes] = await Promise.all([
+          api.get(isOwnProfile ? "/enrollments/my" : `/enrollments/user/${id}`),
+          api.get(isOwnProfile ? "/attempts/my" : `/attempts/user/${id}`),
+        ]);
+        setCourses(enrollmentsRes.data.map((enrollment) => enrollment.course).filter(Boolean));
+        setExams(attemptsRes.data.map((attempt) => attempt.exam).filter(Boolean));
+      } catch (error) {
+        console.error("Failed to load profile data:", error);
+        setProfile(null);
+      } finally {
         setLoading(false);
-      });
-    });
-  }, [id]);
+      }
+    };
+
+    loadProfile();
+  }, [id, currentUser]);
 
   const handleUpdatePost = (updatedPost) => {
     setPosts((prev) => prev.map((post) => (post._id === updatedPost._id ? updatedPost : post)));

@@ -41,7 +41,7 @@ export default function Header() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get("/users/all").then((res) => setUsers(res.data || []));
+    api.get("/users").then((res) => setUsers(res.data || []));
   }, []);
 
   const filtered = users.filter((u) =>

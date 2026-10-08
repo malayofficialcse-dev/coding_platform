@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.API_GATEWAY_PORT || 5100;
 
 // Microservice Target URLs (Configurable via Environment)
 const SERVICES = {
@@ -90,11 +90,11 @@ app.get("/health", (req, res) => {
 });
 
 // Helper to create proxy with header forwarding
-const createServiceProxy = (target, pathRewrite = {}) => {
+const createServiceProxy = (target) => {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
-    pathRewrite,
+    pathRewrite: (_path, req) => req.originalUrl,
     on: {
       proxyReq: (proxyReq, req) => {
         if (req.headers["x-user-id"]) {

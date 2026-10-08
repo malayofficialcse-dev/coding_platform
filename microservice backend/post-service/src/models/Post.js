@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import "./User.js";
 
 const codeBlockSchema = new mongoose.Schema({
   language: { type: String, default: "javascript" },

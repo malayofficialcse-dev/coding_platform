@@ -54,7 +54,7 @@ export function CodingProblems() {
 
   useEffect(() => {
     if (user) {
-      api.get("/coding/submissions/me").then((res) => {
+      api.get("/coding/submissions/my").then((res) => {
         const solved = res.data
           .filter((s) => s.result === "Accepted")
           .map((s) => s.problem);

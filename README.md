@@ -150,7 +150,7 @@ npm run dev
 
 Create `.env`:
 ```
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5100/api
 ```
 
 ---
@@ -169,4 +169,3 @@ docker-compose up --build
 
 ##  Author
 Malay Maity
-

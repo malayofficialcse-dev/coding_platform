@@ -39,7 +39,7 @@ export default function Signup() {
         }
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.error || "Signup failed";
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Signup failed";
       toast.error(errorMsg);
       console.error("Signup error:", err);
     } finally {

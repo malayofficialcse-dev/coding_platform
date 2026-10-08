@@ -80,9 +80,7 @@ export default function AdminCourseEdit() {
       data.append("image", form.image);
     }
     try {
-      await api.put(`/courses/${id}`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.put(`/courses/${id}`, data);
       alert("Course details saved successfully!");
       fetchCourse();
     } catch (err) {
@@ -198,6 +196,10 @@ export default function AdminCourseEdit() {
     data.append("title", subtopicForm.title);
     data.append("body", subtopicForm.body);
     data.append("order", subtopicForm.order);
+    data.append(
+      "imageUrls",
+      JSON.stringify(subtopicForm.images.filter((image) => image.trim() !== ""))
+    );
 
     // Add code blocks
     codeBlocks.forEach((cb, i) => {
@@ -205,19 +207,12 @@ export default function AdminCourseEdit() {
       data.append(`codeBlocks[${i}][code]`, cb.code);
     });
 
-    // Add image URLs
-    subtopicForm.images
-      .filter((img) => img.trim() !== "")
-      .forEach((img) => data.append("images", img));
-
-    // Add local image files
     subtopicForm.imageFiles.forEach((img) => data.append("images", img));
 
     try {
       const res = await api.put(
         `/courses/${id}/topics/${editingSubtopicTopicId}/subtopics/${editingSubtopicId}`,
-        data,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        data
       );
       setCourse(res.data);
       setEditingSubtopicId(null);

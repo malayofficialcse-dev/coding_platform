@@ -76,7 +76,7 @@ export default function Notifications() {
   const handleClearAll = async () => {
     if (window.confirm("Are you sure you want to delete all notifications?")) {
       try {
-        await api.delete("/notifications");
+        await api.delete("/notifications/all");
         setNotifications([]);
         fetchUnreadCount();
         toast.success("All notifications cleared");
@@ -88,7 +88,7 @@ export default function Notifications() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await api.put("/notifications/mark-all-as-read");
+      await api.put("/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       toast.success("All notifications marked as read");

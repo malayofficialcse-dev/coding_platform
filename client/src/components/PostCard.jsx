@@ -29,7 +29,7 @@ import {
 
 const LANGUAGES = { javascript, python, java };
 
-export default function PostCard({ post, user, onUpdate, onDelete }) {
+export default function PostCard({ post, user, onUpdate, onDelete, embedded = false }) {
   const likesArray = Array.isArray(post.likes) ? post.likes : [];
   const [liked, setLiked] = useState(likesArray.includes(user?._id));
   const [likes, setLikes] = useState(
@@ -54,10 +54,10 @@ export default function PostCard({ post, user, onUpdate, onDelete }) {
     try {
       let res;
       if (!liked) {
-        res = await api.post(`/posts/${post._id}/like`);
+        res = await api.post(`/posts/like/${post._id}`);
         setLiked(true);
       } else {
-        res = await api.post(`/posts/${post._id}/unlike`);
+        res = await api.post(`/posts/unlike/${post._id}`);
         setLiked(false);
       }
       setLikes(res.data.likes);
@@ -69,13 +69,13 @@ export default function PostCard({ post, user, onUpdate, onDelete }) {
   };
 
   const handleComment = async (text) => {
-    const res = await api.post(`/posts/${post._id}/comment`, { text });
+    const res = await api.post(`/posts/comment/${post._id}`, { text });
     setComments([...comments, res.data]);
     onUpdate?.({ ...post, comments: [...comments, res.data] });
   };
 
   const handleRepost = async () => {
-    await api.post(`/posts/${post._id}/repost`);
+    await api.post(`/posts/repost/${post._id}`);
   };
 
   const handleDelete = async () => {
@@ -423,8 +423,16 @@ export default function PostCard({ post, user, onUpdate, onDelete }) {
       )}
 
       {/* MAIN CARD */}
-      <div className="card shadow-sm mb-3 border-0 rounded-4">
-        <div className="card-body">
+      <div
+        className={`card shadow-sm mb-3 border-0 rounded-4${embedded ? " cc-embedded-post" : ""}`}
+        style={embedded ? {
+          marginBottom: 0,
+          border: "0",
+          boxShadow: "none",
+          background: "transparent",
+        } : undefined}
+      >
+        <div className="card-body" style={embedded ? { padding: "0.75rem" } : undefined}>
           {/* Author */}
           <div className="d-flex align-items-start justify-content-between mb-2 gap-2">
             <div className="d-flex align-items-center">

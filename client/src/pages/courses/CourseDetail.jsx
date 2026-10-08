@@ -385,7 +385,7 @@ export default function CourseDetail() {
     });
 
     if (user) {
-      api.get("/enrollments/mine").then((res) => {
+      api.get("/enrollments/my").then((res) => {
         const found = res.data.find((e) => e.course && String(e.course._id) === String(id));
         if (found) {
           setEnrolled(true);

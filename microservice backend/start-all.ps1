@@ -8,7 +8,7 @@
 # ==========================================================
 
 $services = @(
-  @{ Name = "API-Gateway";    Dir = "api-gateway";          Port = 5000 },
+  @{ Name = "API-Gateway";    Dir = "api-gateway";          Port = 5100 },
   @{ Name = "Auth-Service";   Dir = "auth-service";         Port = 5001 },
   @{ Name = "User-Service";   Dir = "user-service";         Port = 5002 },
   @{ Name = "Post-Service";   Dir = "post-service";         Port = 5003 },
@@ -34,5 +34,5 @@ foreach ($svc in $services) {
 
 Write-Host ""
 Write-Host "All 10 services launched in separate windows!" -ForegroundColor Green
-Write-Host "API Gateway available at: http://localhost:5000" -ForegroundColor Green
+Write-Host "API Gateway available at: http://localhost:5100" -ForegroundColor Green
 Write-Host "Check /health endpoint on each service to verify." -ForegroundColor Green

@@ -15,27 +15,27 @@ import UserMinus from "../assets/user-minus-solid-full.svg";
    • Ink       #0f172a  slate-900    → headings, text
 ───────────────────────────────────────────────────────────────────────*/
 const C = {
-  primary: "var(--cc-primary, #4f46e5)",
-  secondary: "var(--cc-secondary, #0ea5e9)",
-  surface: "var(--cc-background, #f8faff)",
-  ink: "var(--cc-text, #0f172a)",
+  primary: "var(--cc-primary, #0078d4)",
+  secondary: "var(--cc-secondary, #50e6ff)",
+  surface: "var(--cc-background, #f3f6f8)",
+  ink: "var(--cc-text, #1b1b1b)",
 
   // derived tints
-  primaryLight: "var(--cc-primary-soft, #eef2ff)",
-  primaryMid: "var(--cc-primary-dark, #c7d2fe)",
-  secondaryLight: "var(--cc-primary-soft, #e0f2fe)",
-  inkMuted: "var(--cc-muted, #64748b)",
-  inkSoft: "var(--cc-muted, #94a3b8)",
+  primaryLight: "var(--cc-primary-soft, #e6f2fb)",
+  primaryMid: "var(--cc-primary-dark, #b7d9f2)",
+  secondaryLight: "#e8f6f8",
+  inkMuted: "var(--cc-muted, #5f6b7a)",
+  inkSoft: "#7a8694",
   white: "var(--cc-surface, #ffffff)",
-  border: "var(--cc-border, #e2e8f0)",
+  border: "var(--cc-border, #d6dbe1)",
 };
 
 /* shared card style */
 const card = {
   background: C.white,
-  borderRadius: "1.15rem",
+  borderRadius: "4px",
   border: `1px solid ${C.border}`,
-  boxShadow: "0 2px 16px rgba(15,23,42,0.06)",
+  boxShadow: "0 2px 8px rgba(27, 45, 66, 0.10)",
 };
 
 const STUDY_GROUPS = [
@@ -57,23 +57,23 @@ export default function Dashboard() {
   const [activeGroup, setActiveGroup] = useState("General Feed");
 
   useEffect(() => {
-    api.get("/users/all").then((res) => setUsers(res.data));
+    api.get("/users").then((res) => setUsers(res.data));
   }, []);
 
   useEffect(() => {
-    api.get("/posts/all", { params: { group: activeGroup } }).then((res) => setPosts(res.data));
+    api.get("/posts", { params: { group: activeGroup } }).then((res) => setPosts(res.data));
   }, [activeGroup]);
 
-  const handleNewPost = () => { api.get("/posts/all", { params: { group: activeGroup } }).then((r) => setPosts(r.data)); setShowPostModal(false); };
+  const handleNewPost = () => { api.get("/posts", { params: { group: activeGroup } }).then((r) => setPosts(r.data)); setShowPostModal(false); };
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
   const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
   const handleFollow = async (id) => {
-    await api.post(`/users/${id}/follow`);
+    await api.post(`/users/follow/${id}`);
     setUsers((prev) => prev.map((u) => u._id === id ? { ...u, followers: [...(u.followers || []), user._id] } : u));
   };
   const handleUnfollow = async (id) => {
-    await api.post(`/users/${id}/unfollow`);
+    await api.post(`/users/unfollow/${id}`);
     setUsers((prev) => prev.map((u) => u._id === id ? { ...u, followers: (u.followers || []).filter((f) => f !== user._id) } : u));
   };
 
@@ -82,29 +82,49 @@ export default function Dashboard() {
   );
 
   const renderPost = (post) => {
-    if (post.repostedFrom && post.repostedFrom !== post._id && post.repostedPost) {
+    const originalPost = post.repostedPost || (
+      post.repostedFrom && typeof post.repostedFrom === "object"
+        ? post.repostedFrom
+        : null
+    );
+
+    if (originalPost) {
       return (
-        <div style={{ ...card, marginBottom: 0 }}>
-          <div style={{ padding: "14px 16px 0" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{
+          ...card,
+          marginBottom: 0,
+          overflow: "hidden",
+          borderLeft: `3px solid ${C.primary}`,
+        }}>
+          <div style={{ padding: "16px 16px 8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <img
                 src={post.author?.profileImage || DEFAULT_AVA}
                 alt="Profile"
                 style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.primaryMid}` }}
               />
-              <span style={{ fontWeight: 700, color: C.ink, fontSize: "0.9rem" }}>{post.author?.name || post.author?.username}</span>
-              <span style={{
-                background: C.primaryLight, color: C.primary,
-                borderRadius: "999px", padding: "2px 10px", fontSize: "0.72rem", fontWeight: 700,
-              }}>Reposted</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700, color: C.ink, fontSize: "0.9rem" }}>{post.author?.name || post.author?.username}</span>
+                  <span style={{ color: C.inkMuted, fontSize: "0.78rem" }}>reposted</span>
+                </div>
+                <span style={{ color: C.inkSoft, fontSize: "0.74rem" }}>Shared with the community</span>
+              </div>
             </div>
-            <PostCard
-              post={post.repostedPost}
-              user={user}
-              onUpdate={handleUpdatePost}
-              onDelete={handleDeletePost}
-              fullWidth
-            />
+            <div style={{
+              border: `1px solid ${C.border}`,
+              borderRadius: "4px",
+              background: C.white,
+              overflow: "hidden",
+            }}>
+              <PostCard
+                post={originalPost}
+                user={user}
+                onUpdate={handleUpdatePost}
+                onDelete={handleDeletePost}
+                embedded
+              />
+            </div>
           </div>
         </div>
       );
@@ -123,7 +143,7 @@ export default function Dashboard() {
   const DEFAULT_AVA = "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
 
   return (
-    <div style={{ background: C.surface, minHeight: "100vh", fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ background: C.surface, minHeight: "100vh", fontFamily: "'Segoe UI', Inter, Arial, sans-serif", color: C.ink }}>
 
       {/* scrollbar style */}
       <style>{`
@@ -141,7 +161,7 @@ export default function Dashboard() {
         }
       `}</style>
 
-      <div style={{ width: "100%", padding: "1.5rem 1.25rem" }}>
+      <div style={{ width: "100%", maxWidth: 1440, margin: "0 auto", padding: "1.75rem 1.5rem" }}>
         <div className="cc-grid" style={{ display: "grid", gridTemplateColumns: "22% 1fr 22%", gap: "1.25rem", alignItems: "start" }}>
 
           {/* ══════════════════════════ LEFT SIDEBAR ══════════════════════════ */}
@@ -151,7 +171,7 @@ export default function Dashboard() {
               {/* Cover gradient */}
               <div style={{
                 height: 60,
-                background: `linear-gradient(135deg, ${C.primary} 0%, ${C.secondary} 100%)`,
+                background: `linear-gradient(110deg, ${C.primary} 0%, #50e6ff 100%)`,
               }} />
               <div style={{ padding: "0 1.25rem 1.25rem", textAlign: "center" }}>
                 <img
@@ -172,11 +192,11 @@ export default function Dashboard() {
                 <div style={{ display: "flex", justifyContent: "center", gap: 8, margin: "12px 0" }}>
                   <span style={{
                     background: C.primaryLight, color: C.primary,
-                    borderRadius: "999px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
+                    borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
                   }}>{user?.role || "User"}</span>
                   <span style={{
                     background: C.secondaryLight, color: C.secondary,
-                    borderRadius: "999px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
+                    borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
                   }}>{(user?.followers || []).length} Followers</span>
                 </div>
 
@@ -184,10 +204,10 @@ export default function Dashboard() {
                   href={`/profile/${user?._id}`}
                   style={{
                     display: "block", width: "100%",
-                    background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})`,
-                    color: C.white, borderRadius: "0.65rem", padding: "0.45rem 0",
+                    background: C.primary,
+                    color: C.white, borderRadius: "4px", padding: "0.55rem 0",
                     fontWeight: 700, fontSize: "0.85rem", textDecoration: "none",
-                    boxShadow: `0 4px 12px rgba(79,70,229,0.3)`,
+                    boxShadow: "0 3px 8px rgba(0,120,212,0.22)",
                     transition: "opacity 0.2s",
                   }}
                 >
@@ -209,7 +229,7 @@ export default function Dashboard() {
               ].map(({ label, href }) => (
                 <a key={label} href={href} style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  padding: "0.45rem 0.6rem", borderRadius: "0.6rem",
+                  padding: "0.55rem 0.6rem", borderRadius: "4px",
                   textDecoration: "none", color: C.inkMuted, fontSize: "0.875rem", fontWeight: 500,
                   transition: "all 0.15s",
                   marginBottom: 2,
@@ -242,8 +262,8 @@ export default function Dashboard() {
                       border: "none",
                       background: isActive ? C.primaryLight : "transparent",
                       color: isActive ? C.primary : C.inkMuted,
-                      padding: "0.45rem 0.6rem",
-                      borderRadius: "0.6rem",
+                      padding: "0.55rem 0.6rem",
+                      borderRadius: "4px",
                       fontSize: "0.82rem",
                       fontWeight: isActive ? 700 : 500,
                       cursor: "pointer",
@@ -283,7 +303,7 @@ export default function Dashboard() {
                 <div
                   onClick={() => setShowPostModal(true)}
                   style={{
-                    flex: 1, borderRadius: "999px", padding: "10px 18px",
+                    flex: 1, borderRadius: "4px", padding: "11px 18px",
                     background: C.surface, border: `1.5px solid ${C.border}`,
                     cursor: "pointer", color: C.inkSoft, fontSize: "0.9rem",
                     transition: "border-color 0.2s",
@@ -307,7 +327,7 @@ export default function Dashboard() {
                     onClick={() => setShowPostModal(true)}
                     style={{
                       flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      border: `1.5px solid ${C.border}`, borderRadius: "0.6rem", padding: "0.45rem 0",
+                      border: `1px solid ${C.border}`, borderRadius: "4px", padding: "0.5rem 0",
                       background: C.white, color: C.inkMuted, fontSize: "0.82rem", fontWeight: 600,
                       cursor: "pointer", transition: "all 0.15s",
                     }}
@@ -356,7 +376,7 @@ export default function Dashboard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    width: "100%", border: `1.5px solid ${C.border}`, borderRadius: "0.65rem",
+                    width: "100%", border: `1px solid ${C.border}`, borderRadius: "4px",
                     padding: "0.45rem 0.85rem", fontSize: "0.82rem", outline: "none",
                     background: C.surface, color: C.ink,
                   }}
@@ -383,7 +403,7 @@ export default function Dashboard() {
                       className="cc-people-row"
                       style={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "0.55rem 0.5rem", borderRadius: "0.65rem", marginBottom: 4,
+                        padding: "0.55rem 0.5rem", borderRadius: "4px", marginBottom: 4,
                         cursor: "pointer", transition: "background 0.15s",
                       }}
                     >
@@ -412,8 +432,8 @@ export default function Dashboard() {
                           onClick={() => handleUnfollow(person._id)}
                           title="Unfollow"
                           style={{
-                            background: C.primaryLight, border: `1.5px solid ${C.primaryMid}`,
-                            borderRadius: "0.55rem", padding: "5px 8px", cursor: "pointer", flexShrink: 0,
+                            background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
+                            borderRadius: "4px", padding: "5px 8px", cursor: "pointer", flexShrink: 0,
                             display: "flex", alignItems: "center",
                           }}
                         >
@@ -424,8 +444,8 @@ export default function Dashboard() {
                           onClick={() => handleFollow(person._id)}
                           title="Follow"
                           style={{
-                            background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})`,
-                            border: "none", borderRadius: "0.55rem", padding: "5px 8px", cursor: "pointer", flexShrink: 0,
+                            background: C.primary,
+                            border: "none", borderRadius: "4px", padding: "5px 8px", cursor: "pointer", flexShrink: 0,
                             display: "flex", alignItems: "center",
                             boxShadow: "0 2px 8px rgba(79,70,229,0.3)",
                           }}
@@ -453,8 +473,8 @@ export default function Dashboard() {
       <div className="d-lg-none position-fixed" style={{ bottom: 16, right: 16, zIndex: 200 }}>
         <button
           style={{
-            background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})`,
-            border: "none", borderRadius: "50%", width: 52, height: 52,
+            background: C.primary,
+            border: "none", borderRadius: "4px", width: 52, height: 52,
             display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: "0 4px 20px rgba(79,70,229,0.45)", cursor: "pointer",
           }}
@@ -473,14 +493,14 @@ export default function Dashboard() {
               type="text" className="form-control mb-3"
               placeholder="Search people…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ borderRadius: "0.65rem", border: `1.5px solid ${C.border}` }}
+              style={{ borderRadius: "4px", border: `1px solid ${C.border}` }}
             />
             {filteredUsers.length === 0 && <div className="text-muted text-center">No users found.</div>}
             {filteredUsers.map((person) => {
               const isFollowing = (person.followers || []).includes(user?._id);
               return (
                 <div key={person._id} className="d-flex align-items-center mb-3" style={{
-                  background: C.white, borderRadius: "0.75rem", padding: "10px 12px",
+                  background: C.white, borderRadius: "4px", padding: "10px 12px",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: `1px solid ${C.border}`,
                 }}>
                   <img src={person.profileImage || DEFAULT_AVA} alt="Profile"
@@ -497,8 +517,8 @@ export default function Dashboard() {
                     </button>
                   ) : (
                     <button onClick={() => handleFollow(person._id)} style={{
-                      background: `linear-gradient(135deg,${C.primary},${C.secondary})`,
-                      border: "none", borderRadius: "0.5rem", padding: "4px 8px", cursor: "pointer",
+                      background: C.primary,
+                      border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer",
                     }}>
                       <img src={UserPlus} alt="Follow" style={{ height: 14, filter: "brightness(10)" }} />
                     </button>

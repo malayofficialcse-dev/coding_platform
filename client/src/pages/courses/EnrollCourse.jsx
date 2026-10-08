@@ -26,7 +26,7 @@ export default function EnrollCourse() {
   useEffect(() => {
     if (!user) return;
     api
-      .get("/enrollments/mine")
+      .get("/enrollments/my")
       .then((res) => {
         const alreadyEnrolled = res.data.find(
           (e) => e.course && String(e.course._id) === String(id)
@@ -35,7 +35,9 @@ export default function EnrollCourse() {
           nav(`/courses/${id}`);
         }
       })
-      .catch(() => {})
+      .catch((error) => {
+        console.error("Failed to check course enrollment:", error);
+      })
       .finally(() => setCheckingEnrollment(false));
   }, [user, id, nav]);
 
@@ -46,8 +48,11 @@ export default function EnrollCourse() {
       await api.post("/enrollments", { courseId: id, days });
       nav(`/courses/${id}`);
     } catch (err) {
-      const message = err.response?.data?.error || "Enrollment failed";
-      if (message === "Already enrolled") {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Enrollment failed";
+      if (message.includes("Already enrolled")) {
         // Safety net: just navigate to the course
         nav(`/courses/${id}`);
       } else {
@@ -90,4 +95,3 @@ export default function EnrollCourse() {
     </div>
   );
 }
-

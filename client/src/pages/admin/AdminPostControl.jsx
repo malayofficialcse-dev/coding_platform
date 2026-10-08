@@ -11,12 +11,12 @@ export default function AdminPostControl() {
   }, []);
 
   const fetchPosts = async () => {
-    const res = await api.get("/admin/posts");
+    const res = await api.get("/posts/admin/all");
     setPosts(res.data);
   };
 
   const handleDelete = async (id) => {
-    await api.delete(`/admin/posts/${id}`);
+    await api.delete(`/posts/admin/${id}`);
     fetchPosts();
   };
 
@@ -26,7 +26,7 @@ export default function AdminPostControl() {
   };
 
   const handleUpdate = async (id) => {
-    await api.put(`/admin/posts/${id}`, editPost);
+    await api.put(`/posts/admin/${id}`, editPost);
     setEditId(null);
     setEditPost({ title: "", content: "" });
     fetchPosts();

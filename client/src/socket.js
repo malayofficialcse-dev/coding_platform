@@ -10,10 +10,11 @@ export const initSocket = (userId) => {
     socket.disconnect();
   }
 
+  const configuredSocketUrl = import.meta.env.VITE_SOCKET_URL?.replace(/\/+$/, "");
+  const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "");
   const BACKEND_URL =
-    import.meta.env.VITE_SOCKET_URL ||
-    import.meta.env.VITE_API_URL?.replace("/api", "") ||
-    "http://localhost:5000";
+    configuredSocketUrl ||
+    (configuredApiUrl ? configuredApiUrl.replace(/\/api$/, "") : window.location.origin);
 
   socket = io(BACKEND_URL, {
     auth: { userId },

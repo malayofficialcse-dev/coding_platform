@@ -13,11 +13,11 @@ export default function FollowButton({ userId }) {
   }, [user, userId]);
 
   const handleFollow = async () => {
-    await api.post(`/users/${userId}/follow`);
+    await api.post(`/users/follow/${userId}`);
     setFollowing(true);
   };
   const handleUnfollow = async () => {
-    await api.post(`/users/${userId}/unfollow`);
+    await api.post(`/users/unfollow/${userId}`);
     setFollowing(false);
   };
 

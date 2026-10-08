@@ -55,14 +55,14 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      api.get("/enrollments/mine").then((res) => setEnrollments(res.data || []));
-      api.get("/attempts/mine").then((res) => setAttempts(res.data || []));
+      api.get("/enrollments/my").then((res) => setEnrollments(res.data || []));
+      api.get("/attempts/my").then((res) => setAttempts(res.data || []));
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      api.get("/coding/submissions/me").then((res) => {
+      api.get("/coding/submissions/my").then((res) => {
         const solvedIds = [
           ...new Set(
             (res.data || [])
@@ -104,14 +104,14 @@ export default function Profile() {
     const formData = new FormData();
     formData.append("profileImage", selectedFile);
     try {
-      const res = await api.put("/auth/profile/image", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/auth/profile-image", formData);
       setProfileImage(res.data.profileImage);
       setUser && setUser({ ...user, profileImage: res.data.profileImage });
       setSelectedFile(null);
     } catch (err) {
-      alert("Image upload failed");
+      const message = err.response?.data?.error || err.response?.data?.message || "Image upload failed";
+      console.error("Profile image upload failed:", err.response?.data || err);
+      alert(message);
     }
     setUploading(false);
   };
@@ -142,9 +142,7 @@ export default function Profile() {
     formData.append("text", editText);
     formData.append("codeBlocks", JSON.stringify(editCodeBlocks));
     editImages.forEach((img) => formData.append("images", img));
-    await api.put(`/posts/${postId}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    await api.put(`/posts/${postId}`, formData);
     setEditingPostId(null);
     setEditText("");
     setEditCodeBlocks([]);
@@ -165,11 +163,11 @@ export default function Profile() {
   };
 
   const handleFollow = async (personId) => {
-    await api.post(`/users/${personId}/follow`);
+    await api.post(`/users/follow/${personId}`);
     setRefresh((r) => !r);
   };
   const handleUnfollow = async (personId) => {
-    await api.post(`/users/${personId}/unfollow`);
+    await api.post(`/users/unfollow/${personId}`);
     setRefresh((r) => !r);
   };
 

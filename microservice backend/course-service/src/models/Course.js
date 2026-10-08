@@ -8,6 +8,7 @@ const codeBlockSchema = new mongoose.Schema({
 const subtopicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   body: { type: String, default: "" },
+  images: [{ type: String }],
   codeBlocks: [codeBlockSchema],
   order: { type: Number, default: 0 },
 });

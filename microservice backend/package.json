@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "install:all": "npm install --prefix shared && npm install --prefix api-gateway && npm install --prefix auth-service && npm install --prefix user-service && npm install --prefix post-service && npm install --prefix exam-service && npm install --prefix course-service && npm install --prefix enrollment-service && npm install --prefix coding-service && npm install --prefix notification-service && npm install --prefix chat-service",
+    "seed:demo": "node scripts/seed-demo-data.js",
     "dev:gateway": "nodemon api-gateway/src/index.js",
     "dev:auth": "nodemon auth-service/src/index.js",
     "dev:user": "nodemon user-service/src/index.js",

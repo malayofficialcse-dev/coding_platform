@@ -13,6 +13,8 @@ const LANGUAGES = [
   { label: "Java", value: "java", extension: java },
 ];
 
+const STUDY_GROUPS = ["General Feed", "Web Development", "Data Structures", "Interview Preparation"];
+
 export default function PostForm({
   post = null,
   submitLabel = "Post",
@@ -52,19 +54,23 @@ export default function PostForm({
     try {
       const data = new FormData();
       data.append("text", text);
+      data.append("group", group);
       data.append("codeBlocks", JSON.stringify(codeBlocks));
       images.forEach((img) => data.append("images", img));
 
-      const config = { headers: { "Content-Type": "multipart/form-data" } };
       const res = post?._id
-        ? await api.put(`/posts/${post._id}`, data, config)
-        : await api.post("/posts", data, config);
+        ? await api.put(`/posts/${post._id}`, data)
+        : await api.post("/posts", data);
 
       onPost?.(res.data);
       setText("");
       setImages([]);
       setCodeBlocks([]);
       if (onClose) onClose();
+    } catch (err) {
+      const message = err.response?.data?.error || err.response?.data?.message || "Image upload failed. Please try again.";
+      console.error("Post upload failed:", err.response?.data || err);
+      window.alert(message);
     } finally {
       setLoading(false);
     }

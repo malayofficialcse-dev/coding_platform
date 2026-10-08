@@ -83,15 +83,14 @@ export default function AddContent() {
     data.append("title", form.title);
     data.append("body", form.body);
     data.append("order", form.order);
+    data.append("imageUrls", JSON.stringify([]));
     codeBlocks.forEach((cb, i) => {
       data.append(`codeBlocks[${i}][language]`, cb.language);
       data.append(`codeBlocks[${i}][code]`, cb.code);
     });
     images.forEach((img) => data.append("images", img));
     try {
-      await api.post(`/courses/${id}/topics/${selectedTopicId}/subtopics`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post(`/courses/${id}/topics/${selectedTopicId}/subtopics`, data);
       nav(`/admin/courses/${id}/edit`);
     } catch (err) {
       alert("Failed to add subtopic");
@@ -269,4 +268,3 @@ export default function AddContent() {
     </div>
   );
 }
-
