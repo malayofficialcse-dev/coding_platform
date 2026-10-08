@@ -6,6 +6,7 @@ import PostFormModal from "../components/PostFormModal";
 import UsersLogo from "../assets/users-solid-full.svg";
 import UserPlus from "../assets/user-plus-regular-full.svg";
 import UserMinus from "../assets/user-minus-solid-full.svg";
+import { FaAlignLeft, FaCode, FaImage } from "react-icons/fa";
 
 /* ─────────────────────────────────────────────────────────────────────
    GLOBAL PALETTE  (4 colours, used everywhere)
@@ -353,7 +354,7 @@ export default function Dashboard() {
                   { icon: "⌨️", label: "Code" },
                   { icon: "🖼️", label: "Image" },
                   { icon: "📝", label: "Text" },
-                ].map(({ icon, label }) => (
+                ].map(({ label }) => (
                   <button
                     key={label}
                     className="cc-composer-btn"
@@ -365,7 +366,10 @@ export default function Dashboard() {
                       cursor: "pointer", transition: "all 0.15s",
                     }}
                   >
-                    <span>{icon}</span><span>{label}</span>
+                    {label === "Code" && <FaCode size={13} />}
+                    {label === "Image" && <FaImage size={13} />}
+                    {label === "Text" && <FaAlignLeft size={13} />}
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>

@@ -7,6 +7,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useTheme } from "../contexts/ThemeContext";
+import { FaAlignLeft, FaCode, FaEye, FaFileImage, FaPaperPlane, FaPlus, FaTimes, FaTrash } from "react-icons/fa";
 
 const LANGUAGES = [
   { label: "JavaScript", value: "javascript", extension: javascript },
@@ -91,7 +92,8 @@ export default function PostForm({
   return (
     <form onSubmit={handleSubmit}>
       {/* Group Selector */}
-      <div className="mb-3">
+      <div className="cc-post-form-section mb-3">
+        <div className="cc-post-form-section-title"><span><FaAlignLeft /> Publishing destination</span><small>Choose where this update belongs</small></div>
         <label className="form-label fw-semibold text-muted small">Post to Study Group / Community</label>
         <select
           className="form-select border-primary"
@@ -107,14 +109,14 @@ export default function PostForm({
       </div>
 
       {/* Editor Tabs */}
-      <div className="d-flex mb-2 border-bottom">
+      <div className="cc-post-editor-tabs d-flex mb-2 border-bottom">
         <button
           type="button"
           className={`btn btn-sm ${editorTab === "edit" ? "btn-primary" : "btn-light"} me-1`}
           onClick={() => setEditorTab("edit")}
           style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
         >
-          Write (Markdown)
+          <FaAlignLeft /> Write
         </button>
         <button
           type="button"
@@ -122,7 +124,7 @@ export default function PostForm({
           onClick={() => setEditorTab("preview")}
           style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
         >
-          Preview
+          <FaEye /> Preview
         </button>
       </div>
 
@@ -148,13 +150,7 @@ export default function PostForm({
         </div>
       )}
 
-      <input
-        type="file"
-        multiple
-        accept="image/*"
-        className="form-control mb-2"
-        onChange={handleImageChange}
-      />
+      <div className="cc-post-form-section cc-post-attachments mb-3"><div className="cc-post-form-section-title"><span><FaFileImage /> Attachments</span><small>{images.length ? `${images.length} selected` : "Optional"}</small></div><label className="cc-file-picker"><FaFileImage /> Choose images<input type="file" multiple accept="image/*" onChange={handleImageChange} /></label>{images.length > 0 && <div className="cc-selected-files">{images.map((image, index) => <span key={`${image.name}-${index}`}><FaFileImage /> {image.name}<button type="button" onClick={() => setImages((current) => current.filter((_, fileIndex) => fileIndex !== index))}><FaTimes /></button></span>)}</div>}</div>
       {loading && (
         <div className="cc-upload-status" role="status" aria-live="polite">
           <div className="cc-upload-status-row">
@@ -178,7 +174,8 @@ export default function PostForm({
           </span>
         </div>
       )}
-      <div className="mb-2">
+      <div className="cc-post-form-section mb-3">
+        <div className="cc-post-form-section-title"><span><FaCode /> Code blocks</span><small>Add formatted code to your post</small></div>
         <div className="d-flex align-items-center mb-1">
           <select
             className="form-select me-2"
@@ -198,7 +195,7 @@ export default function PostForm({
             onClick={handleAddCodeBlock}
             disabled={!code.trim()}
           >
-            + Add Code Block
+            <FaPlus /> Add code block
           </button>
         </div>
         <CodeMirror
@@ -210,8 +207,10 @@ export default function PostForm({
           theme={theme === "dark" ? "dark" : "light"}
           onChange={(value) => setCode(value)}
         />
+        {codeBlocks.length > 0 && <div className="cc-attached-code-list">{codeBlocks.map((block, index) => <div key={`${block.language}-${index}`}><span><FaCode /> {block.language}</span><button type="button" onClick={() => setCodeBlocks((current) => current.filter((_, blockIndex) => blockIndex !== index))}><FaTrash /></button></div>)}</div>}
       </div>
-      <button className="btn btn-primary w-100" disabled={loading}>
+      <button className="cc-publish-button btn btn-primary w-100" disabled={loading}>
+        {!loading && <FaPaperPlane />}
         {loading ? (images.length ? `${uploadProgress}% Uploading…` : "Publishing…") : submitLabel}
       </button>
     </form>

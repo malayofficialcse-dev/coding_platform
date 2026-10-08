@@ -1,5 +1,6 @@
 import React from "react";
 import PostForm from "./PostForm";
+import { FaPen, FaTimes } from "react-icons/fa";
 
 export default function PostFormModal({
   show,
@@ -17,11 +18,11 @@ export default function PostFormModal({
       onClick={onClose}
     >
       <div
-        className="position-absolute top-50 start-50 translate-middle bg-white rounded shadow p-4"
-        style={{ minWidth: 350, maxWidth: 500, width: "90%" }}
+        className="cc-post-modal position-absolute top-50 start-50 translate-middle bg-white rounded shadow p-4"
+        style={{ minWidth: 350, maxWidth: 640, width: "92%" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h5 className="fw-bold mb-3">{title}</h5>
+        <div className="cc-post-modal-header"><div><span className="cc-post-modal-eyebrow"><FaPen /> Community publishing</span><h5 className="fw-bold mb-0">{title}</h5><p>Create a clear, useful update for your learning community.</p></div><button type="button" className="cc-post-modal-close" onClick={onClose} aria-label="Close"><FaTimes /></button></div>
         <PostForm
           post={post}
           submitLabel={submitLabel}
