@@ -7,6 +7,7 @@ import { AuthContext } from "../contexts/AuthContext";
 import api from "../api/api";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import "./Profile.css";
+import "./ProfileContributions.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
@@ -17,6 +18,7 @@ export default function Profile() {
   const [enrollments, setEnrollments] = useState([]);
   const [attempts, setAttempts] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
+  const [codingSubmissions, setCodingSubmissions] = useState([]);
   const [profileImage, setProfileImage] = useState(user?.profileImage);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -51,7 +53,9 @@ export default function Profile() {
       if (enrollmentResult.status === "fulfilled") setEnrollments(enrollmentResult.value.data || []);
       if (attemptResult.status === "fulfilled") setAttempts(attemptResult.value.data || []);
       if (submissionsResult.status === "fulfilled") {
-        const accepted = (submissionsResult.value.data || []).filter((submission) => submission.result === "Accepted").map((submission) => submission.problem);
+        const submissions = submissionsResult.value.data || [];
+        setCodingSubmissions(submissions);
+        const accepted = submissions.filter((submission) => submission.result === "Accepted").map((submission) => submission.problem);
         setSolvedProblems([...new Set(accepted)]);
       }
       if (postsResult.status === "fulfilled") setPosts(postsResult.value.data || []);
@@ -138,6 +142,33 @@ export default function Profile() {
 
   const examChartData = { labels: attempts.slice(-8).map((attempt) => attempt.exam?.title?.slice(0, 14) || "Exam"), datasets: [{ label: "Score", data: attempts.slice(-8).map((attempt) => attempt.score || 0), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,.12)", tension: .35, fill: true }] };
   const courseProgress = (enrollment) => Math.min(100, Math.max(0, Number(enrollment.progress ?? enrollment.progressPercentage ?? enrollment.course?.progress ?? 0)));
+  const contributionData = useMemo(() => {
+    const counts = new Map();
+    codingSubmissions.forEach((submission) => {
+      const timestamp = submission.createdAt || submission.submittedAt || submission.updatedAt;
+      const date = timestamp ? new Date(timestamp) : null;
+      if (!date || Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    enrollments.forEach((enrollment) => {
+      if (Number(enrollment.progress) < 100 || !enrollment.completedAt) return;
+      const key = new Date(enrollment.completedAt).toISOString().slice(0, 10);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    const cells = Array.from({ length: 364 }, (_, index) => {
+      const date = new Date(end);
+      date.setDate(end.getDate() - (363 - index));
+      const key = date.toISOString().slice(0, 10);
+      return { key, date, count: counts.get(key) || 0 };
+    });
+    const max = Math.max(...cells.map((cell) => cell.count), 0);
+    let currentStreak = 0;
+    for (let index = cells.length - 1; index >= 0 && cells[index].count > 0; index -= 1) currentStreak += 1;
+    return { cells, max, total: codingSubmissions.length, activeDays: cells.filter((cell) => cell.count > 0).length, currentStreak };
+  }, [codingSubmissions, enrollments]);
 
   return (
     <div className="cc-profile-shell">
@@ -157,7 +188,9 @@ export default function Profile() {
         </aside>
 
         <main className="cc-profile-main">
-          <section className="cc-profile-card cc-profile-metrics"><div className="cc-profile-section-title"><div><h2>Engineering performance &amp; learning metrics</h2><span>Updated from your Code Campus activity</span></div><span className="cc-live-status"><i /> Live profile</span></div><div className="cc-profile-stat-grid">{profileStats.map(({ label, value, icon: Icon, tone }) => <div className={`cc-profile-stat ${tone}`} key={label}><Icon /><small>{label}</small><strong>{value}</strong><span>{label === "Exam attempts" ? `${examMetrics.passRate}% pass rate` : label === "Problems solved" ? "Accepted solutions" : "Active records"}</span></div>)}</div><div className="cc-profile-quality"><div><span>Assessment quality</span><strong>{examMetrics.average ? `${examMetrics.average}% average score` : "Build your first score"}</strong></div><div className="cc-profile-quality-track"><i style={{ width: `${examMetrics.average}%` }} /></div></div></section>
+          <section className="cc-profile-card cc-profile-metrics"><div className="cc-profile-section-title"><div><h2>Engineering performance &amp; learning metrics</h2><span>Updated from your Code Campus activity</span></div><span className="cc-live-status"><i /> Live profile</span></div><div className="cc-profile-stat-grid">{profileStats.map((stat) => { const StatIcon = stat.icon; return <div className={`cc-profile-stat ${stat.tone}`} key={stat.label}><StatIcon /><small>{stat.label}</small><strong>{stat.value}</strong><span>{stat.label === "Exam attempts" ? `${examMetrics.passRate}% pass rate` : stat.label === "Problems solved" ? "Accepted solutions" : "Active records"}</span></div>; })}</div><div className="cc-profile-quality"><div><span>Assessment quality</span><strong>{examMetrics.average ? `${examMetrics.average}% average score` : "Build your first score"}</strong></div><div className="cc-profile-quality-track"><i style={{ width: `${examMetrics.average}%` }} /></div></div></section>
+
+          <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course completions and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) === 100).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
 
           <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div>; })}</div>}</section>
 

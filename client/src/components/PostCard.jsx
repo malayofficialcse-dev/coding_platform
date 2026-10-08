@@ -12,6 +12,7 @@ import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
 import { optimizedImageUrl } from "../utils/imageUrl";
+import { useTheme } from "../contexts/ThemeContext";
 
 import {
   FaCode,
@@ -31,6 +32,7 @@ import {
 const LANGUAGES = { javascript, python, java };
 
 export default function PostCard({ post, user, onUpdate, onDelete, embedded = false }) {
+  const { theme } = useTheme();
   const likesArray = Array.isArray(post.likes) ? post.likes : [];
   const [liked, setLiked] = useState(likesArray.includes(user?._id));
   const [likes, setLikes] = useState(
@@ -259,7 +261,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             value={data.codeBlocks[codeIndex].code}
             height="220px"
             extensions={[LANGUAGES[data.codeBlocks[codeIndex].language]?.()]}
-            theme="dark"
+            theme={theme === "dark" ? "dark" : "light"}
             readOnly
           /> */}
 
@@ -305,7 +307,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
                 },
               }),
             ]}
-            theme="dark"
+            theme={theme === "dark" ? "dark" : "light"}
             readOnly
           />
 

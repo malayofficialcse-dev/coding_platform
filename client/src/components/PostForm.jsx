@@ -6,6 +6,7 @@ import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useTheme } from "../contexts/ThemeContext";
 
 const LANGUAGES = [
   { label: "JavaScript", value: "javascript", extension: javascript },
@@ -21,6 +22,7 @@ export default function PostForm({
   onPost,
   onClose,
 }) {
+  const { theme } = useTheme();
   const [text, setText] = useState(post?.text || "");
   const [images, setImages] = useState([]);
   const [codeBlocks, setCodeBlocks] = useState(post?.codeBlocks || []);
@@ -205,7 +207,7 @@ export default function PostForm({
           extensions={[
             LANGUAGES.find((l) => l.value === language)?.extension(),
           ]}
-          theme="dark"
+          theme={theme === "dark" ? "dark" : "light"}
           onChange={(value) => setCode(value)}
         />
       </div>

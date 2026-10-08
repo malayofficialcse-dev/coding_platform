@@ -357,6 +357,7 @@ function StyledBody({ body }) {
 export default function CourseDetail() {
   const { id } = useParams();
   const [course, setCourse] = useState(null);
+  const [enrollment, setEnrollment] = useState(null);
   const [enrolled, setEnrolled] = useState(false);
   const [expired, setExpired] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -388,6 +389,7 @@ export default function CourseDetail() {
       api.get("/enrollments/my").then((res) => {
         const found = res.data.find((e) => e.course && String(e.course._id) === String(id));
         if (found) {
+          setEnrollment(found);
           setEnrolled(true);
           setExpired(new Date(found.expiresAt) < new Date());
         }
@@ -452,7 +454,23 @@ export default function CourseDetail() {
   const curIdx = flatList.findIndex((s) => s._id === activeSubtopic?._id);
   const prevSub = curIdx > 0 ? flatList[curIdx - 1] : null;
   const nextSub = curIdx < flatList.length - 1 ? flatList[curIdx + 1] : null;
-  const progressPct = flatList.length > 1 ? Math.round(((curIdx + 1) / flatList.length) * 100) : 100;
+  const completedSubtopics = new Set((enrollment?.completedSubtopics || []).map((subtopicId) => String(subtopicId)));
+  const progressPct = Number.isFinite(Number(enrollment?.progress)) ? Number(enrollment.progress) : 0;
+  const currentSubtopicComplete = completedSubtopics.has(String(activeSubtopic?._id));
+
+  const markSubtopicComplete = async () => {
+    if (!enrollment || !activeSubtopic || !flatList.length) return;
+    try {
+      const response = await api.patch(`/enrollments/${enrollment._id}/progress`, {
+        subtopicId: activeSubtopic._id,
+        completed: !currentSubtopicComplete,
+        totalSubtopics: flatList.length,
+      });
+      setEnrollment(response.data);
+    } catch (error) {
+      alert(error.response?.data?.error || "Could not update course progress");
+    }
+  };
 
   const filteredTopics = course.topics
     ?.map((t) => {
@@ -578,9 +596,12 @@ export default function CourseDetail() {
                     <span style={S.topicBadge}>{activeTopicTitle}</span>
                     <h2 style={S.subtopicTitle}>{activeSubtopic.title}</h2>
                   </div>
-                  <span style={{ color: "#9ca3af", fontSize: "0.8rem", whiteSpace: "nowrap", marginTop: "0.25rem" }}>
-                    {curIdx + 1} / {flatList.length}
-                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+                    <span style={{ color: "#9ca3af", fontSize: "0.8rem", whiteSpace: "nowrap" }}>{progressPct}% complete</span>
+                    <button type="button" onClick={markSubtopicComplete} style={{ border: currentSubtopicComplete ? "1px solid #15803d" : "1px solid #0078d4", borderRadius: "4px", padding: "0.45rem 0.7rem", background: currentSubtopicComplete ? "#dcfce7" : "#0078d4", color: currentSubtopicComplete ? "#15803d" : "#fff", fontWeight: 700, fontSize: "0.72rem", cursor: "pointer" }}>
+                      {currentSubtopicComplete ? "✓ Completed" : "Mark as complete"}
+                    </button>
+                  </div>
                 </div>
 
                 <hr style={S.divider} />

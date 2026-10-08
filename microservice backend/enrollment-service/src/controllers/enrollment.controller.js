@@ -72,3 +72,27 @@ export const getUserEnrollments = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch enrollments", error: err.message });
   }
 };
+
+export const updateCourseProgress = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    const { subtopicId, completed = true, totalSubtopics } = req.body;
+    if (!subtopicId || !Number.isFinite(Number(totalSubtopics)) || Number(totalSubtopics) < 1) {
+      return res.status(400).json({ error: "subtopicId and totalSubtopics are required" });
+    }
+
+    const enrollment = await Enrollment.findOne({ _id: req.params.enrollmentId, user: userId });
+    if (!enrollment) return res.status(404).json({ error: "Enrollment not found" });
+
+    const completedIds = new Set((enrollment.completedSubtopics || []).map((id) => String(id)));
+    if (completed) completedIds.add(String(subtopicId));
+    else completedIds.delete(String(subtopicId));
+    enrollment.completedSubtopics = [...completedIds];
+    enrollment.progress = Math.min(100, Math.round((completedIds.size / Number(totalSubtopics)) * 100));
+    enrollment.completedAt = enrollment.progress === 100 ? (enrollment.completedAt || new Date()) : null;
+    await enrollment.save();
+    res.json(enrollment);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
