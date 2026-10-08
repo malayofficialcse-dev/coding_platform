@@ -58,6 +58,7 @@ export default function Header() {
 
   return (
     <header
+      className="cc-site-header"
       style={{
         width: "100%",
         minHeight: 68,
@@ -213,7 +214,7 @@ export default function Header() {
             <img
               src={profileImage}
               alt="Profile"
-              className="border"
+              className="border cc-header-avatar"
               style={{ width: 48, height: 48, objectFit: "cover", cursor: "pointer" }}
               onClick={() => closeAndNavigate("/profile")}
             />

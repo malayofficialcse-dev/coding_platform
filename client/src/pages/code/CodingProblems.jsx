@@ -66,9 +66,9 @@ export function CodingProblems() {
   }, [user]);
 
   return (
-    <div className="container py-4">
-      <h2 className="fw-bold mb-3">Coding Problems</h2>
-      <div className="mb-3 d-flex gap-2 flex-wrap">
+    <div className="container py-4 cc-list-page">
+      <div className="cc-page-heading"><div><span className="cc-page-eyebrow">Practice workspace</span><h1>Coding Problems</h1><p>Solve curated DSA challenges, run test cases, and improve your engineering fluency.</p></div><span className="cc-page-count">{problems.length} problems</span></div>
+      <div className="mb-4 d-flex gap-2 flex-wrap cc-filter-bar">
         <select
           className="form-select w-auto"
           value={difficulty}

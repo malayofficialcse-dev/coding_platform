@@ -1,44 +1,36 @@
-import React, { useEffect, useState, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import AceEditor from "react-ace";
 import api from "../../api/api";
 import { AuthContext } from "../../contexts/AuthContext";
-import AceEditor from "react-ace";
+import RunButton from "../../assets/play-solid-full.svg";
+import CopyButton from "../../assets/copy-regular-full.svg";
+import "./SolveProblem.css";
 
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/mode-javascript";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/mode-c_cpp";
 import "ace-builds/src-noconflict/mode-java";
-
-// ACE THEMES — FULL PACK
-
-import "ace-builds/src-noconflict/theme-monokai";
 import "ace-builds/src-noconflict/theme-github";
+import "ace-builds/src-noconflict/theme-monokai";
 import "ace-builds/src-noconflict/theme-dracula";
-import "ace-builds/src-noconflict/theme-solarized_dark";
-import "ace-builds/src-noconflict/theme-solarized_light";
-import "ace-builds/src-noconflict/theme-gruvbox";
 import "ace-builds/src-noconflict/theme-xcode";
-import "ace-builds/src-noconflict/theme-textmate";
-import "ace-builds/src-noconflict/theme-cobalt";
-import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/theme-solarized_light";
 import "ace-builds/src-noconflict/theme-tomorrow_night";
-import "ace-builds/src-noconflict/theme-tomorrow_night_blue";
-import "ace-builds/src-noconflict/theme-tomorrow_night_bright";
-import "ace-builds/src-noconflict/theme-tomorrow_night_eighties";
-import "ace-builds/src-noconflict/theme-clouds";
-import "ace-builds/src-noconflict/theme-clouds_midnight";
-import "ace-builds/src-noconflict/theme-eclipse";
-import "ace-builds/src-noconflict/theme-chaos";
-import "ace-builds/src-noconflict/theme-kr_theme";
-import "ace-builds/src-noconflict/theme-crimson_editor";
-import "ace-builds/src-noconflict/theme-dawn";
-import "ace-builds/src-noconflict/theme-katzenmilch";
-import "ace-builds/src-noconflict/theme-sqlserver";
 
-import RunButton from "../../assets/play-solid-full.svg";
-import CopyButton from "../../assets/copy-regular-full.svg";
-import EyeLogo from "../../assets/eye-solid-full.svg";
+const languageNames = { javascript: "JavaScript", python3: "Python 3", cpp: "C++", java: "Java" };
+
+function mapAceMode(language) {
+  if (language === "python3") return "python";
+  if (language === "cpp") return "c_cpp";
+  if (language === "java") return "java";
+  return "javascript";
+}
+
+function getBoilerplate(problem, language) {
+  return problem?.boilerplateCodes?.[language] || "";
+}
 
 export function SolveProblem() {
   const { id } = useParams();
@@ -47,388 +39,87 @@ export function SolveProblem() {
   const [problem, setProblem] = useState(null);
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
-  const [theme, setTheme] = useState("monokai");
+  const [theme, setTheme] = useState("github");
+  const [font, setFont] = useState(15);
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [font, setFont] = useState(16);
+  const [activeTab, setActiveTab] = useState("description");
+  const [testCaseIndex, setTestCaseIndex] = useState(0);
 
   useEffect(() => {
-    if (!id) {
-      alert("Open with /coding/problems/:id");
-      navigate("/");
-      return;
-    }
-    fetchProblem(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  async function fetchProblem(pid) {
-    try {
-      const res = await api.get(`/coding/problems/${pid}`);
+    if (!id) { navigate("/"); return; }
+    api.get(`/coding/problems/${id}`).then((res) => {
       setProblem(res.data);
-      const boilers = res.data.boilerplateCodes
-        ? Object.fromEntries(Object.entries(res.data.boilerplateCodes))
-        : {};
-      setCode(boilers[language] || "");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load problem");
-    }
-  }
+      setCode(getBoilerplate(res.data, language));
+    }).catch((error) => { console.error(error); alert("Failed to load problem"); });
+  // The initial problem load should not reset the editor whenever language changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, navigate]);
 
-  useEffect(() => {
-    if (problem) {
-      const boilers = problem.boilerplateCodes
-        ? Object.fromEntries(Object.entries(problem.boilerplateCodes))
-        : {};
-      setCode(boilers[language] || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
+  useEffect(() => { if (problem) setCode(getBoilerplate(problem, language)); }, [language, problem]);
 
-  function mapAceMode(lang) {
-    if (lang === "python3") return "python";
-    if (lang === "javascript") return "javascript";
-    if (lang === "cpp" || lang === "c++") return "c_cpp";
-    if (lang === "java") return "java";
-    return "javascript";
-  }
-
-  function escapeHtml(s) {
-    return (s || "")
-      .toString()
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
+  const testCases = useMemo(() => problem?.sampleTestCases?.length ? problem.sampleTestCases : problem?.testCases || [], [problem]);
 
   async function runCode({ save = undefined, saveIfAllPassed = false } = {}) {
-    setRunning(true);
-    setResult(null);
+    setRunning(true); setResult(null);
+    const existingToken = localStorage.getItem("token");
     try {
-      // temporarily set token in localStorage so api interceptor uses it
       if (token) localStorage.setItem("token", token);
       const params = [];
       if (save === false) params.push("save=false");
       if (saveIfAllPassed) params.push("saveIfAllPassed=true");
-      const q = params.length ? `?${params.join("&")}` : "";
-      const res = await api.post(`/coding/problems/${id}/submit${q}`, {
-        code,
-        language,
-      });
-      setResult(res.data);
-    } catch (err) {
-      console.error(err);
-      alert("Submit failed: " + (err?.response?.data?.error || err.message));
+      const query = params.length ? `?${params.join("&")}` : "";
+      const response = await api.post(`/coding/problems/${id}/submit${query}`, { code, language });
+      setResult(response.data);
+    } catch (error) {
+      console.error(error); alert("Execution failed: " + (error?.response?.data?.error || error.message));
     } finally {
-      // remove temporary token if it was not present originally
-      if (
-        !localStorage.getItem("token") ||
-        localStorage.getItem("token") === ""
-      ) {
-        localStorage.removeItem("token");
-      }
+      if (existingToken) localStorage.setItem("token", existingToken); else localStorage.removeItem("token");
       setRunning(false);
     }
   }
 
-  const handleRun = () => runCode({ save: false });
-  const handleSubmit = () => runCode({ saveIfAllPassed: true });
-
-  function loadBoiler() {
-    const b = problem?.boilerplateCodes
-      ? Object.fromEntries(Object.entries(problem.boilerplateCodes))
-      : {};
-    if (b[language]) setCode(b[language]);
-    else alert("No boilerplate for " + language);
+  function loadBoilerplate() {
+    const boilerplate = getBoilerplate(problem, language);
+    if (boilerplate) setCode(boilerplate); else alert(`No boilerplate available for ${languageNames[language]}`);
   }
 
-  if (!problem)
-    return <div className="container py-5 text-center">Loading...</div>;
+  if (!problem) return <div className="cc-coding-loading">Loading coding workspace…</div>;
+
+  const currentCase = testCases[testCaseIndex];
+  const acceptance = problem.acceptanceRate || problem.acceptance || "—";
+  const timeLimit = problem.timeLimit || problem.time || "2.0s";
+  const memoryLimit = problem.memoryLimit || problem.memory || "256 MB";
 
   return (
-    <div className="container-fluid py-3">
-      <div className="d-flex justify-content-between mb-3">
-        <h4>
-          {problem
-            ? `${problem.title} ${
-                problem.difficulty ? "(" + problem.difficulty + ")" : ""
-              }`
-            : "Loading..."}
-        </h4>
-        <div className="d-flex gap-2 align-items-center">
-          <input
-            className="form-control form-control-sm"
-            style={{ width: 360 }}
-            placeholder="JWT (optional)"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-        </div>
+    <main className="cc-coding-shell">
+      <div className="cc-coding-topbar">
+        <div className="cc-coding-breadcrumb">Practice <span>/</span> DSA <span>/</span> {problem.dsaTopic || "Problems"} <span>/</span> <strong>{problem.title}</strong></div>
+        <div className="cc-coding-meta"><span className={`cc-status-chip ${String(problem.difficulty || "Easy").toLowerCase()}`}>{problem.difficulty || "Easy"}</span><span>✓ Acceptance: {acceptance}{typeof acceptance === "number" ? "%" : ""}</span><span>◷ Limit: {timeLimit}</span><span>◈ Memory: {memoryLimit}</span></div>
       </div>
 
-      <div className="row g-3">
-        <div className="col-lg-5">
-          <div className="card p-3 mb-3">
-            <h6>Description</h6>
-            <div style={{ whiteSpace: "pre-wrap" }}>{problem?.description}</div>
-          </div>
+      <div className="cc-coding-title-row"><div><h1>{problem.title}</h1><p>Practice, test, and submit your solution in a focused coding workspace.</p></div><label className="cc-token-field"><span>API token</span><input value={token} onChange={(event) => setToken(event.target.value)} placeholder="Optional" type="password" /></label></div>
 
-          <div className="card p-3 mb-3">
-            <h6>Testcases</h6>
-            <ul className="list-group">
-              {(problem?.testCases || []).map((tc, i) => (
-                <li key={i} className="list-group-item">
-                  <div>
-                    <strong>Case {i + 1}</strong>{" "}
-                    {tc.visible ? (
-                      <span className="badge  ms-2">
-                        <img
-                          src={EyeLogo}
-                          alt="visible"
-                          style={{ height: 18, width: 18 }}
-                        />
-                      </span>
-                    ) : (
-                      <span className="badge bg-secondary ms-2">hidden</span>
-                    )}
-                  </div>
-                  <div className="small text-muted">
-                    Input: <code>{escapeHtml(tc.input)}</code>
-                  </div>
-                  <div className="small text-muted">
-                    Expected:{" "}
-                    {tc.visible ? (
-                      <code>{escapeHtml(tc.output)}</code>
-                    ) : (
-                      <em>hidden</em>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <div className="cc-coding-tabs" role="tablist">{["description", "editorial", "submissions", "discussions"].map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}{tab === "editorial" ? "  NEW" : ""}</button>)}</div>
 
-          <div className="card p-3">
-            <h6>Result</h6>
-            {!result && <div className="text-muted">No submission yet.</div>}
-            {result && (
-              <>
-                <div>
-                  <strong>{result.result}</strong> — Passed {result.passedCount}
-                  /{result.totalCount} — plagiarism: {result.plagiarism}
-                </div>
-                <div className="mt-2">
-                  {(result.details || []).map((d, i) => (
-                    <div key={i} className="p-2 mb-2 border rounded">
-                      <div>
-                        <b>Test {i + 1}:</b>{" "}
-                        <span
-                          className={
-                            d.status === "Passed"
-                              ? "text-success"
-                              : d.status === "Failed"
-                              ? "text-danger"
-                              : ""
-                          }
-                        >
-                          {d.status}
-                        </span>
-                      </div>
-                      <div className="small text-muted">
-                        Input: <code>{escapeHtml(d.input)}</code>
-                      </div>
-                      <div className="small text-muted">
-                        Expected: <code>{escapeHtml(d.expectedOutput)}</code>
-                      </div>
-                      <div className="small">
-                        Output: <code>{escapeHtml(d.userOutput)}</code>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+      <div className="cc-coding-workspace">
+        <section className="cc-problem-column">
+          {activeTab === "description" ? <>
+            <article className="cc-problem-card cc-description-card"><div className="cc-section-kicker">Problem statement</div><div className="cc-problem-description">{problem.description || "No description provided."}</div></article>
+            <article className="cc-problem-card"><div className="cc-section-heading"><span>Examples</span><span className="cc-muted">{testCases.length} test cases</span></div><div className="cc-example-list">{testCases.map((testCase, index) => <button key={index} className={`cc-example-card ${testCaseIndex === index ? "active" : ""}`} onClick={() => setTestCaseIndex(index)}><span>Example {index + 1}</span><span className="cc-example-badge">{testCase.visible === false ? "Hidden" : "Verified Test Case"}</span><code>Input: {testCase.input}</code><code>Output: {testCase.visible === false ? "Hidden" : testCase.output}</code></button>)}</div></article>
+            <article className="cc-problem-card"><div className="cc-section-heading">Test matrix harness</div><div className="cc-test-tabs">{testCases.map((_, index) => <button key={index} className={testCaseIndex === index ? "active" : ""} onClick={() => setTestCaseIndex(index)}>Case {index + 1}</button>)}<button>+ Custom input</button></div>{currentCase ? <div className="cc-test-preview"><div><span>INPUT PARAMETERS</span><code>{currentCase.input}</code></div><div><span>EXPECTED RESULT</span><code>{currentCase.visible === false ? "Hidden test" : currentCase.output}</code></div><div><span>LAST OUTPUT</span><code>{result?.details?.[testCaseIndex]?.userOutput || "—"}</code></div></div> : <p className="cc-muted">No test cases have been configured.</p>}</article>
+          </> : <article className="cc-problem-card cc-empty-tab"><div className="cc-section-kicker">{activeTab}</div><h2>{activeTab === "editorial" ? "Editorial is coming soon" : "Nothing here yet"}</h2><p>This workspace is ready for the next learning resource and will keep your problem context available.</p></article>}
+        </section>
 
-        <div className="col-lg-7">
-          <div className="d-flex gap-2 mb-2 align-items-center">
-            <select
-              className="form-select form-select-sm"
-              style={{ width: 180 }}
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-            >
-              <option value="javascript">JavaScript</option>
-              <option value="python3">Python 3</option>
-              <option value="cpp">C++</option>
-              <option value="java">Java</option>
-            </select>
-
-            <select
-              className="form-select form-select-sm"
-              style={{ width: 200 }}
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-            >
-              <option value="monokai">Monokai</option>
-              <option value="github">GitHub</option>
-              <option value="dracula">Dracula</option>
-              <option value="solarized_dark">Solarized Dark</option>
-              <option value="solarized_light">Solarized Light</option>
-              <option value="gruvbox">Gruvbox</option>
-              <option value="xcode">Xcode</option>
-              <option value="textmate">TextMate</option>
-              <option value="cobalt">Cobalt</option>
-              <option value="tomorrow">Tomorrow</option>
-              <option value="tomorrow_night">Tomorrow Night</option>
-              <option value="tomorrow_night_blue">Tomorrow Night Blue</option>
-              <option value="tomorrow_night_bright">
-                Tomorrow Night Bright
-              </option>
-              <option value="tomorrow_night_eighties">
-                Tomorrow Night 80s
-              </option>
-              <option value="clouds">Clouds</option>
-              <option value="clouds_midnight">Clouds Midnight</option>
-              <option value="eclipse">Eclipse</option>
-              <option value="ambiance">Ambiance</option>
-              <option value="chaos">Chaos</option>
-              <option value="kr_theme">KR Theme</option>
-              <option value="crimson_editor">Crimson Editor</option>
-              <option value="dawn">Dawn</option>
-              <option value="katzenmilch">Katzenmilch</option>
-              <option value="sqlserver">SQL Server</option>
-            </select>
-
-            {/* 🌟 Font Size Controls */}
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={() => setFont((f) => Math.min(f + 1, 40))}
-            >
-              A+
-            </button>
-
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={() => setFont((f) => Math.max(f - 1, 10))}
-            >
-              A-
-            </button>
-
-            <button
-              className="btn btn-outline-primary btn-sm"
-              onClick={() => navigator.clipboard.writeText(code)}
-              style={{ transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => {
-                const img = e.currentTarget.querySelector("img");
-                img.style.transform = "scale(1.20)";
-                img.style.filter = "drop-shadow(0px 3px 6px rgba(0,0,0,0.4))";
-              }}
-              onMouseLeave={(e) => {
-                const img = e.currentTarget.querySelector("img");
-                img.style.transform = "scale(1)";
-                img.style.filter = "none";
-              }}
-            >
-              <img
-                src={CopyButton}
-                alt="Copy"
-                style={{ height: 18, width: 18, transition: "all 0.15s ease" }}
-              />
-            </button>
-
-            {/* Load Boilerplate Button */}
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={loadBoiler}
-              style={{
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.05)";
-                e.currentTarget.style.boxShadow =
-                  "0px 3px 8px rgba(0,0,0,0.20)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              Load Boilerplate
-            </button>
-
-            {/* Run Button */}
-            <button
-              className="btn btn-primary btn-sm ms-auto"
-              onClick={handleRun}
-              disabled={running}
-              style={{ transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => {
-                if (!running) {
-                  const img = e.currentTarget.querySelector("img");
-                  img.style.transform = "scale(1.20)";
-                  img.style.filter = "drop-shadow(0px 3px 6px rgba(0,0,0,0.4))";
-                }
-              }}
-              onMouseLeave={(e) => {
-                const img = e.currentTarget.querySelector("img");
-                if (img) {
-                  img.style.transform = "scale(1)";
-                  img.style.filter = "none";
-                }
-              }}
-            >
-              {running ? (
-                "Running..."
-              ) : (
-                <img
-                  src={RunButton}
-                  alt="Run"
-                  style={{
-                    height: 18,
-                    width: 18,
-                    transition: "all 0.15s ease",
-                  }}
-                />
-              )}
-            </button>
-          </div>
-
-          <AceEditor
-            mode={mapAceMode(language)}
-            theme={theme}
-            value={code}
-            fontSize={font} // <-- added dynamic font size
-            onChange={(v) => setCode(v)}
-            name="ace-editor"
-            editorProps={{ $blockScrolling: true }}
-            width="100%"
-            height="60vh"
-            setOptions={{
-              enableBasicAutocompletion: true,
-              enableLiveAutocompletion: true,
-            }}
-          />
-
-          <div className="card p-3 d-flex gap-2 mt-5">
-            <button
-              className="btn btn-success"
-              onClick={handleSubmit}
-              disabled={running || user === undefined}
-            >
-              Submit
-            </button>
-            <small className="text-muted">
-              Submissions are saved by backend according to query flags
-              (default: saved only on all-pass).
-            </small>
-          </div>
-        </div>
+        <section className="cc-editor-column">
+          <div className="cc-editor-toolbar"><label><span>Language</span><select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="javascript">JavaScript</option><option value="python3">Python 3</option><option value="cpp">C++</option><option value="java">Java</option></select></label><label><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="github">GitHub Light</option><option value="xcode">Xcode</option><option value="solarized_light">Solarized Light</option><option value="monokai">Monokai</option><option value="dracula">Dracula</option><option value="tomorrow_night">Tomorrow Night</option></select></label><div className="cc-editor-actions"><button title="Increase font size" onClick={() => setFont((value) => Math.min(value + 1, 24))}>A+</button><button title="Decrease font size" onClick={() => setFont((value) => Math.max(value - 1, 11))}>A-</button><button title="Copy code" onClick={() => navigator.clipboard?.writeText(code)}><img src={CopyButton} alt="Copy" /></button><button onClick={loadBoilerplate}>Load Boilerplate</button></div></div>
+          <div className="cc-editor-frame"><AceEditor mode={mapAceMode(language)} theme={theme} value={code} fontSize={font} onChange={setCode} name="coding-problem-editor" editorProps={{ $blockScrolling: true }} width="100%" height="min(56vh, 590px)" setOptions={{ enableBasicAutocompletion: true, enableLiveAutocompletion: true, showPrintMargin: false }} /></div>
+          <div className="cc-editor-status"><span>{running ? "Running test cases…" : "Ready to run"}</span><span>{languageNames[language]} · UTF-8 · Spaces: 4</span></div>
+          <div className="cc-output-panel"><div className="cc-output-heading"><strong>Execution diagnostics</strong>{result && <span className={result.result === "Passed" ? "success" : "danger"}>{result.result}</span>}</div>{!result ? <p className="cc-muted">Run your solution to see compiler output, test results, and performance diagnostics.</p> : <><div className="cc-output-summary">{result.passedCount || 0}/{result.totalCount || 0} test cases passed <span>· Plagiarism: {result.plagiarism || "Not checked"}</span></div><div className="cc-result-list">{(result.details || []).map((detail, index) => <div key={index} className="cc-result-row"><span className={detail.status === "Passed" ? "success" : "danger"}>●</span><span>Test {index + 1}</span><span>{detail.status}</span><code>{detail.userOutput || "—"}</code></div>)}</div></>}</div>
+          <div className="cc-submit-bar"><div><button className="cc-run-button" onClick={() => runCode({ save: false })} disabled={running}><img src={RunButton} alt="" />{running ? "Running…" : "Run Code"}</button><button className="cc-submit-button" onClick={() => runCode({ saveIfAllPassed: true })} disabled={running || user === undefined}>Submit Solution</button></div><span>Solutions are saved automatically when all tests pass.</span></div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
-// ...existing code...

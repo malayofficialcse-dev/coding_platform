@@ -30,9 +30,9 @@ export default function CourseList() {
   };
 
   return (
-    <div className="container py-4">
-      <h2 className="fw-bold mb-4">Courses</h2>
-      <div className="mb-3">
+    <div className="container py-4 cc-list-page">
+      <div className="cc-page-heading"><div><span className="cc-page-eyebrow">Learning library</span><h1>Courses</h1><p>Build practical skills with guided courses and hands-on learning tracks.</p></div><span className="cc-page-count">{filtered.length} available</span></div>
+      <div className="mb-4 cc-filter-bar">
         <input
           className="form-control"
           placeholder="Search courses..."

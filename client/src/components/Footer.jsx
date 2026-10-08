@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 export default function Footer() {
   return (
     <footer
-      className="bg-dark text-light pt-4 pb-2 mt-5"
+      className="cc-site-footer bg-dark text-light pt-4 pb-2 mt-5"
       style={{ marginTop: "auto" }}
     >
       <div className="container">

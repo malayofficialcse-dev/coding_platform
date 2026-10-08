@@ -194,8 +194,8 @@ export default function Dashboard() {
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 1440, margin: "0 auto", padding: "1.75rem 1.5rem" }}>
-        <div className="cc-grid" style={{ display: "grid", gridTemplateColumns: "22% 1fr 22%", gap: "1.25rem", alignItems: "start" }}>
+      <div style={{ width: "100%", maxWidth: 1800, margin: "0 auto", padding: "1.5rem 1.25rem" }}>
+        <div className="cc-grid" style={{ display: "grid", gridTemplateColumns: "minmax(260px, 20%) minmax(0, 1fr) minmax(260px, 20%)", gap: "1.25rem", alignItems: "start" }}>
 
           {/* ══════════════════════════ LEFT SIDEBAR ══════════════════════════ */}
           <aside className="cc-left-aside" style={{ position: "sticky", top: 90 }}>

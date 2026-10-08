@@ -44,7 +44,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Header />
-        <main className="wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+        <main className="wrap cc-site-main">
           <Suspense fallback={<div className="cc-route-loading" role="status">Loading page…</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
