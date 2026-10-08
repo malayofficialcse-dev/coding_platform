@@ -29,6 +29,7 @@ export default function PostForm({
   const [group, setGroup] = useState("General Feed");
   const [editorTab, setEditorTab] = useState("edit"); // "edit" | "preview"
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     setText(post?.text || "");
@@ -50,6 +51,7 @@ export default function PostForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setUploadProgress(images.length > 0 ? 0 : 100);
 
     try {
       const data = new FormData();
@@ -58,10 +60,18 @@ export default function PostForm({
       data.append("codeBlocks", JSON.stringify(codeBlocks));
       images.forEach((img) => data.append("images", img));
 
-      const res = post?._id
-        ? await api.put(`/posts/${post._id}`, data)
-        : await api.post("/posts", data);
+      const requestConfig = {
+        onUploadProgress: (event) => {
+          if (!event.total) return;
+          setUploadProgress(Math.min(99, Math.round((event.loaded * 100) / event.total)));
+        },
+      };
 
+      const res = post?._id
+        ? await api.put(`/posts/${post._id}`, data, requestConfig)
+        : await api.post("/posts", data, requestConfig);
+
+      setUploadProgress(100);
       onPost?.(res.data);
       setText("");
       setImages([]);
@@ -143,6 +153,29 @@ export default function PostForm({
         className="form-control mb-2"
         onChange={handleImageChange}
       />
+      {loading && (
+        <div className="cc-upload-status" role="status" aria-live="polite">
+          <div className="cc-upload-status-row">
+            <span>{images.length ? "Uploading your images…" : "Publishing your post…"}</span>
+            {images.length > 0 && <strong>{uploadProgress}%</strong>}
+          </div>
+          <div
+            className="cc-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={images.length > 0 ? uploadProgress : undefined}
+          >
+            <div
+              className="cc-progress-bar"
+              style={{ width: `${images.length > 0 ? Math.max(uploadProgress, 6) : 100}%` }}
+            />
+          </div>
+          <span className="cc-upload-help">
+            {images.length ? "Keep this window open while your files are being processed." : "Almost there…"}
+          </span>
+        </div>
+      )}
       <div className="mb-2">
         <div className="d-flex align-items-center mb-1">
           <select
@@ -177,7 +210,7 @@ export default function PostForm({
         />
       </div>
       <button className="btn btn-primary w-100" disabled={loading}>
-        {loading ? "Saving..." : submitLabel}
+        {loading ? (images.length ? `${uploadProgress}% Uploading…` : "Publishing…") : submitLabel}
       </button>
     </form>
   );
