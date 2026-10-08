@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -7,37 +7,36 @@ import Footer from "./components/Footer";
 import PrivateRoute from "./components/PrivateRoute";
 // import "./styles/main.css";
 
-/* pages */
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/auth/Login";
-import Signup from "./pages/auth/Signup";
-import Profile from "./pages/Profile";
-import ExamList from "./pages/exams/ExamList";
-import TakeExam from "./pages/exams/TakeExam";
-import Result from "./pages/exams/Result";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminExamList from "./pages/admin/AdminExamList";
-import CreateExam from "./pages/admin/CreateExam";
-import MyAttempts from "./pages/exams/MyAttempts";
-import UserList from "./pages/admin/UserList";
-import ExamAnalytics from "./pages/admin/ExamAnalytics";
-import AnalyticsOverview from "./pages/admin/AnalyticsOverview";
-import CourseList from "./pages/courses/CourseList";
-import CourseDetail from "./pages/courses/CourseDetail";
-import AdminCourseList from "./pages/admin/AdminCourseList";
-import AddCourse from "./pages/admin/AddCourse";
-import EnrollCourse from "./pages/courses/EnrollCourse";
-import AddContent from "./pages/admin/AddContent";
-import AdminCourseEdit from "./pages/admin/AdminCourseEdit";
-import { CodingProblems } from "./pages/code/CodingProblems";
-import { SolveProblem } from "./pages/code/SolveProblem";
-import { AdminCodingProblems } from "./pages/admin/AdminCodingProblems";
-import CodingAnalytics from "./pages/code/CodingAnalytics";
-import PostToProfile from "./pages/PostToProfile";
-import AdminPostControl from "./pages/admin/AdminPostControl";
-import ChatPage from "./pages/ChatPage";
-import AboutPage from "./components/AboutPage";
-import Notifications from "./components/Notifications";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Login = lazy(() => import("./pages/auth/Login"));
+const Signup = lazy(() => import("./pages/auth/Signup"));
+const Profile = lazy(() => import("./pages/Profile"));
+const ExamList = lazy(() => import("./pages/exams/ExamList"));
+const TakeExam = lazy(() => import("./pages/exams/TakeExam"));
+const Result = lazy(() => import("./pages/exams/Result"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminExamList = lazy(() => import("./pages/admin/AdminExamList"));
+const CreateExam = lazy(() => import("./pages/admin/CreateExam"));
+const MyAttempts = lazy(() => import("./pages/exams/MyAttempts"));
+const UserList = lazy(() => import("./pages/admin/UserList"));
+const ExamAnalytics = lazy(() => import("./pages/admin/ExamAnalytics"));
+const AnalyticsOverview = lazy(() => import("./pages/admin/AnalyticsOverview"));
+const CourseList = lazy(() => import("./pages/courses/CourseList"));
+const CourseDetail = lazy(() => import("./pages/courses/CourseDetail"));
+const AdminCourseList = lazy(() => import("./pages/admin/AdminCourseList"));
+const AddCourse = lazy(() => import("./pages/admin/AddCourse"));
+const EnrollCourse = lazy(() => import("./pages/courses/EnrollCourse"));
+const AddContent = lazy(() => import("./pages/admin/AddContent"));
+const AdminCourseEdit = lazy(() => import("./pages/admin/AdminCourseEdit"));
+const CodingProblems = lazy(() => import("./pages/code/CodingProblems").then((module) => ({ default: module.CodingProblems })));
+const SolveProblem = lazy(() => import("./pages/code/SolveProblem").then((module) => ({ default: module.SolveProblem })));
+const AdminCodingProblems = lazy(() => import("./pages/admin/AdminCodingProblems").then((module) => ({ default: module.AdminCodingProblems })));
+const CodingAnalytics = lazy(() => import("./pages/code/CodingAnalytics"));
+const PostToProfile = lazy(() => import("./pages/PostToProfile"));
+const AdminPostControl = lazy(() => import("./pages/admin/AdminPostControl"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const AboutPage = lazy(() => import("./components/AboutPage"));
+const Notifications = lazy(() => import("./components/Notifications"));
 // ...existing code...
 
 function App() {
@@ -46,6 +45,7 @@ function App() {
       <BrowserRouter>
         <Header />
         <main className="wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+          <Suspense fallback={<div className="cc-route-loading" role="status">Loading page…</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/about" element ={<AboutPage/>}/>
@@ -258,6 +258,7 @@ function App() {
               }
             />
           </Routes>
+          </Suspense>
         </main>
         <Footer />
       </BrowserRouter>

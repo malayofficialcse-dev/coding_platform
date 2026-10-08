@@ -26,6 +26,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "code-campus/profiles",
     allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    transformation: [{ width: 400, height: 400, crop: "limit", quality: "auto", fetch_format: "auto" }],
   },
 });
 

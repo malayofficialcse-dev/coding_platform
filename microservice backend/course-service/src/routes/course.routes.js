@@ -38,6 +38,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "code-campus/courses",
     allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    transformation: [{ width: 1200, crop: "limit", quality: "auto", fetch_format: "auto" }],
   },
 });
 

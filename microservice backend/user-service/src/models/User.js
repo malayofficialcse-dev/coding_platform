@@ -17,4 +17,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.index({ name: 1 });
+userSchema.index({ createdAt: -1 });
+
 export default mongoose.models.User || mongoose.model("User", userSchema);

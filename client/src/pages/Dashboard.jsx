@@ -53,6 +53,9 @@ export default function Dashboard() {
   const [users, setUsers] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [search, setSearch] = useState("");
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const { user } = useContext(AuthContext);
   const [activeGroup, setActiveGroup] = useState("General Feed");
 
@@ -61,10 +64,40 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    api.get("/posts", { params: { group: activeGroup } }).then((res) => setPosts(res.data));
+    let cancelled = false;
+    setLoadingPosts(true);
+    api.get("/posts", { params: { group: activeGroup, page: 1, limit: 20 } })
+      .then((res) => {
+        if (cancelled) return;
+        setPosts(res.data || []);
+        setPostsPage(1);
+        setHasMorePosts(res.headers["x-has-more"] === "true");
+      })
+      .finally(() => { if (!cancelled) setLoadingPosts(false); });
+    return () => { cancelled = true; };
   }, [activeGroup]);
 
-  const handleNewPost = () => { api.get("/posts", { params: { group: activeGroup } }).then((r) => setPosts(r.data)); setShowPostModal(false); };
+  const handleNewPost = () => {
+    api.get("/posts", { params: { group: activeGroup, page: 1, limit: 20 } }).then((r) => {
+      setPosts(r.data || []);
+      setPostsPage(1);
+      setHasMorePosts(r.headers["x-has-more"] === "true");
+    });
+    setShowPostModal(false);
+  };
+
+  const loadMorePosts = async () => {
+    const nextPage = postsPage + 1;
+    setLoadingPosts(true);
+    try {
+      const res = await api.get("/posts", { params: { group: activeGroup, page: nextPage, limit: 20 } });
+      setPosts((current) => [...current, ...(res.data || [])]);
+      setPostsPage(nextPage);
+      setHasMorePosts(res.headers["x-has-more"] === "true");
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
   const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
@@ -353,6 +386,17 @@ export default function Dashboard() {
                 {renderPost(post)}
               </div>
             ))}
+            {hasMorePosts && (
+              <button
+                type="button"
+                className="cc-btn cc-btn-secondary"
+                onClick={loadMorePosts}
+                disabled={loadingPosts}
+                style={{ width: "100%", marginBottom: "1rem" }}
+              >
+                {loadingPosts ? "Loading…" : "Load more posts"}
+              </button>
+            )}
           </main>
 
           {/* ══════════════════════════ RIGHT SIDEBAR ═════════════════════════ */}

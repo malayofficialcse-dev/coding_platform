@@ -1,9 +1,14 @@
 import User from "../models/User.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
+import { deleteCached, getCached, setCached } from "../config/cache.js";
 
 export const getAllUsers = async (req, res) => {
   try {
+    const cacheKey = "users:directory";
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
     const users = await User.find({}, "name username email profileImage followers following role");
+    await setCached(cacheKey, users, 30);
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -70,6 +75,7 @@ export const followUser = async (req, res) => {
 
     await currentUser.save();
     await targetUser.save();
+    await deleteCached("users:directory");
 
     // Notify target user asynchronously via notification service
     await dispatchNotification({
@@ -111,6 +117,7 @@ export const unfollowUser = async (req, res) => {
 
     await currentUser.save();
     await targetUser.save();
+    await deleteCached("users:directory");
 
     res.json({ message: "Unfollowed", targetUserId });
   } catch (err) {

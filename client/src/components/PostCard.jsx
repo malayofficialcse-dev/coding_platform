@@ -11,6 +11,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
+import { optimizedImageUrl } from "../utils/imageUrl";
 
 import {
   FaCode,
@@ -120,7 +121,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
         <div>
           {isSingleImage ? (
             <img
-              src={data.images[0]}
+              src={optimizedImageUrl(data.images[0], 1200)}
               alt="post"
               onClick={() => setPreviewImage(data.images[0])}
               style={{
@@ -137,7 +138,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             data.images.map((img, i) => (
               <img
                 key={i}
-                src={img}
+                src={optimizedImageUrl(img, 1000)}
                 alt="post"
                 onClick={() => setPreviewImage(img)}
                 className="rounded mb-2"

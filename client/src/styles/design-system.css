@@ -179,6 +179,7 @@ body {
 
 .cc-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--cc-space-2); border-radius: var(--cc-radius); background: var(--cc-primary-soft); color: var(--cc-primary-dark); font-size: var(--cc-text-xs); font-weight: 700; }
 .cc-divider { height: 1px; border: 0; background: var(--cc-border); margin-block: var(--cc-space-4); }
+.cc-route-loading { display: grid; min-height: 240px; place-items: center; color: var(--cc-muted); font-size: var(--cc-text-sm); }
 
 @media (max-width: 768px) {
   .cc-container { width: min(100% - 24px, 1200px); }

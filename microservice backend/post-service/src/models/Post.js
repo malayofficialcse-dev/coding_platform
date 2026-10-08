@@ -20,4 +20,10 @@ const postSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Feed, group, profile, and repost lookups all sort by newest first.
+postSchema.index({ createdAt: -1 });
+postSchema.index({ group: 1, createdAt: -1 });
+postSchema.index({ author: 1, createdAt: -1 });
+postSchema.index({ repostedFrom: 1 });
+
 export default mongoose.models.Post || mongoose.model("Post", postSchema);
