@@ -143,17 +143,29 @@ export default function Profile() {
   const examChartData = { labels: attempts.slice(-8).map((attempt) => attempt.exam?.title?.slice(0, 14) || "Exam"), datasets: [{ label: "Score", data: attempts.slice(-8).map((attempt) => attempt.score || 0), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,.12)", tension: .35, fill: true }] };
   const courseProgress = (enrollment) => Math.min(100, Math.max(0, Number(enrollment.progress ?? enrollment.progressPercentage ?? enrollment.course?.progress ?? 0)));
   const contributionData = useMemo(() => {
+    const toLocalDateKey = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
     const counts = new Map();
     codingSubmissions.forEach((submission) => {
       const timestamp = submission.createdAt || submission.submittedAt || submission.updatedAt;
       const date = timestamp ? new Date(timestamp) : null;
       if (!date || Number.isNaN(date.getTime())) return;
-      const key = date.toISOString().slice(0, 10);
+      const key = toLocalDateKey(date);
       counts.set(key, (counts.get(key) || 0) + 1);
     });
     enrollments.forEach((enrollment) => {
-      if (Number(enrollment.progress) < 100 || !enrollment.completedAt) return;
-      const key = new Date(enrollment.completedAt).toISOString().slice(0, 10);
+      if (Number(enrollment.progress) <= 0) return;
+      // Active learning should appear in the current contribution window. Once
+      // a course is fully complete, preserve the actual completion date.
+      const activityDate = Number(enrollment.progress) === 100
+        ? enrollment.completedAt || enrollment.updatedAt || enrollment.enrolledAt
+        : new Date();
+      if (!activityDate) return;
+      const key = toLocalDateKey(new Date(activityDate));
       counts.set(key, (counts.get(key) || 0) + 1);
     });
     const end = new Date();
@@ -161,7 +173,7 @@ export default function Profile() {
     const cells = Array.from({ length: 364 }, (_, index) => {
       const date = new Date(end);
       date.setDate(end.getDate() - (363 - index));
-      const key = date.toISOString().slice(0, 10);
+      const key = toLocalDateKey(date);
       return { key, date, count: counts.get(key) || 0 };
     });
     const max = Math.max(...cells.map((cell) => cell.count), 0);
@@ -190,7 +202,7 @@ export default function Profile() {
         <main className="cc-profile-main">
           <section className="cc-profile-card cc-profile-metrics"><div className="cc-profile-section-title"><div><h2>Engineering performance &amp; learning metrics</h2><span>Updated from your Code Campus activity</span></div><span className="cc-live-status"><i /> Live profile</span></div><div className="cc-profile-stat-grid">{profileStats.map((stat) => { const StatIcon = stat.icon; return <div className={`cc-profile-stat ${stat.tone}`} key={stat.label}><StatIcon /><small>{stat.label}</small><strong>{stat.value}</strong><span>{stat.label === "Exam attempts" ? `${examMetrics.passRate}% pass rate` : stat.label === "Problems solved" ? "Accepted solutions" : "Active records"}</span></div>; })}</div><div className="cc-profile-quality"><div><span>Assessment quality</span><strong>{examMetrics.average ? `${examMetrics.average}% average score` : "Build your first score"}</strong></div><div className="cc-profile-quality-track"><i style={{ width: `${examMetrics.average}%` }} /></div></div></section>
 
-          <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course completions and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) === 100).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
+          <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course progress and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) > 0).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
 
           <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div>; })}</div>}</section>
 

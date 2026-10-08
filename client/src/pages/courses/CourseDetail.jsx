@@ -468,7 +468,10 @@ export default function CourseDetail() {
       });
       setEnrollment(response.data);
     } catch (error) {
-      alert(error.response?.data?.error || "Could not update course progress");
+      const message = error.response?.status === 404
+        ? "Course progress is not available in the running enrollment service. Restart the enrollment service and try again."
+        : error.response?.data?.error || "Could not update course progress";
+      alert(message);
     }
   };
 
