@@ -280,7 +280,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
                 ".cm-scroller": {
                   overflow: "auto",
                   scrollbarWidth: "thin",
-                  scrollbarColor: "#6366f1 transparent",
+                  scrollbarColor: "transparent transparent",
                 },
 
                 ".cm-scroller::-webkit-scrollbar": {
@@ -289,14 +289,27 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
                 },
 
                 ".cm-scroller::-webkit-scrollbar-track": {
-                  background: "rgba(255,255,255,0.04)",
+                  background: "transparent",
                   borderRadius: "10px",
                 },
 
                 ".cm-scroller::-webkit-scrollbar-thumb": {
+                  background: "transparent",
+                  borderRadius: "10px",
+                  transition: "background 0.2s ease",
+                },
+
+                ".cm-scroller:hover, .cm-scroller:focus-within": {
+                  scrollbarColor: "#6366f1 transparent",
+                },
+
+                ".cm-scroller:hover::-webkit-scrollbar-track, .cm-scroller:focus-within::-webkit-scrollbar-track": {
+                  background: "rgba(255,255,255,0.04)",
+                },
+
+                ".cm-scroller:hover::-webkit-scrollbar-thumb, .cm-scroller:focus-within::-webkit-scrollbar-thumb": {
                   background:
                     "linear-gradient(180deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%)",
-                  borderRadius: "10px",
                 },
 
                 ".cm-scroller::-webkit-scrollbar-thumb:hover": {

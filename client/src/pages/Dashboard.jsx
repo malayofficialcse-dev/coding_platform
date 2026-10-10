@@ -204,8 +204,10 @@ export default function Dashboard() {
             <div style={{ ...card, overflow: "hidden", marginBottom: "1rem" }}>
               {/* Cover gradient */}
               <div style={{
-                height: 60,
-                background: `linear-gradient(110deg, ${C.primary} 0%, #50e6ff 100%)`,
+                height: 110,
+                background: user?.bannerImage
+                  ? `url(${user.bannerImage}) center / cover no-repeat`
+                  : `linear-gradient(110deg, ${C.primary} 0%, #50e6ff 100%)`,
               }} />
               <div style={{ padding: "0 1.25rem 1.25rem", textAlign: "center" }}>
                 <img

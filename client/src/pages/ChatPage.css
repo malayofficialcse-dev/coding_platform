@@ -142,6 +142,40 @@
   background: #0078d4 !important;
 }
 
+.cc-chat-page,
+.cc-chat-page *,
+body:has(.cc-chat-page) {
+  scrollbar-width: thin;
+  scrollbar-color: #aeb8c4 #f1f3f5;
+}
+
+.cc-chat-page::-webkit-scrollbar,
+.cc-chat-page *::-webkit-scrollbar,
+body:has(.cc-chat-page)::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.cc-chat-page::-webkit-scrollbar-track,
+.cc-chat-page *::-webkit-scrollbar-track,
+body:has(.cc-chat-page)::-webkit-scrollbar-track {
+  background: #f1f3f5;
+}
+
+.cc-chat-page::-webkit-scrollbar-thumb,
+.cc-chat-page *::-webkit-scrollbar-thumb,
+body:has(.cc-chat-page)::-webkit-scrollbar-thumb {
+  border: 2px solid #f1f3f5;
+  border-radius: 999px;
+  background: #aeb8c4;
+}
+
+.cc-chat-page::-webkit-scrollbar-thumb:hover,
+.cc-chat-page *::-webkit-scrollbar-thumb:hover,
+body:has(.cc-chat-page)::-webkit-scrollbar-thumb:hover {
+  background: #7a8694;
+}
+
 @media (max-width: 760px) {
   .cc-chat-page {
     margin-inline: -12px;
@@ -161,6 +195,31 @@
 [data-theme="dark"] .cc-chat-page {
   background: var(--cc-background) !important;
   color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .cc-chat-page,
+[data-theme="dark"] .cc-chat-page *,
+[data-theme="dark"] body:has(.cc-chat-page) {
+  scrollbar-color: #6e7681 #161b22;
+}
+
+[data-theme="dark"] .cc-chat-page::-webkit-scrollbar-track,
+[data-theme="dark"] .cc-chat-page *::-webkit-scrollbar-track,
+[data-theme="dark"] body:has(.cc-chat-page)::-webkit-scrollbar-track {
+  background: #161b22;
+}
+
+[data-theme="dark"] .cc-chat-page::-webkit-scrollbar-thumb,
+[data-theme="dark"] .cc-chat-page *::-webkit-scrollbar-thumb,
+[data-theme="dark"] body:has(.cc-chat-page)::-webkit-scrollbar-thumb {
+  border-color: #161b22;
+  background: #6e7681;
+}
+
+[data-theme="dark"] .cc-chat-page::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .cc-chat-page *::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] body:has(.cc-chat-page)::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
 }
 
 [data-theme="dark"] .cc-chat-panel,
