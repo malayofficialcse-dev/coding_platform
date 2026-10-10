@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import Message from "../models/Message.js";
 import cloudinary from "../config/cloudinary.js";
-import { getReceiverSocketId, getIoInstance } from "../lib/socket.js";
+import { getIoInstance } from "../lib/socket.js";
 import { createNotification } from "./notification.controller.js";
 
 /**
@@ -15,10 +15,46 @@ export const getUsersForSidebar = async (req, res) => {
     const followings = loggedInUser?.following || [];
 
     const users = await User.find({ _id: { $in: followings } }).select(
-      "_id name email profileImage"
+      "_id name email username profileImage lastSeen"
     );
 
-    res.status(200).json(users);
+    const followingIds = users.map((user) => user._id);
+    const recentMessages = followingIds.length
+      ? await Message.find({
+          $or: [
+            { senderId: loggedInUserId, receiverId: { $in: followingIds } },
+            { receiverId: loggedInUserId, senderId: { $in: followingIds } },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .select("senderId receiverId text image createdAt")
+          .lean()
+      : [];
+
+    const latestByUser = new Map();
+    for (const message of recentMessages) {
+      const otherUserId =
+        String(message.senderId) === String(loggedInUserId)
+          ? String(message.receiverId)
+          : String(message.senderId);
+      if (!latestByUser.has(otherUserId)) latestByUser.set(otherUserId, message);
+    }
+
+    res.status(200).json(
+      users
+        .map((user) => {
+          const lastMessage = latestByUser.get(String(user._id)) || null;
+          return {
+            ...user.toObject(),
+            lastMessage,
+            lastChat: lastMessage?.createdAt || null,
+          };
+        })
+        .sort(
+          (first, second) =>
+            new Date(second.lastChat || 0) - new Date(first.lastChat || 0)
+        )
+    );
   } catch (err) {
     console.error("getUsersForSidebar error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -102,12 +138,7 @@ export const sendMessage = async (req, res) => {
     // Emit realtime message + notification to receiver if they have a socket
     try {
       const io = getIoInstance();
-      const receiverSocketId = getReceiverSocketId(String(receiverId));
-
-      // Emit message event
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("newMessage", { message: newMessage });
-      }
+      io.to(String(receiverId)).emit("newMessage", { message: newMessage });
 
       // Create notification (always create, receiver will see it in notifications)
       const notification = await createNotification(
@@ -123,12 +154,10 @@ export const sendMessage = async (req, res) => {
       );
 
       // Emit notification realtime
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("newNotification", {
-          notification,
-          type: "message",
-        });
-      }
+      io.to(String(receiverId)).emit("newNotification", {
+        notification,
+        type: "message",
+      });
     } catch (socketErr) {
       // socket errors should not block the API response
       console.warn("Socket emit failed:", socketErr?.message || socketErr);

@@ -6,10 +6,12 @@ import {
   FaComment,
   FaEnvelope,
   FaHeart,
+  FaTrash,
   FaTimes,
   FaUserPlus,
 } from "react-icons/fa";
 import { FaArrowRight, FaRetweet } from "react-icons/fa6";
+import { toast } from "react-toastify";
 import { AuthContext } from "../contexts/AuthContext";
 import api from "../api/api";
 import { getSocket } from "../socket";
@@ -20,6 +22,7 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [recentNotifications, setRecentNotifications] = useState([]);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (user?._id) {
@@ -78,6 +81,24 @@ export default function NotificationBell() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!recentNotifications.length || clearing) return;
+    if (!window.confirm("Are you sure you want to clear all notifications?")) return;
+
+    setClearing(true);
+    try {
+      await api.delete("/notifications/all");
+      setRecentNotifications([]);
+      setUnreadCount(0);
+      toast.success("All notifications cleared");
+    } catch (err) {
+      console.error("Error clearing notifications:", err);
+      toast.error("Could not clear notifications");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const getNotificationIcon = (type) => {
     switch (type) {
       case "like":
@@ -118,9 +139,22 @@ export default function NotificationBell() {
         <div className="notification-dropdown">
           <div className="dropdown-header">
             <h5>Notifications</h5>
-            <Link to="/notifications" className="view-all-link">
-              View All
-            </Link>
+            <div className="dropdown-header-actions">
+              {recentNotifications.length > 0 && (
+                <button
+                  type="button"
+                  className="dropdown-clear-all"
+                  onClick={handleClearAll}
+                  disabled={clearing}
+                >
+                  <FaTrash />
+                  {clearing ? "Clearing..." : "Clear all"}
+                </button>
+              )}
+              <Link to="/notifications" className="view-all-link">
+                View All
+              </Link>
+            </div>
           </div>
 
           <div className="dropdown-content">

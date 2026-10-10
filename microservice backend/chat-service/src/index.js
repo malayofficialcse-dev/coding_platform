@@ -3,12 +3,13 @@ import http from "http";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 import messageRoutes from "./routes/message.routes.js";
 import { initSocket } from "./lib/socket.js";
 import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
 
-dotenv.config();
+dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
 const app = express();
 const server = http.createServer(app);
@@ -36,5 +37,4 @@ connectDB().then(() => {
     console.log(`[Chat Service] Running on port ${PORT} with Socket.IO enabled`);
   });
 });
-
 

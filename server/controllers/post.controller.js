@@ -170,7 +170,7 @@ export const likePost = async (req, res) => {
     const alreadyLiked = post.likes.some((id) => id.toString() === userIdString);
 
     if (alreadyLiked) {
-      return res.status(400).json({ error: "Already liked" });
+      return res.json({ likes: post.likes.length, liked: true });
     }
 
     post.likes.push(userId);
@@ -201,7 +201,7 @@ export const likePost = async (req, res) => {
       }
     }
 
-    res.json({ likes: post.likes.length });
+    res.json({ likes: post.likes.length, liked: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -218,7 +218,7 @@ export const unlikePost = async (req, res) => {
     post.likes = post.likes.filter((id) => id.toString() !== userId.toString());
     await post.save();
 
-    res.json({ likes: post.likes.length });
+    res.json({ likes: post.likes.length, liked: false });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

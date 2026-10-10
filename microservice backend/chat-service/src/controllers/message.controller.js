@@ -1,14 +1,8 @@
 import User from "../models/User.js";
 import Message from "../models/Message.js";
 import { v2 as cloudinary } from "cloudinary";
-import { getReceiverSocketId, getSocket } from "../lib/socket.js";
+import { getSocket } from "../lib/socket.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -17,10 +11,46 @@ export const getUsersForSidebar = async (req, res) => {
     const followings = loggedInUser?.following || [];
 
     const users = await User.find({ _id: { $in: followings } }).select(
-      "_id name email username profileImage"
+      "_id name email username profileImage lastSeen"
     );
 
-    res.status(200).json(users);
+    const followingIds = users.map((user) => user._id);
+    const recentMessages = followingIds.length
+      ? await Message.find({
+          $or: [
+            { senderId: loggedInUserId, receiverId: { $in: followingIds } },
+            { receiverId: loggedInUserId, senderId: { $in: followingIds } },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .select("senderId receiverId text image createdAt")
+          .lean()
+      : [];
+
+    const latestByUser = new Map();
+    for (const message of recentMessages) {
+      const otherUserId =
+        String(message.senderId) === String(loggedInUserId)
+          ? String(message.receiverId)
+          : String(message.senderId);
+      if (!latestByUser.has(otherUserId)) latestByUser.set(otherUserId, message);
+    }
+
+    res.status(200).json(
+      users
+        .map((user) => {
+          const lastMessage = latestByUser.get(String(user._id)) || null;
+          return {
+            ...user.toObject(),
+            lastMessage,
+            lastChat: lastMessage?.createdAt || null,
+          };
+        })
+        .sort(
+          (first, second) =>
+            new Date(second.lastChat || 0) - new Date(first.lastChat || 0)
+        )
+    );
   } catch (err) {
     console.error("getUsersForSidebar error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -64,10 +94,30 @@ export const sendMessage = async (req, res) => {
     let imageUrl = "";
     if (image) {
       if (image.startsWith("data:") || image.startsWith("data:image")) {
-        const uploadResponse = await cloudinary.uploader.upload(image, {
-          folder: "code-campus/messages",
-        });
-        imageUrl = uploadResponse.secure_url;
+        const cloudinaryConfig = {
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
+        };
+        if (Object.values(cloudinaryConfig).some((value) => !value)) {
+          return res.status(503).json({
+            error: "Image uploads are not configured on the server.",
+          });
+        }
+
+        cloudinary.config(cloudinaryConfig);
+        try {
+          const uploadResponse = await cloudinary.uploader.upload(image, {
+            folder: "code-campus/messages",
+          });
+          imageUrl = uploadResponse.secure_url;
+        } catch (uploadError) {
+          console.error("Cloudinary message image upload failed:", uploadError);
+          return res.status(502).json({
+            error: "Image upload failed.",
+            details: uploadError.message,
+          });
+        }
       } else {
         imageUrl = image;
       }
@@ -86,11 +136,9 @@ export const sendMessage = async (req, res) => {
 
     // Real-time socket emission
     try {
-      const receiverSocketId = getReceiverSocketId(receiverId.toString());
-      if (receiverSocketId) {
-        const io = getSocket();
-        io.to(receiverSocketId).emit("newMessage", newMessage);
-      }
+      getSocket()
+        .to(receiverId.toString())
+        .emit("newMessage", { message: newMessage });
     } catch (socketErr) {
       console.warn("Socket emission error:", socketErr.message);
     }
@@ -112,4 +160,3 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Failed to send message", details: err.message });
   }
 };
-

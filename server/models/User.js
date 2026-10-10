@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   yearOfPassing: Number,
   profileImage: { type: String, default: "" },
   bannerImage: { type: String, default: "" },
+  lastSeen: { type: Date, default: null },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });

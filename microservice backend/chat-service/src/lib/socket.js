@@ -1,16 +1,18 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import User from "../models/User.js";
 
 dotenv.config();
 
 let io;
-const userSocketMap = {};
+const userSockets = new Map();
 
 export function initSocket(server) {
   const allowedOrigins = [
     process.env.FRONTEND_URL || "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://localhost:5174",
     "https://code-campus-malay1.onrender.com",
     "https://code-campus-htg4.vercel.app",
   ];
@@ -30,21 +32,35 @@ export function initSocket(server) {
 
     const userId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
     if (userId) {
-      userSocketMap[userId] = socket.id;
-      // Join user room for targeted notifications/events
-      socket.join(userId.toString());
+      const normalizedUserId = String(userId);
+      const sockets = userSockets.get(normalizedUserId) || new Set();
+      sockets.add(socket.id);
+      userSockets.set(normalizedUserId, sockets);
+      socket.join(normalizedUserId);
     }
 
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    io.emit("getOnlineUsers", Array.from(userSockets.keys()));
+    socket.on("getOnlineUsers", () => {
+      socket.emit("getOnlineUsers", Array.from(userSockets.keys()));
+    });
 
-    socket.on("disconnect", () => {
-      for (const [uid, sid] of Object.entries(userSocketMap)) {
-        if (sid === socket.id) {
-          delete userSocketMap[uid];
-          break;
+    socket.on("disconnect", async () => {
+      if (userId) {
+        const normalizedUserId = String(userId);
+        const sockets = userSockets.get(normalizedUserId);
+        sockets?.delete(socket.id);
+        if (!sockets?.size) {
+          userSockets.delete(normalizedUserId);
+          const lastSeen = new Date();
+          try {
+            await User.findByIdAndUpdate(normalizedUserId, { lastSeen });
+            io.emit("userLastSeen", { userId: normalizedUserId, lastSeen });
+          } catch (error) {
+            console.error("Failed to update user last seen:", error);
+          }
         }
       }
-      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+      io.emit("getOnlineUsers", Array.from(userSockets.keys()));
       console.log(`[Chat Socket] Client disconnected: ${socket.id}`);
     });
   });
@@ -53,7 +69,7 @@ export function initSocket(server) {
 }
 
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
+  return userSockets.get(String(userId))?.values().next().value;
 }
 
 export function getSocket() {

@@ -78,6 +78,34 @@
   color: #212529;
 }
 
+.dropdown-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dropdown-clear-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dropdown-clear-all:hover:not(:disabled) {
+  color: #7f1d1d;
+  text-decoration: underline;
+}
+
+.dropdown-clear-all:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .view-all-link {
   color: #1d4ed8;
   text-decoration: none;

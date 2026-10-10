@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import CommentSection from "./CommentSection";
@@ -32,13 +32,19 @@ import {
 
 const LANGUAGES = { javascript, python, java };
 
+const isLikedByUser = (likes, userId) =>
+  Array.isArray(likes) &&
+  likes.some((like) => String(like?._id || like) === userId);
+
 export default function PostCard({ post, user, onUpdate, onDelete, embedded = false }) {
   const { theme } = useTheme();
   const likesArray = Array.isArray(post.likes) ? post.likes : [];
-  const [liked, setLiked] = useState(likesArray.includes(user?._id));
-  const [likes, setLikes] = useState(
-    typeof post.likes === "number" ? post.likes : likesArray.length
+  const likesCount = typeof post.likes === "number" ? post.likes : likesArray.length;
+  const currentUserId = String(user?._id || user?.id || "");
+  const [liked, setLiked] = useState(
+    post.likedByMe ?? isLikedByUser(post.likes, currentUserId)
   );
+  const [likes, setLikes] = useState(likesCount);
 
   const [comments, setComments] = useState(post.comments || []);
   const [showComments, setShowComments] = useState(false);
@@ -55,19 +61,27 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
     post.author?._id &&
     user._id.toString() === post.author._id.toString();
 
+  useEffect(() => {
+    setLiked(
+      post.likedByMe ?? isLikedByUser(post.likes, currentUserId)
+    );
+    setLikes(likesCount);
+  }, [post._id, post.likes, post.likedByMe, currentUserId, likesCount]);
+
   const handleLike = async () => {
     try {
       let res;
       if (!liked) {
         res = await api.post(`/posts/like/${post._id}`);
-        setLiked(true);
       } else {
         res = await api.post(`/posts/unlike/${post._id}`);
-        setLiked(false);
       }
-      setLikes(res.data.likes);
+      const nextLiked = res.data.liked ?? !liked;
+      const nextLikes = res.data.likes;
+      setLiked(nextLiked);
+      setLikes(nextLikes);
 
-      onUpdate?.({ ...post, likes: res.data.likes });
+      onUpdate?.({ ...post, likes: nextLikes, likedByMe: nextLiked });
     } catch (err) {
       console.error("Error liking:", err);
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import api from "../api/api";
 import { initSocket } from "../socket";
 import { useTheme } from "../contexts/ThemeContext";
@@ -6,6 +6,27 @@ import CloseIcon from "../assets/circle-xmark-solid-full.svg";
 import PaperPlane from "../assets/paper-plane-solid-full.svg";
 import ImageLogo from "../assets/images-regular-full.svg";
 import ChatBox from "../assets/chat2.jpg";
+
+const formatChatTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const sameDay = date.toDateString() === new Date().toDateString();
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : date.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+
+const formatLastSeen = (value) => {
+  if (!value) return "last seen recently";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "last seen recently";
+  const sameDay = date.toDateString() === new Date().toDateString();
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return sameDay
+    ? `last seen today at ${time}`
+    : `last seen ${date.toLocaleDateString([], { month: "short", day: "numeric" })} at ${time}`;
+};
 
 export default function ChatPanel({ user }) {
   const { theme } = useTheme();
@@ -23,6 +44,33 @@ export default function ChatPanel({ user }) {
   const selectedRef = useRef(null);
   const socketRef = useRef(null); // holds socket instance
   const messagesEndRef = useRef(null);
+  const currentUserId = String(user?._id || user?.id || "");
+
+  const updateConversationFromMessage = useCallback((message) => {
+    const senderId = String(message.senderId?._id || message.senderId || "");
+    const receiverId = String(message.receiverId?._id || message.receiverId || "");
+    const otherUserId = senderId === currentUserId ? receiverId : senderId;
+    const lastMessage = {
+      _id: message._id,
+      senderId,
+      text: message.text || "",
+      image: message.image || "",
+      createdAt: message.createdAt || new Date().toISOString(),
+    };
+
+    setUsers((currentUsers) =>
+      currentUsers
+        .map((conversationUser) =>
+          String(conversationUser._id || conversationUser.id) === otherUserId
+            ? { ...conversationUser, lastMessage, lastChat: lastMessage.createdAt }
+            : conversationUser
+        )
+        .sort(
+          (first, second) =>
+            new Date(second.lastChat || 0) - new Date(first.lastChat || 0)
+        )
+    );
+  }, [currentUserId]);
 
   // ensure selectedRef always points to current selected
   useEffect(() => {
@@ -50,8 +98,7 @@ export default function ChatPanel({ user }) {
       if ("requestAnimationFrame" in window) requestAnimationFrame(fn);
       else setTimeout(fn, 50);
     } catch (e) {
-      // ignore scroll errors
-      // console.warn("scroll error", e);
+      console.warn("Unable to scroll to the latest message:", e);
     }
   };
 
@@ -84,10 +131,31 @@ export default function ChatPanel({ user }) {
       }
     };
 
+    const handleLastSeen = ({ userId, lastSeen }) => {
+      const normalizedId = String(userId);
+      setUsers((currentUsers) =>
+        currentUsers.map((conversationUser) =>
+          String(conversationUser._id || conversationUser.id) === normalizedId
+            ? { ...conversationUser, lastSeen }
+            : conversationUser
+        )
+      );
+      setSelected((currentSelected) =>
+        currentSelected &&
+        String(currentSelected._id || currentSelected.id) === normalizedId
+          ? { ...currentSelected, lastSeen }
+          : currentSelected
+      );
+    };
+
+    const requestOnlineUsers = () => s.emit("getOnlineUsers");
+
     // Handler: new incoming message
-    const handleNewMessage = ({ message }) => {
+    const handleNewMessage = (payload) => {
       try {
-        const msg = message || {};
+        const msg = payload?.message || payload;
+        if (!msg || typeof msg !== "object") return;
+        updateConversationFromMessage(msg);
         const sel = selectedRef.current;
         const otherId = sel?._id || sel?.id;
         const senderId = msg.senderId?._id || msg.senderId;
@@ -99,24 +167,13 @@ export default function ChatPanel({ user }) {
           (String(senderId) === String(otherId) ||
             String(receiverId) === String(otherId))
         ) {
-          setMessages((prev) => [...prev, msg]);
+          setMessages((prev) =>
+            prev.some((item) => item._id && item._id === msg._id)
+              ? prev
+              : [...prev, msg]
+          );
         }
 
-        // move the user in users list to top (if present)
-        setUsers((prev) => {
-          const updated = Array.isArray(prev) ? [...prev] : [];
-          const idx = updated.findIndex(
-            (u) => String(u._id || u.id) === String(senderId || receiverId)
-          );
-          if (idx !== -1) {
-            const [uobj] = updated.splice(idx, 1);
-            uobj.lastChat = new Date();
-            updated.unshift(uobj);
-          }
-          return updated;
-        });
-      } catch (e) {
-        // ignore
       } finally {
         // always attempt to scroll
         scrollToBottom(true);
@@ -126,10 +183,12 @@ export default function ChatPanel({ user }) {
     // Register handlers safely
     try {
       s.on("getOnlineUsers", handleOnline);
+      s.on("userLastSeen", handleLastSeen);
       s.on("newMessage", handleNewMessage);
+      s.on("connect", requestOnlineUsers);
+      if (s.connected) requestOnlineUsers();
     } catch (e) {
-      // in some edge cases initSocket may return a non-socket; guard
-      // console.warn("socket on error", e);
+      console.error("Unable to register chat socket listeners:", e);
     }
 
     // Load user list from API
@@ -139,9 +198,34 @@ export default function ChatPanel({ user }) {
         const payload = res?.data;
         const list =
           payload?.users || payload?.data || payload?.list || payload || [];
-        setUsers(Array.isArray(list) ? list : []);
+        setUsers((currentUsers) => {
+          const currentById = new Map(
+            currentUsers.map((conversationUser) => [
+              String(conversationUser._id || conversationUser.id),
+              conversationUser,
+            ])
+          );
+          return (Array.isArray(list) ? list : [])
+            .map((conversationUser) => {
+              const current = currentById.get(
+                String(conversationUser._id || conversationUser.id)
+              );
+              return current &&
+                new Date(current.lastChat || 0) >
+                  new Date(conversationUser.lastChat || 0)
+                ? { ...conversationUser, ...current }
+                : conversationUser;
+            })
+            .sort(
+              (first, second) =>
+                new Date(second.lastChat || 0) - new Date(first.lastChat || 0)
+            );
+        });
       })
-      .catch(() => setUsers([]));
+      .catch((error) => {
+        console.error("Failed to load chat list:", error);
+        setUsers([]);
+      });
 
     // CLEANUP: remove listeners safely
     return () => {
@@ -150,15 +234,17 @@ export default function ChatPanel({ user }) {
         try {
           // remove exact handlers
           sock.off && sock.off("getOnlineUsers", handleOnline);
+          sock.off && sock.off("userLastSeen", handleLastSeen);
           sock.off && sock.off("newMessage", handleNewMessage);
+          sock.off && sock.off("connect", requestOnlineUsers);
         } catch (e) {
-          // ignore off errors
+          console.warn("Unable to remove chat socket listeners:", e);
         }
       }
       socketRef.current = null;
     };
     // NOTE: we intentionally depend on `user` only so this effect runs when user changes
-  }, [user]);
+  }, [user, updateConversationFromMessage]);
 
   /* -------------------------------
      OPEN CHAT
@@ -169,10 +255,22 @@ export default function ChatPanel({ user }) {
       const id = otherUser._id || otherUser.id;
       const res = await api.get(`/messages/${id}`);
       const msgs = res?.data?.messages || res?.data || [];
-      setMessages(Array.isArray(msgs) ? msgs : []);
+      setMessages((currentMessages) => {
+        const merged = new Map();
+        [...(Array.isArray(msgs) ? msgs : []), ...currentMessages].forEach(
+          (message) => {
+            if (message?._id) merged.set(String(message._id), message);
+          }
+        );
+        return Array.from(merged.values()).sort(
+          (first, second) =>
+            new Date(first.createdAt || 0) - new Date(second.createdAt || 0)
+        );
+      });
       // scroll after short delay to ensure DOM updated
       setTimeout(() => scrollToBottom(false), 150);
     } catch (err) {
+      console.error("Failed to load chat history:", err);
       setMessages([]);
     }
   };
@@ -195,7 +293,14 @@ export default function ChatPanel({ user }) {
     try {
       const res = await api.post(`/messages/send/${receiverId}`, { text });
       const message = res?.data;
-      if (message) setMessages((m) => [...m, message]);
+      if (message) {
+        setMessages((current) =>
+          current.some((item) => item._id === message._id)
+            ? current
+            : [...current, message]
+        );
+        updateConversationFromMessage(message);
+      }
       setText("");
       scrollToBottom(true);
     } catch (err) {
@@ -224,13 +329,24 @@ export default function ChatPanel({ user }) {
       const receiverId = sel._id || sel.id;
       const res = await api.post(`/messages/send/${receiverId}`, {
         image: base64,
-      });
+      }, { timeout: 60000 });
       const message = res?.data;
-      if (message) setMessages((m) => [...m, message]);
+      if (message) {
+        setMessages((current) =>
+          current.some((item) => item._id === message._id)
+            ? current
+            : [...current, message]
+        );
+        updateConversationFromMessage(message);
+      }
       scrollToBottom(true);
     } catch (err) {
       console.error("handleFile error:", err);
-      alert("Image upload failed.");
+      const reason =
+        err.response?.data?.details ||
+        err.response?.data?.error ||
+        err.message;
+      alert(`Image upload failed: ${reason}`);
     } finally {
       setUploading(false);
     }
@@ -241,13 +357,11 @@ export default function ChatPanel({ user }) {
   /* -------------------------------
      FILTER + SORT USERS
   --------------------------------*/
-  const filteredUsers = [...users]
-    .sort((a, b) => new Date(b.lastChat || 0) - new Date(a.lastChat || 0))
-    .filter((u) =>
+  const filteredUsers = users.filter((u) =>
       (u.name || u.username || u.email || "")
         .toLowerCase()
         .includes(searchQuery.toLowerCase())
-    );
+  );
 
   /* -------------------------------
      RENDER
@@ -316,7 +430,8 @@ export default function ChatPanel({ user }) {
             const id = u._id || u.id;
             const online = onlineIds.includes(String(id));
             return (
-              <div className="cc-chat-user"
+              <div
+                className={`cc-chat-user${String(selected?._id || selected?.id) === String(id) ? " is-selected" : ""}`}
                 key={id}
                 onClick={() => openChatWith(u)}
                 style={{
@@ -344,22 +459,19 @@ export default function ChatPanel({ user }) {
                   <div style={{ fontWeight: 600, color: "var(--cc-text)" }}>
                     {u.name || u.username || u.email}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--cc-muted)" }}>{u.email}</div>
+                  <div className="cc-chat-user-preview">
+                    {u.lastMessage
+                      ? `${String(u.lastMessage.senderId?._id || u.lastMessage.senderId) === currentUserId ? "You: " : ""}${u.lastMessage.image ? "📷 Photo" : u.lastMessage.text || "Message"}`
+                      : u.username
+                        ? `@${u.username}`
+                        : "Start a conversation"}
+                  </div>
                 </div>
 
-                {/* ONLINE DOT A1 (right of username) */}
-                {online && (
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      background: "#2ecc71",
-                      display: "inline-block",
-                    }}
-                    title="Online"
-                  />
-                )}
+                <div className="cc-chat-user-trailing">
+                  <span className="cc-chat-user-time">{formatChatTime(u.lastChat)}</span>
+                  {online && <span className="cc-chat-online-dot" title="Online" />}
+                </div>
               </div>
             );
           })}
@@ -407,8 +519,13 @@ export default function ChatPanel({ user }) {
                     objectFit: "cover",
                   }}
                 />
-                <div style={{ flex: 1, fontWeight: 700, color: "var(--cc-text)" }}>
-                  {selected.name || selected.email}
+                <div className="cc-chat-contact-heading">
+                  <div>{selected.name || selected.username || selected.email}</div>
+                  <span>
+                    {onlineIds.includes(String(selected._id || selected.id))
+                      ? "online"
+                      : formatLastSeen(selected.lastSeen)}
+                  </span>
                 </div>
 
                 <button
