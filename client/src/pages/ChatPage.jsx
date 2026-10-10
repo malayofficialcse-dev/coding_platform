@@ -24,6 +24,7 @@
 import React, { useContext } from "react";
 import ChatPanel from "../components/ChatPanel";
 import { AuthContext } from "../contexts/AuthContext";
+import "./ChatPage.css";
 
 export default function ChatPage() {
   const { user } = useContext(AuthContext); // consume context correctly
@@ -31,7 +32,7 @@ export default function ChatPage() {
   if (!user) return <div>Please login to use messages</div>;
 
   return (
-    <div style={{ padding: 16, background: "var(--cc-background)", color: "var(--cc-text)", minHeight: "100vh" }}>
+    <div className="cc-chat-page" style={{ padding: 16, background: "var(--cc-background)", color: "var(--cc-text)", minHeight: "100vh" }}>
       <ChatPanel user={user} />
     </div>
   );

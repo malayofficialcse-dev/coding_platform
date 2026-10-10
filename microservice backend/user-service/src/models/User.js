@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
     degree: { type: String, default: "" },
     yearOfPassing: { type: String, default: "" },
     profileImage: { type: String, default: "" },
+    bannerImage: { type: String, default: "" },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },

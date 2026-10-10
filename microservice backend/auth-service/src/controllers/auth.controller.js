@@ -99,6 +99,32 @@ export const login = async (req, res) => {
   }
 };
 
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new passwords are required" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters" });
+    }
+
+    const userId = req.user?._id || req.user?.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("[Auth Service Password Update Error]:", err);
+    res.status(500).json({ message: "Could not update password" });
+  }
+};
+
 export const me = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
@@ -132,6 +158,23 @@ export const updateProfileImage = async (req, res) => {
     await user.save();
 
     res.json({ profileImage: user.profileImage, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateBannerImage = async (req, res) => {
+  try {
+    const imageUrl = req.file?.path || req.file?.secure_url || req.file?.url || req.file?.location;
+    if (!imageUrl) return res.status(400).json({ error: "No banner image uploaded" });
+
+    const userId = req.user?._id || req.user?.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    user.bannerImage = imageUrl;
+    await user.save();
+    res.json({ bannerImage: user.bannerImage, user: user.toObject({ transform: (_, value) => { delete value.password; return value; } }) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

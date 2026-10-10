@@ -69,6 +69,31 @@ export const login = async (req, res) => {
   }
 };
 
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new passwords are required" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Could not update password" });
+  }
+};
+
 export const me = async (req, res) => {
   res.json(req.user);
 };
@@ -83,6 +108,19 @@ export const updateProfileImage = async (req, res) => {
     user.profileImage = req.file.path; // Cloudinary URL
     await user.save();
     res.json({ profileImage: user.profileImage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateBannerImage = async (req, res) => {
+  try {
+    if (!req.file?.path) return res.status(400).json({ error: "No banner image uploaded" });
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    user.bannerImage = req.file.path;
+    await user.save();
+    res.json({ bannerImage: user.bannerImage, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

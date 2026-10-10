@@ -254,6 +254,7 @@ export default function ChatPanel({ user }) {
   --------------------------------*/
   return (
     <div
+      className="cc-chat-panel"
       style={{
         display: "flex",
         flexDirection: isMobile && selected ? "column" : "row",
@@ -268,7 +269,7 @@ export default function ChatPanel({ user }) {
     >
       {/* LEFT PANEL */}
       {(!isMobile || !selected) && (
-        <aside
+        <aside className="cc-chat-sidebar"
           style={{
             width: isMobile ? "100%" : 300,
             borderRight: isMobile ? "none" : "1px solid var(--cc-border)",
@@ -315,7 +316,7 @@ export default function ChatPanel({ user }) {
             const id = u._id || u.id;
             const online = onlineIds.includes(String(id));
             return (
-              <div
+              <div className="cc-chat-user"
                 key={id}
                 onClick={() => openChatWith(u)}
                 style={{
@@ -367,7 +368,7 @@ export default function ChatPanel({ user }) {
 
       {/* RIGHT PANEL */}
       {(!isMobile || selected) && (
-        <main
+        <main className="cc-chat-main"
           style={{
             flex: 1,
             display: "flex",
@@ -379,7 +380,7 @@ export default function ChatPanel({ user }) {
           }}
         >
           {/* HEADER */}
-          <div
+          <div className="cc-chat-header"
             style={{
               padding: 14,
               borderBottom: "1px solid var(--cc-border)",
@@ -428,7 +429,7 @@ export default function ChatPanel({ user }) {
           </div>
 
           {/* MESSAGES - only this scrolls */}
-          <div
+          <div className="cc-chat-messages"
             style={{
               flex: 1,
               padding: 16,
@@ -446,7 +447,7 @@ export default function ChatPanel({ user }) {
                 String(user._id || user.id);
 
               return (
-                <div
+                <div className={`cc-chat-bubble ${fromMe ? "is-mine" : "is-theirs"}`}
                   key={m._id || m.createdAt}
                   style={{
                     alignSelf: fromMe ? "flex-end" : "flex-start",
@@ -490,7 +491,7 @@ export default function ChatPanel({ user }) {
 
           {/* FOOTER - fixed at bottom */}
           {selected && (
-            <div
+            <div className="cc-chat-composer"
               style={{
                 padding: 10,
                 display: "flex",

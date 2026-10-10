@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
-import { register, login, me, updateProfileImage, verifyToken } from "../controllers/auth.controller.js";
+import { register, login, me, changePassword, updateProfileImage, updateBannerImage, verifyToken } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
 dotenv.config({
@@ -34,8 +34,10 @@ const upload = multer({ storage });
 
 router.post("/register", register);
 router.post("/login", login);
+router.put("/password", protect, changePassword);
 router.get("/me", protect, me);
 router.post("/profile-image", protect, upload.single("profileImage"), updateProfileImage);
+router.post("/banner-image", protect, upload.single("bannerImage"), updateBannerImage);
 router.post("/update-profile-image", protect, upload.single("image"), updateProfileImage);
 router.get("/verify", verifyToken);
 

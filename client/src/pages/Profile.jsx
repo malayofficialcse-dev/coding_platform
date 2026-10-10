@@ -20,15 +20,21 @@ export default function Profile() {
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [codingSubmissions, setCodingSubmissions] = useState([]);
   const [profileImage, setProfileImage] = useState(user?.profileImage);
+  const [bannerImage, setBannerImage] = useState(user?.bannerImage || "");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedBannerFile, setSelectedBannerFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [posts, setPosts] = useState([]);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [networkTab, setNetworkTab] = useState("followers");
   const [profileDraft, setProfileDraft] = useState({ name: "", college: "", degree: "", yearOfPassing: "" });
+  const [passwordDraft, setPasswordDraft] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [changingPassword, setChangingPassword] = useState(false);
   const [editingPostId, setEditingPostId] = useState(null);
   const [editText, setEditText] = useState("");
   const [editCodeBlocks, setEditCodeBlocks] = useState([]);
@@ -38,6 +44,7 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
     setProfileImage(user.profileImage || "");
+    setBannerImage(user.bannerImage || "");
     setProfileDraft({ name: user.name || "", college: user.college || "", degree: user.degree || "", yearOfPassing: user.yearOfPassing || "" });
   }, [user]);
 
@@ -107,6 +114,30 @@ export default function Profile() {
     }
   };
 
+  const handleBannerSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedBannerFile(file);
+    setBannerImage(URL.createObjectURL(file));
+  };
+
+  const handleBannerUpload = async () => {
+    if (!selectedBannerFile) return;
+    setUploadingBanner(true);
+    const formData = new FormData();
+    formData.append("bannerImage", selectedBannerFile);
+    try {
+      const response = await api.post("/auth/banner-image", formData);
+      setBannerImage(response.data.bannerImage);
+      setUser?.({ ...user, bannerImage: response.data.bannerImage });
+      setSelectedBannerFile(null);
+    } catch (error) {
+      alert(error.response?.data?.error || "Banner upload failed");
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
   const saveProfile = async () => {
     try {
       const response = await api.put("/users/profile", profileDraft);
@@ -114,6 +145,30 @@ export default function Profile() {
       setEditingProfile(false);
     } catch (error) {
       alert(error.response?.data?.error || "Could not update profile");
+    }
+  };
+
+  const changePassword = async () => {
+    if (passwordDraft.newPassword !== passwordDraft.confirmPassword) {
+      alert("New password and confirmation do not match");
+      return;
+    }
+    if (passwordDraft.newPassword.length < 8) {
+      alert("New password must be at least 8 characters");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await api.put("/auth/password", {
+        currentPassword: passwordDraft.currentPassword,
+        newPassword: passwordDraft.newPassword,
+      });
+      alert("Password updated successfully");
+      setPasswordDraft({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      alert(error.response?.data?.message || "Could not update password");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -188,7 +243,7 @@ export default function Profile() {
       <div className="cc-profile-layout">
         <aside className="cc-profile-sidebar">
           <section className="cc-profile-identity cc-profile-card">
-            <div className="cc-profile-cover" />
+            <div className="cc-profile-cover" style={bannerImage ? { backgroundImage: `url(${bannerImage})` } : undefined}><label htmlFor="banner-upload" className="cc-profile-banner-action" title="Change cover photo">Change cover</label><input id="banner-upload" type="file" accept="image/*" onChange={handleBannerSelect} disabled={uploadingBanner} />{selectedBannerFile && <button className="cc-profile-banner-save" onClick={handleBannerUpload} disabled={uploadingBanner}>{uploadingBanner ? "Uploading..." : "Save cover"}</button>}</div>
             <div className="cc-profile-avatar-wrap"><img className="cc-profile-avatar" src={optimizedImageUrl(profileImage || DEFAULT_AVATAR, 400)} alt="Profile" /><label htmlFor="profile-upload" className="cc-profile-camera" title="Change profile photo"><FaCamera /></label><input id="profile-upload" type="file" accept="image/*" onChange={handleFileSelect} disabled={uploading} /></div>
             <div className="cc-profile-identity-body"><h2>{user?.name || user?.username}</h2><span className="cc-profile-handle">@{user?.username}</span><span className="cc-profile-email">{user?.email}</span><div className="cc-profile-role">{user?.role || "Student"}</div><p>{user?.bio || "Build your professional learning identity across courses, exams, and coding practice."}</p>
               {selectedFile && <div className="cc-profile-upload"><div><span>{uploading ? "Uploading photo" : "Photo ready"}</span><strong>{uploadProgress}%</strong></div><div className="cc-profile-progress"><i style={{ width: `${Math.max(uploadProgress, selectedFile ? 8 : 0)}%` }} /></div><button onClick={handleImageUpload} disabled={uploading}>{uploading ? "Uploading…" : "Update photo"}</button></div>}
@@ -196,7 +251,7 @@ export default function Profile() {
             </div>
           </section>
           <section className="cc-profile-card cc-profile-specialties"><div className="cc-profile-section-title"><h2>Verified specialties</h2><span>Learning signals</span></div><div className="cc-profile-tags"><span><FaCode /> Problem solving</span><span><FaBookOpen /> {user?.degree || "Technical learning"}</span><span><FaShieldAlt /> {user?.role || "Learner"}</span><span><FaGraduationCap /> {user?.college || "Code Campus"}</span></div></section>
-          <section className="cc-profile-card cc-profile-network"><div className="cc-profile-tabs"><span>Followers ({followers.length})</span><span>Following ({following.length})</span></div><div className="cc-profile-people">{[...followers, ...following].slice(0, 6).map((person, index) => <div key={`${person._id}-${index}`}><img src={optimizedImageUrl(person.profileImage || DEFAULT_AVATAR, 80)} alt="" /><Link to={`/profile/${person._id}`}>{person.name || person.username}</Link><button onClick={() => (followers.some((item) => item._id === person._id) ? handleUnfollow(person._id) : handleFollow(person._id))}>{followers.some((item) => item._id === person._id) ? "Following" : "Follow back"}</button></div>)}</div>{!followers.length && !following.length && <p className="cc-profile-muted">Connect with other learners to grow your network.</p>}</section>
+          <section className="cc-profile-card cc-profile-network"><div className="cc-profile-tabs"><button className={networkTab === "followers" ? "active" : ""} onClick={() => setNetworkTab("followers")}>Followers ({followers.length})</button><button className={networkTab === "following" ? "active" : ""} onClick={() => setNetworkTab("following")}>Following ({following.length})</button></div><div className="cc-profile-people">{(networkTab === "followers" ? followers : following).map((person) => { const personId = person._id || person.id; const isFollowing = following.some((item) => String(item._id || item.id) === String(personId)); return <div key={personId}><img src={optimizedImageUrl(person.profileImage || DEFAULT_AVATAR, 80)} alt="" /><Link to={`/profile/${personId}`}>{person.name || person.username}</Link><button onClick={() => (isFollowing ? handleUnfollow(personId) : handleFollow(personId))}>{isFollowing ? "Following" : "Follow back"}</button></div>; })}</div>{!(networkTab === "followers" ? followers : following).length && <p className="cc-profile-muted">{networkTab === "followers" ? "You do not have any followers yet." : "You are not following anyone yet."}</p>}</section>
         </aside>
 
         <main className="cc-profile-main">
@@ -212,7 +267,7 @@ export default function Profile() {
         </main>
       </div>
 
-      {editingProfile && <div className="cc-profile-modal-backdrop" onClick={() => setEditingProfile(false)}><div className="cc-profile-modal" onClick={(event) => event.stopPropagation()}><div className="cc-profile-modal-head"><h2>Edit profile</h2><button onClick={() => setEditingProfile(false)}><FaTimes /></button></div>{Object.entries({ name: "Full name", college: "College / organization", degree: "Degree / specialization", yearOfPassing: "Year of passing" }).map(([field, label]) => <label key={field}>{label}<input value={profileDraft[field]} onChange={(event) => setProfileDraft((current) => ({ ...current, [field]: event.target.value }))} /></label>)}<div className="cc-profile-modal-actions"><button onClick={() => setEditingProfile(false)}>Cancel</button><button onClick={saveProfile}><FaSave /> Save profile</button></div></div></div>}
+      {editingProfile && <div className="cc-profile-modal-backdrop" onClick={() => setEditingProfile(false)}><div className="cc-profile-modal" onClick={(event) => event.stopPropagation()}><div className="cc-profile-modal-head"><h2>Edit profile</h2><button onClick={() => setEditingProfile(false)}><FaTimes /></button></div>{Object.entries({ name: "Full name", college: "College / organization", degree: "Degree / specialization", yearOfPassing: "Year of passing" }).map(([field, label]) => <label key={field}>{label}<input value={profileDraft[field]} onChange={(event) => setProfileDraft((current) => ({ ...current, [field]: event.target.value }))} /></label>)}<div className="cc-profile-modal-actions"><button onClick={() => setEditingProfile(false)}>Cancel</button><button onClick={saveProfile}><FaSave /> Save profile</button></div><div className="cc-profile-security"><h3>Security</h3><p>Change your account password.</p><label>Current password<input type="password" autoComplete="current-password" value={passwordDraft.currentPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label><label>New password<input type="password" autoComplete="new-password" minLength={8} value={passwordDraft.newPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} /></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} value={passwordDraft.confirmPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, confirmPassword: event.target.value }))} /></label><button className="cc-profile-password-button" onClick={changePassword} disabled={changingPassword || !passwordDraft.currentPassword || !passwordDraft.newPassword || !passwordDraft.confirmPassword}>{changingPassword ? "Updating..." : "Update password"}</button></div></div></div>}
     </div>
   );
 }

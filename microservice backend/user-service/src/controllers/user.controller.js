@@ -7,7 +7,7 @@ export const getAllUsers = async (req, res) => {
     const cacheKey = "users:directory";
     const cached = await getCached(cacheKey);
     if (cached) return res.json(cached);
-    const users = await User.find({}, "name username email profileImage followers following role");
+    const users = await User.find({}, "name username email profileImage bannerImage followers following role");
     await setCached(cacheKey, users, 30);
     res.json(users);
   } catch (err) {
@@ -18,8 +18,8 @@ export const getAllUsers = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .populate("followers", "name username profileImage")
-      .populate("following", "name username profileImage")
+      .populate("followers", "name username profileImage bannerImage")
+      .populate("following", "name username profileImage bannerImage")
       .select("-password");
 
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -42,7 +42,7 @@ export const searchUsers = async (req, res) => {
           { email: { $regex: query, $options: "i" } },
         ],
       },
-      "name username profileImage followers following"
+      "name username profileImage bannerImage followers following"
     ).limit(20);
 
     res.json(users);

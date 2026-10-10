@@ -5,3 +5,332 @@
 .cc-profile-modal-backdrop { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.45); }.cc-profile-modal { width: min(100%, 480px); padding: 20px; border-radius: 4px; background: #fff; box-shadow: 0 12px 36px rgba(15,23,42,.24); }.cc-profile-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }.cc-profile-modal-head h2 { margin: 0; font-size: 20px; }.cc-profile-modal-head button { border: 0; background: transparent; color: #697687; }.cc-profile-modal label { display: grid; gap: 5px; margin-top: 12px; color: #465364; font-size: 12px; font-weight: 700; }.cc-profile-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }.cc-profile-modal-actions button { min-height: 36px; padding: 0 12px; border: 1px solid #d6dbe1; border-radius: 4px; background: #fff; color: #465364; font-weight: 700; }.cc-profile-modal-actions button:last-child { border-color: #0078d4; background: #0078d4; color: #fff; }
 @media (max-width: 1050px) { .cc-profile-layout { grid-template-columns: 280px minmax(0, 1fr); }.cc-profile-stat-grid { grid-template-columns: repeat(2, 1fr); } }.cc-profile-stat-grid { min-width: 0; }
 @media (max-width: 760px) { .cc-profile-shell { margin-inline: -12px; padding: 20px 12px 36px; }.cc-profile-heading { align-items: flex-start; flex-direction: column; }.cc-profile-layout { display: block; }.cc-profile-sidebar { margin-bottom: 18px; }.cc-profile-heading h1 { font-size: 23px; }.cc-profile-section-title { align-items: flex-start; flex-direction: column; }.cc-profile-stat-grid { grid-template-columns: repeat(2, 1fr); padding-inline: 12px; }.cc-profile-course-top, .cc-profile-course-bottom { align-items: flex-start; flex-direction: column; gap: 5px; }.cc-profile-empty { align-items: flex-start; flex-wrap: wrap; }.cc-profile-empty a { margin-left: 0; width: 100%; } }
+.cc-profile-security { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e6e9ed; }
+.cc-profile-security h3 { margin: 0; color: #172033; font-size: 15px; }
+.cc-profile-security p { margin: 4px 0 12px; color: #697687; font-size: 12px; }
+.cc-profile-password-button { margin-top: 14px; min-height: 36px; padding: 0 12px; border: 1px solid #0078d4; border-radius: 4px; background: #0078d4; color: #fff; font-weight: 700; cursor: pointer; }
+.cc-profile-password-button:disabled { cursor: not-allowed; opacity: .55; }
+
+[data-theme="dark"] .cc-profile-shell {
+  background: var(--cc-background) !important;
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .cc-profile-card,
+[data-theme="dark"] .cc-profile-modal {
+  background: var(--cc-surface) !important;
+  border-color: var(--cc-border) !important;
+  color: var(--cc-text) !important;
+  box-shadow: var(--cc-shadow-sm) !important;
+}
+
+[data-theme="dark"] .cc-profile-heading h1,
+[data-theme="dark"] .cc-profile-identity-body h2,
+[data-theme="dark"] .cc-profile-section-title h2,
+[data-theme="dark"] .cc-profile-stat strong,
+[data-theme="dark"] .cc-profile-modal-head h2,
+[data-theme="dark"] .cc-profile-security h3 {
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .cc-profile-heading p,
+[data-theme="dark"] .cc-profile-handle,
+[data-theme="dark"] .cc-profile-email,
+[data-theme="dark"] .cc-profile-section-title span,
+[data-theme="dark"] .cc-profile-stat small,
+[data-theme="dark"] .cc-profile-stat span,
+[data-theme="dark"] .cc-profile-security p {
+  color: var(--cc-muted) !important;
+}
+
+[data-theme="dark"] .cc-profile-identity-body p,
+[data-theme="dark"] .cc-profile-quality,
+[data-theme="dark"] .cc-profile-tags span,
+[data-theme="dark"] .cc-profile-stat,
+[data-theme="dark"] .cc-profile-course-bar,
+[data-theme="dark"] .cc-profile-contribution-cell,
+[data-theme="dark"] .cc-profile-edit-post textarea,
+[data-theme="dark"] .cc-profile-edit-post input,
+[data-theme="dark"] .cc-profile-modal input {
+  background: var(--cc-surface-muted) !important;
+  color: var(--cc-text) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .cc-profile-section-title,
+[data-theme="dark"] .cc-profile-course,
+[data-theme="dark"] .cc-profile-post,
+[data-theme="dark"] .cc-profile-security {
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .cc-profile-course-top a,
+[data-theme="dark"] .cc-profile-course-bottom span,
+[data-theme="dark"] .cc-profile-post p,
+[data-theme="dark"] .cc-profile-modal label {
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .cc-profile-actions button,
+[data-theme="dark"] .cc-profile-modal-actions button,
+[data-theme="dark"] .cc-profile-password-button:disabled {
+  background: var(--cc-surface-muted) !important;
+  color: var(--cc-text) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .cc-profile-actions button:first-child,
+[data-theme="dark"] .cc-profile-modal-actions button:last-child,
+[data-theme="dark"] .cc-profile-password-button {
+  background: var(--cc-primary) !important;
+  color: #07111f !important;
+  border-color: var(--cc-primary) !important;
+}
+
+[data-theme="dark"] .cc-profile-modal-backdrop {
+  background: rgba(2, 6, 23, .72) !important;
+}
+
+/* GitHub-inspired dark profile palette */
+[data-theme="dark"] .cc-profile-shell {
+  background: #0d1117 !important;
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-profile-card,
+[data-theme="dark"] .cc-profile-modal {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-profile-heading h1,
+[data-theme="dark"] .cc-profile-identity-body h2,
+[data-theme="dark"] .cc-profile-section-title h2,
+[data-theme="dark"] .cc-profile-stat strong,
+[data-theme="dark"] .cc-profile-modal-head h2,
+[data-theme="dark"] .cc-profile-security h3,
+[data-theme="dark"] .cc-profile-course-top a,
+[data-theme="dark"] .cc-profile-post p,
+[data-theme="dark"] .cc-profile-modal label {
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-contribution-summary strong,
+[data-theme="dark"] .cc-profile-people a,
+[data-theme="dark"] .cc-profile-post-head time,
+[data-theme="dark"] .cc-profile-post-head span,
+[data-theme="dark"] .cc-profile-post-actions button,
+[data-theme="dark"] .cc-profile-tabs span {
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-profile-heading p,
+[data-theme="dark"] .cc-profile-handle,
+[data-theme="dark"] .cc-profile-email,
+[data-theme="dark"] .cc-profile-section-title span,
+[data-theme="dark"] .cc-profile-stat small,
+[data-theme="dark"] .cc-profile-stat span,
+[data-theme="dark"] .cc-profile-security p,
+[data-theme="dark"] .cc-profile-course-top span,
+[data-theme="dark"] .cc-profile-course-bottom span,
+[data-theme="dark"] .cc-profile-muted,
+[data-theme="dark"] .cc-contribution-months,
+[data-theme="dark"] .cc-contribution-legend,
+[data-theme="dark"] .cc-contribution-summary span {
+  color: #8b949e !important;
+}
+
+[data-theme="dark"] .cc-profile-identity-body p,
+[data-theme="dark"] .cc-profile-quality,
+[data-theme="dark"] .cc-profile-tags span,
+[data-theme="dark"] .cc-profile-stat,
+[data-theme="dark"] .cc-profile-network,
+[data-theme="dark"] .cc-contribution-summary div,
+[data-theme="dark"] .cc-profile-edit-post textarea,
+[data-theme="dark"] .cc-profile-edit-post input,
+[data-theme="dark"] .cc-profile-modal input {
+  background: #21262d !important;
+  color: #c9d1d9 !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .cc-profile-section-title,
+[data-theme="dark"] .cc-profile-course,
+[data-theme="dark"] .cc-profile-post,
+[data-theme="dark"] .cc-profile-security,
+[data-theme="dark"] .cc-profile-tabs,
+[data-theme="dark"] .cc-profile-people > div {
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .cc-profile-actions button,
+[data-theme="dark"] .cc-profile-modal-actions button,
+[data-theme="dark"] .cc-profile-post-actions button,
+[data-theme="dark"] .cc-profile-people button {
+  background: #21262d !important;
+  color: #c9d1d9 !important;
+  border-color: #30363d !important;
+}
+
+[data-theme="dark"] .cc-profile-actions button:first-child,
+[data-theme="dark"] .cc-profile-modal-actions button:last-child,
+[data-theme="dark"] .cc-profile-password-button,
+[data-theme="dark"] .cc-profile-people button {
+  background: #1f6feb !important;
+  color: #fff !important;
+  border-color: #1f6feb !important;
+}
+
+[data-theme="dark"] .cc-profile-quality-track,
+[data-theme="dark"] .cc-profile-course-bar,
+[data-theme="dark"] .cc-contribution-cell.level-0 {
+  background: #21262d !important;
+}
+
+[data-theme="dark"] .cc-contribution-cell.level-1,
+[data-theme="dark"] .cc-contribution-legend .level-1 {
+  background: #0e4429 !important;
+}
+
+[data-theme="dark"] .cc-contribution-cell.level-2,
+[data-theme="dark"] .cc-contribution-legend .level-2 {
+  background: #006d32 !important;
+}
+
+[data-theme="dark"] .cc-contribution-cell.level-3,
+[data-theme="dark"] .cc-contribution-legend .level-3 {
+  background: #26a641 !important;
+}
+
+[data-theme="dark"] .cc-contribution-cell.level-4,
+[data-theme="dark"] .cc-contribution-legend .level-4 {
+  background: #39d353 !important;
+}
+
+[data-theme="dark"] .cc-contribution-cell {
+  border-color: #30363d !important;
+}
+
+.cc-profile-tabs button { padding: 11px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #697687; font-size: 11px; font-weight: 700; text-align: center; cursor: pointer; }
+.cc-profile-tabs button.active { border-bottom-color: #0078d4; color: #0078d4; }
+[data-theme="dark"] .cc-profile-tabs button { color: #8b949e; }
+[data-theme="dark"] .cc-profile-tabs button.active { border-bottom-color: #58a6ff; color: #58a6ff; }
+
+/* Lightweight, professional scrollbars for the complete profile workspace. */
+.cc-profile-shell,
+.cc-profile-shell * {
+  scrollbar-width: thin;
+  scrollbar-color: #aeb8c4 #f1f3f5;
+}
+
+.cc-profile-shell::-webkit-scrollbar,
+.cc-profile-shell *::-webkit-scrollbar,
+body:has(.cc-profile-shell)::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.cc-profile-shell::-webkit-scrollbar-track,
+.cc-profile-shell *::-webkit-scrollbar-track,
+body:has(.cc-profile-shell)::-webkit-scrollbar-track {
+  background: #f1f3f5;
+}
+
+.cc-profile-shell::-webkit-scrollbar-thumb,
+.cc-profile-shell *::-webkit-scrollbar-thumb,
+body:has(.cc-profile-shell)::-webkit-scrollbar-thumb {
+  border: 2px solid #f1f3f5;
+  border-radius: 999px;
+  background: #aeb8c4;
+}
+
+.cc-profile-shell::-webkit-scrollbar-thumb:hover,
+.cc-profile-shell *::-webkit-scrollbar-thumb:hover,
+body:has(.cc-profile-shell)::-webkit-scrollbar-thumb:hover {
+  background: #7a8694;
+}
+
+[data-theme="dark"] .cc-profile-shell,
+[data-theme="dark"] .cc-profile-shell * {
+  scrollbar-color: #6e7681 #161b22;
+}
+
+[data-theme="dark"] .cc-profile-shell::-webkit-scrollbar-track,
+[data-theme="dark"] .cc-profile-shell *::-webkit-scrollbar-track,
+[data-theme="dark"] body:has(.cc-profile-shell)::-webkit-scrollbar-track {
+  background: #161b22;
+}
+
+[data-theme="dark"] .cc-profile-shell::-webkit-scrollbar-thumb,
+[data-theme="dark"] .cc-profile-shell *::-webkit-scrollbar-thumb,
+[data-theme="dark"] body:has(.cc-profile-shell)::-webkit-scrollbar-thumb {
+  border-color: #161b22;
+  background: #6e7681;
+}
+
+[data-theme="dark"] .cc-profile-shell::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .cc-profile-shell *::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] body:has(.cc-profile-shell)::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
+}
+
+.cc-profile-cover {
+  position: relative;
+  height: 118px;
+  background-position: center;
+  background-size: cover;
+}
+
+.cc-profile-cover::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .02), rgba(0, 0, 0, .3));
+  content: "";
+  pointer-events: none;
+}
+
+.cc-profile-cover input {
+  display: none;
+}
+
+.cc-profile-banner-action {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, .72);
+  color: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity .18s ease, background .18s ease;
+}
+
+.cc-profile-cover:hover .cc-profile-banner-action,
+.cc-profile-cover:focus-within .cc-profile-banner-action {
+  opacity: 1;
+}
+
+.cc-profile-banner-action:hover {
+  background: rgba(15, 23, 42, .9);
+}
+
+.cc-profile-banner-save {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: #0078d4;
+  color: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
