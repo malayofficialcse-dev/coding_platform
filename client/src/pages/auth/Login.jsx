@@ -24,7 +24,17 @@ export default function Login() {
       const res = await api.post("/auth/login", { email, password });
       login(res.data.token, res.data.user);
       toast.success("Login successful!");
-      nav("/");
+
+      const role = res.data.user?.role;
+      if (role === "super_admin") {
+        nav("/admin/rbac");
+      } else if (role === "admin") {
+        nav("/admin");
+      } else if (["exam_coordinator", "course_coordinator", "feed_coordinator"].includes(role)) {
+        nav("/coordinator");
+      } else {
+        nav("/");
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.response?.data?.error || "Login failed";
       toast.error(errorMsg);

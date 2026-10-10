@@ -26,8 +26,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && localStorage.getItem("token")) {
+    const requestAuthorization =
+      error.config?.headers?.get?.("Authorization") ||
+      error.config?.headers?.Authorization ||
+      error.config?.headers?.authorization;
+    const requestToken = requestAuthorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const storedToken = localStorage.getItem("token");
+
+    if (
+      error.response?.status === 401 &&
+      requestToken &&
+      requestToken === storedToken
+    ) {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
       const isAuthPage = ["/login", "/signup"].includes(window.location.pathname);
       if (!isAuthPage) {
         window.location.assign("/login");

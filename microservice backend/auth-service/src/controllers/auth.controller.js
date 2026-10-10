@@ -4,7 +4,14 @@ import User from "../models/User.js";
 
 const generateToken = (user) => {
   return jwt.sign(
-    { userId: user._id, id: user._id, email: user.email, role: user.role, name: user.name },
+    {
+      userId:      user._id,
+      id:          user._id,
+      email:       user.email,
+      role:        user.role,
+      name:        user.name,
+      permissions: user.permissions || {},
+    },
     process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74",
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
@@ -43,15 +50,17 @@ export const register = async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id: user._id,
-        _id: user._id,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        college: user.college,
-        degree: user.degree,
-        profileImage: user.profileImage,
+        id:          user._id,
+        _id:         user._id,
+        name:        user.name,
+        username:    user.username,
+        email:       user.email,
+        role:        user.role,
+        college:     user.college,
+        degree:      user.degree,
+        profileImage:user.profileImage,
+        permissions: user.permissions || {},
+        isActive:    user.isActive,
       },
     });
   } catch (err) {
@@ -82,15 +91,17 @@ export const login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
-        _id: user._id,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        college: user.college,
-        degree: user.degree,
-        profileImage: user.profileImage,
+        id:          user._id,
+        _id:         user._id,
+        name:        user.name,
+        username:    user.username,
+        email:       user.email,
+        role:        user.role,
+        college:     user.college,
+        degree:      user.degree,
+        profileImage:user.profileImage,
+        permissions: user.permissions || {},
+        isActive:    user.isActive,
       },
     });
   } catch (err) {

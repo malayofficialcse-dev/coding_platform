@@ -1,17 +1,51 @@
 import mongoose from "mongoose";
 
+const ROLES = [
+  "student",
+  "exam_coordinator",
+  "course_coordinator",
+  "feed_coordinator",
+  "super_admin",
+  "admin",
+  "teacher",
+  "user",
+];
+
+const MODULE_PERMISSIONS = {
+  type: new mongoose.Schema(
+    {
+      create: { type: Boolean, default: false },
+      edit:   { type: Boolean, default: false },
+      delete: { type: Boolean, default: false },
+      view:   { type: Boolean, default: true },
+    },
+    { _id: false }
+  ),
+  default: () => ({}),
+};
+
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    username: { type: String, unique: true, sparse: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, select: false },
-    role: { type: String, enum: ["user", "admin", "student", "teacher"], default: "student" },
-    college: { type: String, default: "" },
-    degree: { type: String, default: "" },
+    name:          { type: String, required: true },
+    username:      { type: String, unique: true, sparse: true },
+    email:         { type: String, required: true, unique: true },
+    password:      { type: String, select: false },
+    role:          { type: String, enum: ROLES, default: "student" },
+    college:       { type: String, default: "" },
+    degree:        { type: String, default: "" },
     yearOfPassing: { type: String, default: "" },
-    profileImage: { type: String, default: "" },
-    bannerImage: { type: String, default: "" },
+    profileImage:  { type: String, default: "" },
+    bannerImage:   { type: String, default: "" },
+    isActive:      { type: Boolean, default: true },
+    createdBy:     { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    permissions: {
+      exams:     MODULE_PERMISSIONS,
+      courses:   MODULE_PERMISSIONS,
+      feed:      MODULE_PERMISSIONS,
+      coding:    MODULE_PERMISSIONS,
+      users:     MODULE_PERMISSIONS,
+      analytics: MODULE_PERMISSIONS,
+    },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
@@ -21,4 +55,5 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ name: 1 });
 userSchema.index({ createdAt: -1 });
 
+export { ROLES };
 export default mongoose.models.User || mongoose.model("User", userSchema);

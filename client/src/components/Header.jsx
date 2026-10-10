@@ -112,8 +112,18 @@ export default function Header() {
           </NavLink>
         ))}
         <NotificationBell />
-        {user?.role === "admin" && (
-          <NavLink to="/admin" title="Admin" className="nav-link fw-bold">
+        {["admin", "super_admin"].includes(user?.role) && (
+          <NavLink to="/admin" title="Admin Panel" className="nav-link fw-bold">
+            <FaUserShield size={20} />
+          </NavLink>
+        )}
+        {user?.role === "super_admin" && (
+          <NavLink to="/admin/rbac" title="RBAC Control" className="nav-link fw-bold" style={{ color: "#8b5cf6" }}>
+            🔑
+          </NavLink>
+        )}
+        {["exam_coordinator", "course_coordinator", "feed_coordinator"].includes(user?.role) && (
+          <NavLink to="/coordinator" title="My Dashboard" className="nav-link fw-bold">
             <FaUserShield size={20} />
           </NavLink>
         )}
@@ -291,13 +301,32 @@ export default function Header() {
               >
                 <FaBell /> Notifications
               </NavLink>
-              {user?.role === "admin" && (
+              {["admin", "super_admin"].includes(user?.role) && (
                 <NavLink
                   to="/admin"
                   onClick={() => setMenuOpen(false)}
                   className="nav-link d-flex align-items-center gap-2 py-2"
                 >
-                  <FaUserShield /> Admin
+                  <FaUserShield /> Admin Panel
+                </NavLink>
+              )}
+              {user?.role === "super_admin" && (
+                <NavLink
+                  to="/admin/rbac"
+                  onClick={() => setMenuOpen(false)}
+                  className="nav-link d-flex align-items-center gap-2 py-2"
+                  style={{ color: "#8b5cf6" }}
+                >
+                  🔑 RBAC Control
+                </NavLink>
+              )}
+              {["exam_coordinator", "course_coordinator", "feed_coordinator"].includes(user?.role) && (
+                <NavLink
+                  to="/coordinator"
+                  onClick={() => setMenuOpen(false)}
+                  className="nav-link d-flex align-items-center gap-2 py-2"
+                >
+                  <FaUserShield /> My Dashboard
                 </NavLink>
               )}
             </div>

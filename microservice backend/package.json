@@ -1,6 +1,7 @@
 {
   "name": "code-campus-microservices-root",
   "version": "1.0.0",
+  "type": "module",
   "description": "Production-grade microservices orchestrator for Code Campus",
   "private": true,
   "scripts": {

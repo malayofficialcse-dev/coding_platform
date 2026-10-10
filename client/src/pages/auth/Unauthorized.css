@@ -1,0 +1,73 @@
+/* ── Unauthorized Page ────────────────────────────── */
+.unauth-wrap {
+  min-height: 80vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+.unauth-card {
+  background: var(--cc-surface, #fff);
+  border: 1px solid var(--cc-border, #d6dbe1);
+  border-radius: 20px;
+  padding: 48px 40px;
+  text-align: center;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,.1);
+}
+
+.unauth-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  display: block;
+  animation: unauth-pulse 2s ease infinite;
+}
+@keyframes unauth-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.12); }
+}
+
+.unauth-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--cc-text, #1b1b1b);
+  margin: 0 0 12px;
+}
+
+.unauth-desc {
+  color: var(--cc-muted, #5f6b7a);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+
+.unauth-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.unauth-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  font-family: inherit;
+  transition: transform .15s, box-shadow .15s;
+}
+.unauth-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.unauth-btn-primary { background: var(--cc-primary, #0078d4); color: #fff; }
+.unauth-btn-ghost {
+  background: var(--cc-surface-muted, #f5f7fa);
+  color: var(--cc-text, #1b1b1b);
+  border: 1px solid var(--cc-border, #d6dbe1);
+}

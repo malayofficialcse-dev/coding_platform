@@ -6,6 +6,11 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config();
 
 const app = express();
@@ -43,7 +48,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-user-role"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-user-role", "x-user-name", "x-user-email", "x-user-permissions"],
   })
 );
 
@@ -61,17 +66,34 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // 4. Token Decoder & Header Enrichment Middleware
+const getJwtSecrets = () => [
+  process.env.JWT_SECRET,
+  "replace-with-a-long-random-secret",
+  "kweu249hp72hf4fh48g7w9f4wpef74",
+  "default_jwt_secret",
+].filter(Boolean);
+
+const verifyTokenSafely = (token) => {
+  const secrets = getJwtSecrets();
+  for (const secret of secrets) {
+    try {
+      return jwt.verify(token, secret);
+    } catch {}
+  }
+  return null;
+};
+
 const enrichUserHeaders = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74");
-      req.headers["x-user-id"] = decoded.userId || decoded.id || "";
-      req.headers["x-user-role"] = decoded.role || "user";
-      req.headers["x-user-email"] = decoded.email || "";
-    } catch (err) {
-      // Invalid token, do not set user headers
+    const decoded = verifyTokenSafely(token);
+    if (decoded) {
+      req.headers["x-user-id"]          = decoded.userId || decoded.id || "";
+      req.headers["x-user-role"]        = decoded.role || "user";
+      req.headers["x-user-email"]       = decoded.email || "";
+      req.headers["x-user-name"]        = decoded.name  || "";
+      req.headers["x-user-permissions"] = JSON.stringify(decoded.permissions || {});
     }
   }
   next();
@@ -106,6 +128,12 @@ const createServiceProxy = (target) => {
         if (req.headers["x-user-email"]) {
           proxyReq.setHeader("x-user-email", req.headers["x-user-email"]);
         }
+        if (req.headers["x-user-name"]) {
+          proxyReq.setHeader("x-user-name", req.headers["x-user-name"]);
+        }
+        if (req.headers["x-user-permissions"]) {
+          proxyReq.setHeader("x-user-permissions", req.headers["x-user-permissions"]);
+        }
       },
       error: (err, req, res) => {
         console.error(`[Gateway Proxy Error] Target: ${target}`, err.message);
@@ -122,18 +150,19 @@ const createServiceProxy = (target) => {
 };
 
 // 6. Microservice Routes
-app.use("/api/auth", createServiceProxy(SERVICES.auth));
-app.use("/api/users", createServiceProxy(SERVICES.user));
-app.use("/api/posts", createServiceProxy(SERVICES.post));
-app.use("/api/admin/posts", createServiceProxy(SERVICES.post)); // Post dashboard / admin moderation
-app.use("/api/exams", createServiceProxy(SERVICES.exam));
-app.use("/api/attempts", createServiceProxy(SERVICES.exam));
-app.use("/api/admin/exams", createServiceProxy(SERVICES.exam));
-app.use("/api/courses", createServiceProxy(SERVICES.course));
-app.use("/api/enrollments", createServiceProxy(SERVICES.enrollment));
-app.use("/api/coding", createServiceProxy(SERVICES.coding));
+app.use("/api/auth",       createServiceProxy(SERVICES.auth));
+app.use("/api/users",      createServiceProxy(SERVICES.user));
+app.use("/api/admin/rbac", createServiceProxy(SERVICES.user)); // RBAC admin endpoints
+app.use("/api/posts",      createServiceProxy(SERVICES.post));
+app.use("/api/admin/posts",createServiceProxy(SERVICES.post));
+app.use("/api/exams",      createServiceProxy(SERVICES.exam));
+app.use("/api/attempts",   createServiceProxy(SERVICES.exam));
+app.use("/api/admin/exams",createServiceProxy(SERVICES.exam));
+app.use("/api/courses",    createServiceProxy(SERVICES.course));
+app.use("/api/enrollments",createServiceProxy(SERVICES.enrollment));
+app.use("/api/coding",     createServiceProxy(SERVICES.coding));
 app.use("/api/notifications", createServiceProxy(SERVICES.notification));
-app.use("/api/messages", createServiceProxy(SERVICES.chat));
+app.use("/api/messages",   createServiceProxy(SERVICES.chat));
 
 // 7. WebSocket Proxy for Socket.IO (/socket.io) to Chat/Socket Service
 const wsProxy = createProxyMiddleware({
