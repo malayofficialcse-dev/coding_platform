@@ -27,6 +27,7 @@ import {
   FaShare,
   FaEdit,
   FaTrash,
+  FaEllipsisV,
 } from "react-icons/fa";
 
 const LANGUAGES = { javascript, python, java };
@@ -45,6 +46,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [codeIndex, setCodeIndex] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showOwnerMenu, setShowOwnerMenu] = useState(false);
 
   // IMAGE MODAL
   const [previewImage, setPreviewImage] = useState(null);
@@ -427,7 +429,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
 
       {/* MAIN CARD */}
       <div
-        className={`card shadow-sm mb-3 border-0 rounded-4${embedded ? " cc-embedded-post" : ""}`}
+        className={`card cc-post-card shadow-sm mb-3 border-0 rounded-4${embedded ? " cc-embedded-post" : ""}`}
         style={embedded ? {
           marginBottom: 0,
           border: "0",
@@ -458,23 +460,50 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             </div>
 
             {isOwner && (
-              <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              <div
+                className="cc-post-owner-menu d-flex align-items-center flex-shrink-0"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setShowOwnerMenu(false);
+                  }
+                }}
+              >
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
-                  onClick={() => setShowEditModal(true)}
+                  className="cc-post-owner-menu-trigger"
+                  aria-label="Post options"
+                  aria-haspopup="menu"
+                  aria-expanded={showOwnerMenu}
+                  onClick={() => setShowOwnerMenu((visible) => !visible)}
                 >
-                  <FaEdit size={12} />
-                  {/* <span>Edit</span> */}
+                  <FaEllipsisV size={15} />
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
-                  onClick={handleDelete}
-                >
-                  <FaTrash size={12} />
-                  {/* <span>Delete</span> */}
-                </button>
+                {showOwnerMenu && (
+                  <div className="cc-post-owner-menu-items" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowOwnerMenu(false);
+                        setShowEditModal(true);
+                      }}
+                    >
+                      <FaEdit size={13} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowOwnerMenu(false);
+                        handleDelete();
+                      }}
+                    >
+                      <FaTrash size={13} />
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -283,11 +283,7 @@ body:has(.cc-profile-shell)::-webkit-scrollbar-thumb:hover {
 }
 
 .cc-profile-cover::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, .02), rgba(0, 0, 0, .3));
-  content: "";
-  pointer-events: none;
+  display: none;
 }
 
 .cc-profile-cover input {

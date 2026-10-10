@@ -38,3 +38,154 @@
 
 @media (max-width:992px){.cc-site-header{padding-inline:12px!important}.cc-site-header nav.d-lg-flex{display:none!important}.cc-site-header>a{margin-right:12px!important}.cc-site-header>a span{font-size:18px!important}.cc-site-main .container,.cc-site-main .container-fluid{padding-inline:16px}}
 @media (max-width:576px){.cc-site-header{min-height:60px!important}.cc-site-header>a img{width:40px!important;height:40px!important}.cc-site-main .container.py-4,.cc-site-main .container.py-5{padding-top:18px!important}.cc-site-footer .container{padding-inline:20px}.cc-page-heading{align-items:flex-start;flex-direction:column}.cc-page-heading h1{font-size:24px}.cc-page-count{align-self:flex-start}}
+
+/* Shared professional chrome aligned with the profile workspace. */
+.cc-site-header {
+  min-height: 64px !important;
+  padding: 0 22px !important;
+  background: var(--cc-surface) !important;
+  border-bottom: 1px solid var(--cc-border) !important;
+  box-shadow: 0 2px 8px rgba(27, 45, 66, .07) !important;
+}
+
+.cc-site-header > a {
+  gap: 10px;
+  margin-right: 34px !important;
+}
+
+.cc-site-header > a img {
+  width: 42px !important;
+  height: 42px !important;
+  margin-right: 0 !important;
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius) !important;
+  box-shadow: var(--cc-shadow-sm) !important;
+}
+
+.cc-site-header > a span {
+  font-size: 21px !important;
+  letter-spacing: -.02em;
+}
+
+.cc-site-header nav.d-lg-flex {
+  gap: 18px !important;
+}
+
+.cc-site-header .nav-link {
+  display: inline-flex !important;
+  align-items: center;
+  min-height: 64px;
+  padding: 0 4px !important;
+  color: var(--cc-muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: .01em;
+}
+
+.cc-site-header .nav-link:hover,
+.cc-site-header .nav-link.active {
+  color: var(--cc-primary) !important;
+  border-bottom-color: var(--cc-primary) !important;
+}
+
+.cc-site-header .btn,
+.cc-site-header button {
+  border-radius: var(--cc-radius) !important;
+  font-size: 12px;
+}
+
+.cc-site-header .cc-header-avatar {
+  width: 38px !important;
+  height: 38px !important;
+  border: 2px solid var(--cc-border) !important;
+  box-shadow: var(--cc-shadow-sm);
+}
+
+.cc-site-header .btn-outline-danger {
+  color: var(--cc-danger) !important;
+  border-color: var(--cc-danger) !important;
+  background: transparent !important;
+}
+
+.cc-site-header .btn-outline-danger:hover {
+  background: var(--cc-danger) !important;
+  color: #fff !important;
+}
+
+.cc-site-header [style*="position: absolute"] {
+  border-radius: var(--cc-radius) !important;
+  box-shadow: var(--cc-shadow-md) !important;
+}
+
+.cc-site-header [style*="position: absolute"] button:hover {
+  background: var(--cc-primary-soft) !important;
+}
+
+.cc-site-footer {
+  margin-top: 40px !important;
+  padding: 32px 0 18px !important;
+  background: var(--cc-surface) !important;
+  border-top: 1px solid var(--cc-border) !important;
+  color: var(--cc-text) !important;
+  font-family: var(--cc-font-sans);
+}
+
+.cc-site-footer .container {
+  max-width: 1240px;
+}
+
+.cc-site-footer .fw-bold,
+.cc-site-footer .fs-5 {
+  color: var(--cc-text) !important;
+}
+
+.cc-site-footer .small,
+.cc-site-footer li,
+.cc-site-footer .text-secondary {
+  color: var(--cc-muted) !important;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.cc-site-footer a,
+.cc-site-footer .text-light {
+  color: var(--cc-muted) !important;
+  font-size: 12px;
+  text-decoration: none !important;
+  transition: color .16s ease;
+}
+
+.cc-site-footer a:hover {
+  color: var(--cc-primary) !important;
+}
+
+.cc-site-footer hr {
+  border-color: var(--cc-border) !important;
+  opacity: 1;
+}
+
+[data-theme="dark"] .cc-site-header,
+[data-theme="dark"] .cc-site-footer {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-site-header .nav-link,
+[data-theme="dark"] .cc-site-footer .small,
+[data-theme="dark"] .cc-site-footer li,
+[data-theme="dark"] .cc-site-footer a,
+[data-theme="dark"] .cc-site-footer .text-secondary {
+  color: #8b949e !important;
+}
+
+[data-theme="dark"] .cc-site-footer .fw-bold,
+[data-theme="dark"] .cc-site-footer .fs-5 {
+  color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .cc-site-footer a:hover,
+[data-theme="dark"] .cc-site-header .nav-link:hover,
+[data-theme="dark"] .cc-site-header .nav-link.active {
+  color: #58a6ff !important;
+}

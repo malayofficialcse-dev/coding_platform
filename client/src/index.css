@@ -78,6 +78,70 @@ button {
   background: transparent !important;
 }
 
+.cc-post-owner-menu {
+  position: relative;
+}
+
+.cc-post-owner-menu-trigger {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--cc-muted);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cc-post-card:hover .cc-post-owner-menu-trigger,
+.cc-post-owner-menu:focus-within .cc-post-owner-menu-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cc-post-owner-menu-trigger:hover,
+.cc-post-owner-menu-trigger:focus-visible {
+  background: var(--cc-surface-muted);
+  color: var(--cc-text);
+}
+
+.cc-post-owner-menu-items {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 136px;
+  padding: 4px;
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.cc-post-owner-menu-items button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--cc-text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.cc-post-owner-menu-items button:hover,
+.cc-post-owner-menu-items button:focus-visible {
+  background: var(--cc-surface-muted);
+}
+
+.cc-post-owner-menu-items button:last-child {
+  color: var(--cc-danger);
+}
+
 .text-primary {
   color: var(--cc-primary) !important;
 }

@@ -4,6 +4,10 @@ import api from "../api/api";
 import PostCard from "../components/PostCard";
 import FollowButton from "../components/FollowButton";
 import { AuthContext } from "../contexts/AuthContext";
+import { optimizedImageUrl } from "../utils/imageUrl";
+import "./PostToProfile.css";
+
+const DEFAULT_AVATAR = "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
 
 export default function PostToProfile() {
   const { id } = useParams(); // user id from URL
@@ -63,23 +67,21 @@ export default function PostToProfile() {
     return <div className="text-center py-5 text-danger">User not found</div>;
 
   return (
-    <div className="container py-4">
-      <div className="card mb-4 shadow-sm border-0 rounded-4">
-        <div className="card-body d-flex align-items-center">
+    <div className="cc-public-profile-shell">
+      <div className="cc-public-profile-card cc-public-profile-identity">
+        <div className="cc-public-profile-cover" style={profile.bannerImage ? { backgroundImage: `url(${profile.bannerImage})` } : undefined} />
+        <div className="cc-public-profile-identity-body">
           <img
-            src={
-              profile.profileImage ||
-              "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
-            }
+            src={optimizedImageUrl(profile.profileImage || DEFAULT_AVATAR, 400)}
             alt="Profile"
-            className="rounded-circle border me-3"
-            style={{ width: 80, height: 80, objectFit: "cover" }}
+            className="cc-public-profile-avatar"
           />
-          <div>
+          <div className="cc-public-profile-details">
             <h3 className="fw-bold mb-1">{profile.name || profile.username}</h3>
-            <div className="mb-2">
-              <span className="badge bg-info me-2">{profile.role}</span>
-              <span className="me-3">
+            <span className="cc-public-profile-handle">@{profile.username}</span>
+            <div className="cc-public-profile-meta">
+              <span className="cc-public-profile-role">{profile.role}</span>
+              <span>
                 Followers: <b>{profile.followers?.length || 0}</b>
               </span>
               <span>
@@ -93,8 +95,9 @@ export default function PostToProfile() {
         </div>
       </div>
 
-      <h4 className="fw-bold mb-3">Posts</h4>
-      <div className="row g-4 mb-4">
+      <section className="cc-public-profile-section">
+      <h4>Posts</h4>
+      <div className="row g-4">
         {posts.length === 0 && (
           <div className="text-muted ms-2">No posts yet.</div>
         )}
@@ -109,15 +112,17 @@ export default function PostToProfile() {
           </div>
         ))}
       </div>
+      </section>
 
-      <h4 className="fw-bold mb-3">Courses</h4>
-      <div className="row g-3 mb-4">
+      <section className="cc-public-profile-section">
+      <h4>Courses</h4>
+      <div className="row g-3">
         {courses.length === 0 && (
           <div className="text-muted ms-2">No courses yet.</div>
         )}
         {courses.map((course) => (
           <div className="col-md-4" key={course._id}>
-            <div className="card h-100 shadow border-0 rounded-4">
+            <div className="cc-public-profile-card h-100">
               <div className="card-body">
                 <h5 className="fw-bold">{course.title}</h5>
                 <p className="text-muted">{course.description}</p>
@@ -126,15 +131,17 @@ export default function PostToProfile() {
           </div>
         ))}
       </div>
+      </section>
 
-      <h4 className="fw-bold mb-3">Exams</h4>
-      <div className="row g-3 mb-4">
+      <section className="cc-public-profile-section">
+      <h4>Exams</h4>
+      <div className="row g-3">
         {exams.length === 0 && (
           <div className="text-muted ms-2">No exams yet.</div>
         )}
         {exams.map((exam) => (
           <div className="col-md-4" key={exam._id}>
-            <div className="card h-100 shadow border-0 rounded-4">
+            <div className="cc-public-profile-card h-100">
               <div className="card-body">
                 <h5 className="fw-bold">{exam.title}</h5>
                 <p className="text-muted">{exam.description}</p>
@@ -143,6 +150,7 @@ export default function PostToProfile() {
           </div>
         ))}
       </div>
+      </section>
     </div>
   );
 }
