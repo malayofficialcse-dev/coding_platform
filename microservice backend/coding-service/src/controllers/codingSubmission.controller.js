@@ -101,7 +101,7 @@ async function runLocal(codeStr, langKey, stdin) {
 
 export const submitCode = async (req, res) => {
   try {
-    const { code, language } = req.body;
+    const { code, language, customInput } = req.body;
     const { id } = req.params;
     const userId = req.user?._id || req.user?.id;
 
@@ -113,12 +113,55 @@ export const submitCode = async (req, res) => {
       return res.status(400).json({ error: "Unsupported programming language" });
     }
 
+    // 1. Custom Stdin Execution
+    if (customInput !== undefined && customInput !== null) {
+      const stdinVal = String(customInput);
+      try {
+        const out = await runWithPiston(langKey, code, stdinVal);
+        return res.json({
+          custom: true,
+          input: stdinVal,
+          userOutput: out.stdout,
+          error: out.stderr,
+          status: out.exitCode === 0 ? "Passed" : "Failed",
+        });
+      } catch (err) {
+        if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
+          try {
+            const out = await runLocal(code, langKey, stdinVal);
+            return res.json({
+              custom: true,
+              input: stdinVal,
+              userOutput: out.stdout,
+              error: out.stderr,
+              status: out.exitCode === 0 ? "Passed" : "Failed",
+            });
+          } catch (le) {}
+        }
+        return res.json({
+          custom: true,
+          input: stdinVal,
+          userOutput: "Execution error: " + err.message,
+          error: err.message,
+          status: "Error",
+        });
+      }
+    }
+
+    // 2. Standard Test Cases Execution (fallback to sampleTestCases if testCases is empty)
+    const testCasesToRun =
+      problem.testCases && problem.testCases.length > 0
+        ? problem.testCases
+        : problem.sampleTestCases && problem.sampleTestCases.length > 0
+        ? problem.sampleTestCases
+        : [{ input: "", output: "", visible: true }];
+
     let passedCount = 0;
-    const totalCount = (problem.testCases || []).length;
+    const totalCount = testCasesToRun.length;
     const results = [];
 
     for (let i = 0; i < totalCount; i++) {
-      const tc = problem.testCases[i];
+      const tc = testCasesToRun[i];
       try {
         const out = await runWithPiston(langKey, code, tc.input);
         const userOutput = out.stdout;
@@ -132,7 +175,7 @@ export const submitCode = async (req, res) => {
           expectedOutput,
           userOutput,
           status: isPassed ? "Passed" : "Failed",
-          visible: !!tc.visible,
+          visible: tc.visible !== false,
         });
       } catch (err) {
         if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {

@@ -2,11 +2,24 @@ import CodingProblem from "../models/CodingProblem.js";
 
 export const getAllProblems = async (req, res) => {
   try {
-    const { difficulty, dsaTopic } = req.query;
+    const { difficulty, dsaTopic, search } = req.query;
     const filter = {};
-    if (difficulty) filter.difficulty = difficulty;
-    if (dsaTopic) filter.dsaTopic = dsaTopic;
-    const problems = await CodingProblem.find(filter);
+
+    if (difficulty && difficulty !== "all") {
+      filter.difficulty = { $regex: new RegExp(`^${difficulty}$`, "i") };
+    }
+    if (dsaTopic && dsaTopic !== "all") {
+      filter.dsaTopic = { $regex: new RegExp(`^${dsaTopic}$`, "i") };
+    }
+    if (search && search.trim()) {
+      filter.$or = [
+        { title: { $regex: search.trim(), $options: "i" } },
+        { description: { $regex: search.trim(), $options: "i" } },
+        { dsaTopic: { $regex: search.trim(), $options: "i" } },
+      ];
+    }
+
+    const problems = await CodingProblem.find(filter).sort({ createdAt: -1 });
     res.json(problems);
   } catch (err) {
     console.error(err);
