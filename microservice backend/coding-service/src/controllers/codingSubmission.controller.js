@@ -20,30 +20,72 @@ const PISTON_LANG_MAP = {
   c:          { language: "c",          version: "10.2.0"  },
 };
 
-async function runWithPiston(langKey, codeStr, stdin) {
+// ------------ Verdict detection helpers ------------
+function detectVerdict(stdout, stderr, exitCode, expected) {
+  if (stderr && /compile|error|syntax/i.test(stderr) && exitCode !== 0 && !stdout) {
+    return "Compilation Error";
+  }
+  if (stderr && /time limit|killed|timeout/i.test(stderr)) {
+    return "Time Limit Exceeded";
+  }
+  if (exitCode !== 0 && stderr && !stdout) {
+    return "Runtime Error";
+  }
+  const actual = (stdout || "").trim();
+  const exp    = (expected || "").trim();
+  if (actual === exp) return "Accepted";
+  return "Wrong Answer";
+}
+
+function normalizeOutput(s) {
+  return (s || "")
+    .trim()
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n+/g, "\n");
+}
+
+// ------------ Piston execution ------------
+async function runWithPiston(langKey, codeStr, stdin, timeoutMs = 10000) {
   const runtime = PISTON_LANG_MAP[langKey];
-  if (!runtime) throw new Error(`Unsupported language for Piston: ${langKey}`);
+  if (!runtime) throw new Error(`Unsupported language: ${langKey}`);
 
   const response = await axios.post(
     PISTON_URL,
     {
       language: runtime.language,
       version: runtime.version,
-      files: [{ name: "main", content: codeStr }],
+      files: [{ name: langKey === "java" ? "Main.java" : "main", content: codeStr }],
       stdin: stdin || "",
+      run_timeout: timeoutMs,
+      compile_timeout: 10000,
     },
-    { timeout: 15000 }
+    { timeout: timeoutMs + 8000 }
   );
 
-  const run = response.data.run;
-  return {
-    stdout: (run.stdout || "").trim(),
-    stderr: (run.stderr || "").trim(),
-    exitCode: run.code ?? 0,
-  };
+  const compile = response.data.compile || {};
+  const run = response.data.run || {};
+
+  // Compilation error detection
+  if (compile.code !== undefined && compile.code !== 0) {
+    return {
+      stdout: "",
+      stderr: (compile.stderr || compile.output || "Compilation failed"),
+      exitCode: compile.code,
+      verdict: "Compilation Error",
+      compileError: (compile.stderr || compile.output || "").trim(),
+    };
+  }
+
+  const stdout = (run.stdout || "").trim();
+  const stderr = (run.stderr || "").trim();
+  const exitCode = run.code ?? 0;
+
+  return { stdout, stderr, exitCode, verdict: null, compileError: null };
 }
 
-async function runLocal(codeStr, langKey, stdin) {
+// ------------ Local execution (JS/Python fallback) ------------
+async function runLocal(codeStr, langKey, stdin, timeoutMs = 5000) {
   const ext =
     langKey.startsWith("py") || langKey === "python3"
       ? "py"
@@ -52,32 +94,30 @@ async function runLocal(codeStr, langKey, stdin) {
       : null;
   if (!ext) throw new Error("Local exec unsupported for language");
 
-  const tmpFile = path.join(os.tmpdir(), `code-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`);
+  const tmpFile = path.join(
+    os.tmpdir(),
+    `code-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+  );
   await writeFile(tmpFile, codeStr, "utf8");
 
   const runner =
     ext === "js"
       ? "node"
-      : ext === "py"
-      ? process.platform === "win32"
-        ? "python"
-        : "python3"
-      : null;
-  if (!runner) throw new Error("No local runner configured");
+      : process.platform === "win32"
+      ? "python"
+      : "python3";
 
   return await new Promise((resolve, reject) => {
     const child = spawn(runner, [tmpFile], { stdio: ["pipe", "pipe", "pipe"] });
-    let out = "";
-    let err = "";
-    let finished = false;
+    let out = "", err = "", finished = false;
 
     const killTimer = setTimeout(() => {
       if (!finished) {
         child.kill("SIGKILL");
         finished = true;
-        reject(new Error("Time Limit Exceeded"));
+        resolve({ stdout: "", stderr: "Time Limit Exceeded", exitCode: -1 });
       }
-    }, 4000);
+    }, timeoutMs);
 
     child.stdout.on("data", (d) => (out += d.toString()));
     child.stderr.on("data", (d) => (err += d.toString()));
@@ -99,11 +139,58 @@ async function runLocal(codeStr, langKey, stdin) {
   });
 }
 
-export const submitCode = async (req, res) => {
+// ------------ Execute one test case ------------
+async function executeOneTestCase(langKey, code, input, expectedOutput, timeoutMs = 8000) {
+  let result;
+  try {
+    result = await runWithPiston(langKey, code, input, timeoutMs);
+  } catch (pistonErr) {
+    // Fallback to local execution for JS/Python
+    if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
+      try {
+        result = await runLocal(code, langKey, input, timeoutMs);
+      } catch (localErr) {
+        return {
+          stdout: "",
+          stderr: localErr.message,
+          exitCode: -1,
+          verdict: "Runtime Error",
+          compileError: null,
+        };
+      }
+    } else {
+      // Check if Piston is unreachable
+      const isNetwork = pistonErr.code === "ECONNREFUSED" || pistonErr.code === "ENOTFOUND" || pistonErr.message.includes("timeout");
+      return {
+        stdout: "",
+        stderr: isNetwork ? "Judge server unavailable. Please try again." : pistonErr.message,
+        exitCode: -1,
+        verdict: "Runtime Error",
+        compileError: null,
+      };
+    }
+  }
+
+  // If already has a verdict from piston (Compilation Error)
+  if (result.verdict) {
+    return result;
+  }
+
+  const verdict = detectVerdict(result.stdout, result.stderr, result.exitCode, expectedOutput);
+  return { ...result, verdict };
+}
+
+// ================================================================
+// CONTROLLER: Run Code (sample tests + custom input, no DB save)
+// ================================================================
+export const runCode = async (req, res) => {
   try {
     const { code, language, customInput } = req.body;
     const { id } = req.params;
-    const userId = req.user?._id || req.user?.id;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ error: "No code provided" });
+    }
 
     const problem = await CodingProblem.findById(id);
     if (!problem) return res.status(404).json({ error: "Problem not found" });
@@ -113,105 +200,239 @@ export const submitCode = async (req, res) => {
       return res.status(400).json({ error: "Unsupported programming language" });
     }
 
-    // 1. Custom Stdin Execution
+    const timeLimit = parseFloat(problem.timeLimit) || 2.0;
+    const timeoutMs = Math.min(Math.max(timeLimit * 1000 * 2, 5000), 15000);
+
+    // ---- Custom Input execution ----
     if (customInput !== undefined && customInput !== null) {
       const stdinVal = String(customInput);
-      try {
-        const out = await runWithPiston(langKey, code, stdinVal);
-        return res.json({
-          custom: true,
-          input: stdinVal,
-          userOutput: out.stdout,
-          error: out.stderr,
-          status: out.exitCode === 0 ? "Passed" : "Failed",
-        });
-      } catch (err) {
-        if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
-          try {
-            const out = await runLocal(code, langKey, stdinVal);
-            return res.json({
-              custom: true,
-              input: stdinVal,
-              userOutput: out.stdout,
-              error: out.stderr,
-              status: out.exitCode === 0 ? "Passed" : "Failed",
-            });
-          } catch (le) {}
-        }
-        return res.json({
-          custom: true,
-          input: stdinVal,
-          userOutput: "Execution error: " + err.message,
-          error: err.message,
-          status: "Error",
-        });
-      }
+      const result = await executeOneTestCase(langKey, code, stdinVal, "", timeoutMs);
+      return res.json({
+        mode: "custom",
+        input: stdinVal,
+        output: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        verdict: result.exitCode === 0 ? "Executed" : (result.compileError ? "Compilation Error" : "Runtime Error"),
+        compileError: result.compileError || null,
+        runtime: null,
+      });
     }
 
-    // 2. Standard Test Cases Execution (fallback to sampleTestCases if testCases is empty)
-    const testCasesToRun =
-      problem.testCases && problem.testCases.length > 0
-        ? problem.testCases
-        : problem.sampleTestCases && problem.sampleTestCases.length > 0
-        ? problem.sampleTestCases
-        : [{ input: "", output: "", visible: true }];
+    // ---- Sample Test Cases (visible only) ----
+    const sampleCases = (problem.sampleTestCases || []).filter((tc) => tc.visible !== false);
+    const runCases = sampleCases.length > 0 ? sampleCases : (problem.testCases || []).slice(0, 3);
 
-    let passedCount = 0;
-    const totalCount = testCasesToRun.length;
     const results = [];
+    let passedCount = 0;
+    let compileError = null;
 
-    for (let i = 0; i < totalCount; i++) {
-      const tc = testCasesToRun[i];
-      try {
-        const out = await runWithPiston(langKey, code, tc.input);
-        const userOutput = out.stdout;
-        const expectedOutput = (tc.output || "").trim();
-        const isPassed = userOutput === expectedOutput;
+    for (let i = 0; i < runCases.length; i++) {
+      const tc = runCases[i];
+      const result = await executeOneTestCase(langKey, code, tc.input, tc.output, timeoutMs);
 
-        if (isPassed) passedCount++;
-        results.push({
-          index: i,
-          input: tc.input,
-          expectedOutput,
-          userOutput,
-          status: isPassed ? "Passed" : "Failed",
-          visible: tc.visible !== false,
-        });
-      } catch (err) {
-        if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
-          try {
-            const out = await runLocal(code, langKey, tc.input);
-            const userOutput = (out.stdout || "").trim();
-            const expectedOutput = (tc.output || "").trim();
-            const isPassed = userOutput === expectedOutput;
-            if (isPassed) passedCount++;
-            results.push({
-              index: i,
-              input: tc.input,
-              expectedOutput,
-              userOutput,
-              status: isPassed ? "Passed" : "Failed",
-              visible: !!tc.visible,
-            });
-            continue;
-          } catch (le) {
-            console.error("Local exec error:", le.message);
-          }
-        }
-
+      if (result.verdict === "Compilation Error" && !compileError) {
+        compileError = result.compileError || result.stderr;
+        // Stop on compile error, return all remaining as CE
         results.push({
           index: i,
           input: tc.input,
           expectedOutput: tc.output,
-          userOutput: "Execution error",
-          status: "Error",
-          visible: !!tc.visible,
+          actualOutput: "",
+          verdict: "Compilation Error",
+          stderr: result.stderr,
+          passed: false,
+          visible: tc.visible !== false,
         });
+        // Fill rest
+        for (let j = i + 1; j < runCases.length; j++) {
+          results.push({
+            index: j,
+            input: runCases[j].input,
+            expectedOutput: runCases[j].output,
+            actualOutput: "",
+            verdict: "Compilation Error",
+            stderr: "",
+            passed: false,
+            visible: runCases[j].visible !== false,
+          });
+        }
+        break;
+      }
+
+      const passed = result.verdict === "Accepted";
+      if (passed) passedCount++;
+
+      results.push({
+        index: i,
+        input: tc.input,
+        expectedOutput: (tc.output || "").trim(),
+        actualOutput: result.stdout,
+        verdict: result.verdict,
+        stderr: result.stderr,
+        passed,
+        visible: tc.visible !== false,
+      });
+
+      // Stop early on first Runtime Error (like LeetCode)
+      if (result.verdict === "Runtime Error" || result.verdict === "Time Limit Exceeded") {
+        for (let j = i + 1; j < runCases.length; j++) {
+          results.push({
+            index: j,
+            input: runCases[j].input,
+            expectedOutput: runCases[j].output,
+            actualOutput: "",
+            verdict: "Skipped",
+            stderr: "",
+            passed: false,
+            visible: runCases[j].visible !== false,
+          });
+        }
+        break;
       }
     }
 
-    // Plagiarism comparison against past submissions
-    const prevSubs = await CodingSubmission.find({ problem: id });
+    const overallVerdict =
+      compileError ? "Compilation Error" :
+      passedCount === results.filter(r => r.verdict !== "Skipped").length ? "Accepted" :
+      results.find(r => r.verdict === "Time Limit Exceeded") ? "Time Limit Exceeded" :
+      results.find(r => r.verdict === "Runtime Error") ? "Runtime Error" :
+      "Wrong Answer";
+
+    return res.json({
+      mode: "run",
+      passedCount,
+      totalCount: runCases.length,
+      overallVerdict,
+      compileError: compileError || null,
+      results,
+    });
+  } catch (err) {
+    console.error("[Run Code Error]:", err);
+    res.status(500).json({ error: "Code execution failed: " + err.message });
+  }
+};
+
+// ================================================================
+// CONTROLLER: Submit Code (ALL test cases, DB save)
+// ================================================================
+export const submitCode = async (req, res) => {
+  try {
+    const { code, language } = req.body;
+    const { id } = req.params;
+    const userId = req.user?._id || req.user?.id;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ error: "No code provided" });
+    }
+
+    const problem = await CodingProblem.findById(id);
+    if (!problem) return res.status(404).json({ error: "Problem not found" });
+
+    const langKey = (language || "").toLowerCase();
+    if (!PISTON_LANG_MAP[langKey]) {
+      return res.status(400).json({ error: "Unsupported programming language" });
+    }
+
+    const timeLimit = parseFloat(problem.timeLimit) || 2.0;
+    const timeoutMs = Math.min(Math.max(timeLimit * 1000 * 2, 5000), 15000);
+
+    // All test cases (hidden + visible)
+    const allTestCases =
+      problem.testCases && problem.testCases.length > 0
+        ? problem.testCases
+        : problem.sampleTestCases && problem.sampleTestCases.length > 0
+        ? problem.sampleTestCases
+        : [];
+
+    const results = [];
+    let passedCount = 0;
+    let compileError = null;
+    let firstFailure = null;
+
+    for (let i = 0; i < allTestCases.length; i++) {
+      const tc = allTestCases[i];
+      const result = await executeOneTestCase(langKey, code, tc.input, tc.output, timeoutMs);
+
+      if (result.verdict === "Compilation Error" && !compileError) {
+        compileError = result.compileError || result.stderr;
+        results.push({
+          index: i,
+          input: tc.visible ? tc.input : "[Hidden]",
+          expectedOutput: tc.visible ? tc.output : "[Hidden]",
+          actualOutput: "",
+          verdict: "Compilation Error",
+          stderr: result.stderr,
+          passed: false,
+          visible: tc.visible !== false,
+        });
+        for (let j = i + 1; j < allTestCases.length; j++) {
+          results.push({
+            index: j,
+            input: allTestCases[j].visible ? allTestCases[j].input : "[Hidden]",
+            expectedOutput: allTestCases[j].visible ? allTestCases[j].output : "[Hidden]",
+            actualOutput: "",
+            verdict: "Compilation Error",
+            stderr: "",
+            passed: false,
+            visible: allTestCases[j].visible !== false,
+          });
+        }
+        break;
+      }
+
+      const passed = result.verdict === "Accepted";
+      if (passed) passedCount++;
+
+      const entry = {
+        index: i,
+        input: tc.visible !== false ? tc.input : "[Hidden]",
+        expectedOutput: tc.visible !== false ? (tc.output || "").trim() : "[Hidden]",
+        actualOutput: tc.visible !== false ? result.stdout : (passed ? "[Correct]" : "[Wrong]"),
+        verdict: result.verdict,
+        stderr: result.stderr,
+        passed,
+        visible: tc.visible !== false,
+      };
+      results.push(entry);
+
+      if (!passed && !firstFailure) {
+        firstFailure = { ...entry, input: tc.input, expectedOutput: tc.output, actualOutput: result.stdout };
+      }
+
+      // Stop early on TLE or RE (first occurrence)
+      if (result.verdict === "Runtime Error" || result.verdict === "Time Limit Exceeded") {
+        for (let j = i + 1; j < allTestCases.length; j++) {
+          results.push({
+            index: j,
+            input: "[Skipped]",
+            expectedOutput: "[Skipped]",
+            actualOutput: "",
+            verdict: "Skipped",
+            stderr: "",
+            passed: false,
+            visible: allTestCases[j].visible !== false,
+          });
+        }
+        break;
+      }
+    }
+
+    // Overall verdict
+    let overallVerdict;
+    if (compileError) {
+      overallVerdict = "Compilation Error";
+    } else {
+      const rte = results.find(r => r.verdict === "Runtime Error");
+      const tle = results.find(r => r.verdict === "Time Limit Exceeded");
+      if (tle) overallVerdict = "Time Limit Exceeded";
+      else if (rte) overallVerdict = "Runtime Error";
+      else if (passedCount === allTestCases.length) overallVerdict = "Accepted";
+      else overallVerdict = "Wrong Answer";
+    }
+
+    // Plagiarism check
+    const prevSubs = await CodingSubmission.find({ problem: id }).limit(50);
     let maxPlagiarism = 0;
     for (const sub of prevSubs) {
       if (!sub.code) continue;
@@ -219,43 +440,48 @@ export const submitCode = async (req, res) => {
       if (percent > maxPlagiarism) maxPlagiarism = percent;
     }
 
-    const saveParam = req.query.save;
-    const shouldSave = saveParam === "true" || passedCount === totalCount;
-
-    let savedSubmission = null;
-    if (shouldSave) {
-      const submissionDoc = new CodingSubmission({
-        user: userId,
-        problem: id,
-        code,
-        language,
-        result: passedCount === totalCount ? "Accepted" : "Wrong Answer",
-        passedCount,
-        totalCount,
-        plagiarism: maxPlagiarism,
-        details: results,
-      });
-      savedSubmission = await submissionDoc.save();
-    }
-
-    const visibleDetails = results.filter((r) => r.visible);
+    // Save submission
+    const submissionDoc = new CodingSubmission({
+      user: userId,
+      problem: id,
+      code,
+      language: langKey,
+      result: overallVerdict,
+      passedCount,
+      totalCount: allTestCases.length,
+      plagiarism: maxPlagiarism,
+      details: results.map(r => ({
+        index: r.index,
+        input: r.input,
+        expectedOutput: r.expectedOutput,
+        userOutput: r.actualOutput,
+        status: r.verdict,
+        visible: r.visible,
+      })),
+    });
+    const savedSubmission = await submissionDoc.save();
 
     res.json({
-      result: passedCount === totalCount ? "Accepted" : "Wrong Answer",
+      mode: "submit",
+      result: overallVerdict,
       passedCount,
-      totalCount,
+      totalCount: allTestCases.length,
+      compileError: compileError || null,
+      firstFailure,
       plagiarism: maxPlagiarism,
-      details: results,
-      visibleDetails,
-      saved: !!savedSubmission,
-      submissionId: savedSubmission ? savedSubmission._id : null,
+      results,
+      submissionId: savedSubmission._id,
+      language: langKey,
     });
   } catch (err) {
-    console.error("[Coding Service Execution Error]:", err);
-    res.status(500).json({ error: "Error executing code submission" });
+    console.error("[Submit Code Error]:", err);
+    res.status(500).json({ error: "Submission failed: " + err.message });
   }
 };
 
+// ================================================================
+// CONTROLLER: Submissions history
+// ================================================================
 export const getSubmissionsByProblem = async (req, res) => {
   try {
     const { id } = req.params;
