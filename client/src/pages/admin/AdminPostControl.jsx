@@ -1,19 +1,56 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
 import { formatDateTime } from "../../utils/formatDateTime";
+import { exportToExcel } from "../../utils/excelExport";
+import ExportExcelButton from "../../components/ExportExcelButton";
 
 export default function AdminPostControl() {
   const [posts, setPosts] = useState([]);
   const [editId, setEditId] = useState(null);
   const [editPost, setEditPost] = useState({ title: "", content: "" });
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
   const fetchPosts = async () => {
-    const res = await api.get("/posts/admin/all");
-    setPosts(res.data);
+    try {
+      const res = await api.get("/posts/admin/all");
+      setPosts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load posts:", err);
+    }
+  };
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const data = posts.map((post, idx) => {
+        const authorStr = typeof post.author === "object"
+          ? post.author?.name || post.author?.username || post.author?.email || post.author?._id || "Unknown"
+          : String(post.author || "Unknown");
+
+        return {
+          "S.No": idx + 1,
+          "Title": post.title || "Untitled",
+          "Content": post.content || "",
+          "Author": authorStr,
+          "Created Date": post.createdAt ? formatDateTime(post.createdAt) : "N/A",
+          "Post ID": post._id,
+        };
+      });
+
+      exportToExcel({
+        filename: "Admin_Community_Posts",
+        sheetName: "Posts",
+        data,
+      });
+    } catch (err) {
+      alert("Failed to export posts to Excel: " + err.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -35,7 +72,15 @@ export default function AdminPostControl() {
 
   return (
     <div className="container py-4">
-      <h2 className="fw-bold mb-4">Admin: Control All Posts</h2>
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h2 className="fw-bold m-0">Admin: Control All Posts</h2>
+        <ExportExcelButton
+          onClick={handleExport}
+          loading={exporting}
+          disabled={posts.length === 0}
+          label="Export Posts to Excel"
+        />
+      </div>
       <ul className="list-group">
         {posts.map((post) => (
           <li key={post._id} className="list-group-item">

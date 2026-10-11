@@ -36,6 +36,12 @@
   font-size: 0.9rem;
   margin: 0;
 }
+.sa-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
 /* ── Stats Bar ───────────────────────────────────── */
 .sa-stats-bar {

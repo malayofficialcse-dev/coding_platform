@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import api from "../../api/api";
 import { formatDateTime } from "../../utils/formatDateTime";
 import { AuthContext } from "../../contexts/AuthContext";
+import { exportToExcel } from "../../utils/excelExport";
+import ExportExcelButton from "../../components/ExportExcelButton";
 import "./CoordinatorDashboard.css";
 
 // ── Role Meta ──────────────────────────────────────────────────────────────
@@ -64,9 +66,36 @@ function MiniStat({ label, value, icon }) {
 function ExamCoordinatorDash({ perm }) {
   const [exams, setExams] = useState([]);
   const [stats, setStats] = useState({});
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
-    api.get("/exams").then(r => setExams(r.data?.slice(0, 8) || [])).catch(() => {});
+    api.get("/exams").then(r => setExams(r.data || [])).catch(() => {});
   }, []);
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const data = exams.map((ex, idx) => ({
+        "S.No": idx + 1,
+        "Exam Title": ex.title || "N/A",
+        "Description": ex.description || "N/A",
+        "Duration (Mins)": ex.duration || 0,
+        "Questions Count": Array.isArray(ex.questions) ? ex.questions.length : 0,
+        "Status": ex.isPublished ? "Published" : "Draft",
+        "Exam ID": ex._id,
+      }));
+
+      exportToExcel({
+        filename: "Exam_Coordinator_Data",
+        sheetName: "Exams",
+        data,
+      });
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -82,6 +111,13 @@ function ExamCoordinatorDash({ perm }) {
         )}
         <Link to="/admin/exams" className="cd-action-btn cd-action-secondary">View All Exams</Link>
         <Link to="/admin/analytics" className="cd-action-btn cd-action-secondary">Analytics</Link>
+        <ExportExcelButton
+          onClick={handleExport}
+          loading={exporting}
+          disabled={exams.length === 0}
+          label="Export Exams"
+          size="sm"
+        />
       </div>
 
       <h3 className="cd-section-title">Recent Exams</h3>
@@ -120,9 +156,35 @@ function ExamCoordinatorDash({ perm }) {
 // ── Course Coordinator Dashboard ────────────────────────────────────────────
 function CourseCoordinatorDash({ perm }) {
   const [courses, setCourses] = useState([]);
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
-    api.get("/courses").then(r => setCourses(r.data?.slice(0, 8) || [])).catch(() => {});
+    api.get("/courses").then(r => setCourses(r.data || [])).catch(() => {});
   }, []);
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const data = courses.map((c, idx) => ({
+        "S.No": idx + 1,
+        "Course Title": c.title || "N/A",
+        "Description": c.description || "N/A",
+        "Topics Count": Array.isArray(c.topics) ? c.topics.length : 0,
+        "Status": c.isPublished ? "Published" : "Draft",
+        "Course ID": c._id,
+      }));
+
+      exportToExcel({
+        filename: "Course_Coordinator_Data",
+        sheetName: "Courses",
+        data,
+      });
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -137,6 +199,13 @@ function CourseCoordinatorDash({ perm }) {
           <Link to="/admin/courses/create" className="cd-action-btn cd-action-primary">+ Create Course</Link>
         )}
         <Link to="/admin/courses" className="cd-action-btn cd-action-secondary">View All Courses</Link>
+        <ExportExcelButton
+          onClick={handleExport}
+          loading={exporting}
+          disabled={courses.length === 0}
+          label="Export Courses"
+          size="sm"
+        />
       </div>
 
       <h3 className="cd-section-title">Recent Courses</h3>
@@ -177,12 +246,37 @@ function CourseCoordinatorDash({ perm }) {
 // ── Feed Coordinator Dashboard ──────────────────────────────────────────────
 function FeedCoordinatorDash({ perm }) {
   const [posts, setPosts] = useState([]);
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
     api.get("/posts").then(r => {
       const data = Array.isArray(r.data) ? r.data : (r.data?.posts || []);
-      setPosts(data.slice(0, 8));
+      setPosts(data);
     }).catch(() => {});
   }, []);
+
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const data = posts.map((p, idx) => ({
+        "S.No": idx + 1,
+        "Content": p.content || "",
+        "Author": p.author?.name || p.author?.username || "Unknown",
+        "Date": p.createdAt ? formatDateTime(p.createdAt) : "N/A",
+        "Post ID": p._id,
+      }));
+
+      exportToExcel({
+        filename: "Feed_Coordinator_Posts",
+        sheetName: "Posts",
+        data,
+      });
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -201,6 +295,13 @@ function FeedCoordinatorDash({ perm }) {
         {perm?.feed?.delete && (
           <Link to="/admin/post-control" className="cd-action-btn cd-action-secondary">Manage Posts</Link>
         )}
+        <ExportExcelButton
+          onClick={handleExport}
+          loading={exporting}
+          disabled={posts.length === 0}
+          label="Export Posts"
+          size="sm"
+        />
       </div>
 
       <h3 className="cd-section-title">Recent Posts</h3>

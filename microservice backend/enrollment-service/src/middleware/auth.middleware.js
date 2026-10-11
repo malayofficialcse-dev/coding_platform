@@ -29,6 +29,8 @@ export const protect = (req, res, next) => {
       id: decoded.userId || decoded.id,
       role: decoded.role || "user",
       email: decoded.email,
+      name: decoded.name || "",
+      username: decoded.username || "",
     };
     next();
   } catch (err) {

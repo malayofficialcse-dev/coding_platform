@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
 import api from "../../api/api";
 import { AuthContext } from "../../contexts/AuthContext";
+import { exportToExcel } from "../../utils/excelExport";
+import { FaFileExcel } from "react-icons/fa";
 import "./SuperAdmin.css";
 
 const ROLES = [
@@ -312,6 +314,7 @@ export default function SuperAdminPanel() {
   const [total,   setTotal]   = useState(0);
   const [modal,   setModal]   = useState(null); // null | { type: "create"|"edit"|"perm", user? }
   const [toast,   setToast]   = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -342,6 +345,74 @@ export default function SuperAdminPanel() {
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const exportUsers = [];
+      let exportPage = 1;
+      let exportPages = 1;
+
+      do {
+        const res = await api.get("/admin/rbac/users", {
+          params: { page: exportPage, limit: 100, search, role: roleFilter },
+        });
+        if (!Array.isArray(res.data?.users) || typeof res.data.pages !== "number") {
+          throw new Error("The user export response was invalid.");
+        }
+        exportUsers.push(...res.data.users);
+        exportPages = res.data.pages;
+        exportPage += 1;
+      } while (exportPage <= exportPages);
+
+      const usersSheetData = exportUsers.map((u, idx) => {
+        const row = {
+          "S.No": idx + 1,
+          "Name": u.name || "N/A",
+          "Email": u.email || "N/A",
+          "Role": ROLES.find((role) => role.value === u.role)?.label || u.role,
+          "Status": u.isActive !== false ? "Active" : "Inactive",
+          "College": u.college || "N/A",
+          "Degree": u.degree || "N/A",
+          "Year of Passing": u.yearOfPassing || "N/A",
+        };
+
+        MODULES.forEach((module) => {
+          ACTIONS.forEach((action) => {
+            const header = `${module.label} (${action.toUpperCase()})`;
+            row[header] = u.permissions?.[module.key]?.[action] ? "Yes" : "No";
+          });
+        });
+
+        row["User ID"] = u._id;
+        return row;
+      });
+
+      const statsSheetData = [
+        { "Metric / Role": "Total Users", "Count": stats?.total ?? exportUsers.length },
+        { "Metric / Role": "Active Users", "Count": stats?.active ?? "N/A" },
+        { "Metric / Role": "Inactive Users", "Count": stats?.inactive ?? "N/A" },
+        ...((stats?.roleCounts || []).map((rc) => ({
+          "Metric / Role": ROLES.find((r) => r.value === rc._id)?.label || rc._id,
+          "Count": rc.count,
+        }))),
+      ];
+
+      exportToExcel({
+        filename: "RBAC_Users_Access_Control",
+        sheets: [
+          { sheetName: "Users & Permissions", data: usersSheetData },
+          { sheetName: "Role Statistics", data: statsSheetData },
+        ],
+      });
+
+      showToast(`Exported ${exportUsers.length} user${exportUsers.length === 1 ? "" : "s"} to Excel!`);
+    } catch (error) {
+      showToast(error.response?.data?.error || error.message || "Failed to export users.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleSave = () => {
     setModal(null);
@@ -380,9 +451,20 @@ export default function SuperAdminPanel() {
           <h1 className="sa-header-title">User &amp; Access Control</h1>
           <p className="sa-header-sub">Manage users, roles and module permissions across Code Campus</p>
         </div>
-        <button className="sa-btn sa-btn-primary sa-btn-lg" onClick={() => setModal({ type: "create" })}>
-          + Create User
-        </button>
+        <div className="sa-header-actions">
+          <button
+            className="sa-btn sa-btn-ghost sa-btn-lg"
+            onClick={handleExport}
+            disabled={exporting}
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+          >
+            <FaFileExcel style={{ color: "#107c41" }} />
+            {exporting ? "Exporting…" : "Export to Excel"}
+          </button>
+          <button className="sa-btn sa-btn-primary sa-btn-lg" onClick={() => setModal({ type: "create" })}>
+            + Create User
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

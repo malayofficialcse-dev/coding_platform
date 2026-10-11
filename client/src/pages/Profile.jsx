@@ -1,12 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaArrowRight, FaBookOpen, FaCamera, FaChartLine, FaCode, FaEdit, FaFlask, FaGraduationCap, FaSave, FaShieldAlt, FaTrash, FaTimes, FaUsers } from "react-icons/fa";
+import { FaArrowRight, FaBookOpen, FaCamera, FaChartLine, FaCode, FaEdit, FaFlask, FaGraduationCap, FaSave, FaShieldAlt, FaTrash, FaTimes, FaUsers, FaAward } from "react-icons/fa";
 import { Bar, Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from "chart.js";
 import { AuthContext } from "../contexts/AuthContext";
 import api from "../api/api";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { formatDateTime } from "../utils/formatDateTime";
+import CourseCertificate from "../components/CourseCertificate";
 import "./Profile.css";
 import "./ProfileContributions.css";
 
@@ -41,6 +42,8 @@ export default function Profile() {
   const [editCodeBlocks, setEditCodeBlocks] = useState([]);
   const [editImages, setEditImages] = useState([]);
   const [refresh, setRefresh] = useState(false);
+  const [activeCertificate, setActiveCertificate] = useState(null);
+  const [loadingCert, setLoadingCert] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -196,8 +199,46 @@ export default function Profile() {
   const handleFollow = async (personId) => { await api.post(`/users/follow/${personId}`); setRefresh((value) => !value); };
   const handleUnfollow = async (personId) => { await api.post(`/users/unfollow/${personId}`); setRefresh((value) => !value); };
 
-  const examChartData = { labels: attempts.slice(-8).map((attempt) => attempt.exam?.title?.slice(0, 14) || "Exam"), datasets: [{ label: "Score", data: attempts.slice(-8).map((attempt) => attempt.score || 0), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,.12)", tension: .35, fill: true }] };
   const courseProgress = (enrollment) => Math.min(100, Math.max(0, Number(enrollment.progress ?? enrollment.progressPercentage ?? enrollment.course?.progress ?? 0)));
+
+  const openCertificate = async (enrollment) => {
+    const isCeo = (n) => n && String(n).trim().toLowerCase() === "malay maity";
+    const resolvedStudent =
+      enrollment.certificateRecipientName && !isCeo(enrollment.certificateRecipientName)
+        ? enrollment.certificateRecipientName
+        : user?.name && !isCeo(user.name)
+        ? user.name
+        : user?.username && !isCeo(user.username)
+        ? user.username
+        : "Student Name";
+
+    if (enrollment.certificateNumber) {
+      setActiveCertificate({
+        certificateNumber: enrollment.certificateNumber,
+        certificateIssuedAt: enrollment.certificateIssuedAt,
+        studentName: resolvedStudent,
+        courseTitle: enrollment.course?.title || "Course",
+        ceoName: enrollment.certificateCeoName || "Malay Maity",
+        ceoTitle: "Founder & CEO, Code Campus",
+        instructorName: "Rahul Sen",
+        instructorTitle: "Course Instructor",
+        enrollmentId: enrollment._id,
+      });
+      return;
+    }
+
+    setLoadingCert(true);
+    try {
+      const res = await api.post(`/enrollments/${enrollment._id}/certificate`, {
+        studentName: resolvedStudent,
+      });
+      setActiveCertificate(res.data);
+    } catch (err) {
+      alert(err.response?.data?.error || "Could not generate certificate");
+    } finally {
+      setLoadingCert(false);
+    }
+  };
   const contributionData = useMemo(() => {
     const toLocalDateKey = (date) => {
       const year = date.getFullYear();
@@ -260,7 +301,7 @@ export default function Profile() {
 
           <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course progress and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) > 0).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
 
-          <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div>; })}</div>}</section>
+          <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><div style={{ display: "flex", alignItems: "center", gap: "8px" }}>{progress === 100 && <button type="button" onClick={() => openCertificate(enrollment)} disabled={loadingCert} style={{ display: "inline-flex", alignItems: "center", gap: "4px", border: "1px solid #16a34a", background: "rgba(22, 163, 74, 0.12)", color: "#16a34a", borderRadius: "4px", padding: "3px 8px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}><FaAward /> Certificate</button>}<Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div></div>; })}</div>}</section>
 
           {showAnalytics && <section className="cc-profile-card cc-profile-analytics"><div className="cc-profile-section-title"><div><h2>Assessment performance</h2><span>Recent exam scores and consistency</span></div><span className="cc-profile-kpi">{examMetrics.average}% avg.</span></div>{attempts.length ? <div className="cc-profile-chart"><Line data={examChartData} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} /></div> : <div className="cc-profile-empty"><FaChartLine /><span>Complete an exam to unlock performance analytics.</span></div>}</section>}
 
@@ -269,6 +310,11 @@ export default function Profile() {
       </div>
 
       {editingProfile && <div className="cc-profile-modal-backdrop" onClick={() => setEditingProfile(false)}><div className="cc-profile-modal" onClick={(event) => event.stopPropagation()}><div className="cc-profile-modal-head"><h2>Edit profile</h2><button onClick={() => setEditingProfile(false)}><FaTimes /></button></div>{Object.entries({ name: "Full name", college: "College / organization", degree: "Degree / specialization", yearOfPassing: "Year of passing" }).map(([field, label]) => <label key={field}>{label}<input value={profileDraft[field]} onChange={(event) => setProfileDraft((current) => ({ ...current, [field]: event.target.value }))} /></label>)}<div className="cc-profile-modal-actions"><button onClick={() => setEditingProfile(false)}>Cancel</button><button onClick={saveProfile}><FaSave /> Save profile</button></div><div className="cc-profile-security"><h3>Security</h3><p>Change your account password.</p><label>Current password<input type="password" autoComplete="current-password" value={passwordDraft.currentPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} /></label><label>New password<input type="password" autoComplete="new-password" minLength={8} value={passwordDraft.newPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} /></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} value={passwordDraft.confirmPassword} onChange={(event) => setPasswordDraft((current) => ({ ...current, confirmPassword: event.target.value }))} /></label><button className="cc-profile-password-button" onClick={changePassword} disabled={changingPassword || !passwordDraft.currentPassword || !passwordDraft.newPassword || !passwordDraft.confirmPassword}>{changingPassword ? "Updating..." : "Update password"}</button></div></div></div>}
+
+      {/* ── Official Course Completion Certificate Modal ── */}
+      {activeCertificate && (
+        <CourseCertificate certificate={activeCertificate} onClose={() => setActiveCertificate(null)} />
+      )}
     </div>
   );
 }

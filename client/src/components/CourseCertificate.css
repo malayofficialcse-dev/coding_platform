@@ -1,0 +1,430 @@
+/* ==========================================================================
+   Code Campus - Official Certificate of Completion
+   Exact reproduction of the premium LearnHub layout and geometry
+   ========================================================================== */
+
+.cc-cert-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.cc-cert-modal-container {
+  width: min(100%, 1040px);
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cc-cert-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: #f0f6fc;
+}
+
+.cc-cert-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Certificate Canvas Frame ────────────────────────────────────────── */
+.cc-cert-canvas-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.cc-cert-canvas {
+  position: relative;
+  width: 1000px;
+  min-height: 680px;
+  background: #ffffff;
+  color: #172033;
+  padding: 38px 46px 42px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  font-family: 'Montserrat', 'Inter', -apple-system, sans-serif;
+  overflow: hidden;
+  border: 10px solid #ffffff;
+}
+
+/* Inset thin blue perimeter line */
+.cc-cert-inner-frame {
+  position: absolute;
+  inset: 14px;
+  border: 1.5px solid #0078d4;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Guilloche Flowing Sine Waves (Left & Right Background) */
+.cc-cert-waves-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 320px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.65;
+}
+
+.cc-cert-waves-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.65;
+}
+
+/* Corner Folded Diagonal Ribbons (Top-Left & Bottom-Right) */
+.cc-cert-corner-tl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 160px;
+  height: 160px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cc-cert-corner-br {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 160px;
+  height: 160px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Top Bar: Brand Logo on Left, Certificate Meta on Right */
+.cc-cert-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  z-index: 4;
+  margin-bottom: 20px;
+  padding-left: 55px; /* clear the top-left corner ribbon */
+}
+
+.cc-cert-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cc-cert-brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #0284c7;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.cc-cert-brand-text h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.cc-cert-brand-text span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cc-cert-meta {
+  text-align: right;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.55;
+  margin-right: 140px; /* Space for Gold Medal */
+}
+
+.cc-cert-meta div {
+  margin-bottom: 2px;
+}
+
+.cc-cert-meta strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* ── Golden Badge Ribbon (Top-Right Medallion) ─────────────────────── */
+.cc-cert-gold-seal-wrap {
+  position: absolute;
+  top: 20px;
+  right: 38px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cc-cert-gold-seal {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #eab308 50%, #ca8a04 85%, #a16207 100%);
+  border: 4px dashed #854d0e;
+  box-shadow: 0 8px 24px rgba(202, 138, 4, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #451a03;
+  text-align: center;
+  padding: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.cc-cert-gold-seal-cap {
+  font-size: 26px;
+  color: #451a03;
+  margin-bottom: 2px;
+}
+
+.cc-cert-gold-seal-text {
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.cc-cert-seal-ribbons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: -16px;
+  position: relative;
+  z-index: 1;
+}
+
+.cc-cert-seal-ribbon {
+  width: 26px;
+  height: 56px;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.cc-cert-seal-ribbon.left {
+  transform: rotate(12deg);
+}
+
+.cc-cert-seal-ribbon.right {
+  transform: rotate(-12deg);
+}
+
+/* ── Certificate Body Typography ─────────────────────────────────────── */
+.cc-cert-body {
+  text-align: center;
+  position: relative;
+  z-index: 4;
+  margin-top: 14px;
+}
+
+.cc-cert-title-primary {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #1e3a8a;
+  margin: 0;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.cc-cert-title-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 8px 0 24px;
+}
+
+.cc-cert-title-sub-row i {
+  display: block;
+  width: 95px;
+  height: 1.5px;
+  background: #0284c7;
+}
+
+.cc-cert-title-sub-row span {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: #0f172a;
+  text-transform: uppercase;
+}
+
+.cc-cert-certify-line {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* Student Recipient Name (Calligraphy Script) */
+.cc-cert-recipient-name {
+  font-family: 'Great Vibes', cursive;
+  font-size: 64px;
+  font-weight: 400;
+  color: #0f172a;
+  margin: 2px 0 8px;
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.cc-cert-completed-line {
+  font-size: 14px;
+  color: #334155;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+/* Course Title (Bold Blue) */
+.cc-cert-course-name {
+  font-size: 30px;
+  font-weight: 800;
+  color: #0284c7;
+  margin: 0 0 14px;
+  line-height: 1.25;
+}
+
+.cc-cert-description {
+  max-width: 720px;
+  margin: 0 auto 34px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #475569;
+}
+
+/* ── Bottom Signatures Row ───────────────────────────────────────────── */
+.cc-cert-bottom-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: relative;
+  z-index: 4;
+}
+
+.cc-cert-signature-block {
+  width: 220px;
+  text-align: center;
+}
+
+.cc-cert-signature-script {
+  font-family: 'Great Vibes', cursive;
+  font-size: 36px;
+  color: #0f172a;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-cert-signature-line {
+  height: 1.5px;
+  background: #94a3b8;
+  width: 100%;
+  margin: 4px 0 6px;
+}
+
+.cc-cert-signatory-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.cc-cert-signatory-title {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.cc-cert-quote-block {
+  flex: 1;
+  max-width: 300px;
+  text-align: center;
+  padding: 0 20px;
+  border-left: 1px solid #cbd5e1;
+  border-right: 1px solid #cbd5e1;
+  font-size: 11.5px;
+  font-style: italic;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* ── Print / PDF Mode ────────────────────────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .cc-cert-modal-backdrop,
+  .cc-cert-modal-container {
+    position: static;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-height: none;
+  }
+  .cc-cert-toolbar {
+    display: none !important;
+  }
+  .cc-cert-canvas-wrap {
+    box-shadow: none;
+    overflow: visible;
+  }
+  .cc-cert-canvas,
+  .cc-cert-canvas * {
+    visibility: visible;
+  }
+  .cc-cert-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    page-break-after: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -5,6 +5,9 @@ import {
   getEnrollmentsByUser,
   getUserEnrollments,
   updateCourseProgress,
+  generateCertificate,
+  getCertificate,
+  verifyCertificate,
 } from "../controllers/enrollment.controller.js";
 import { protect, requireAdmin } from "../middleware/auth.middleware.js";
 
@@ -16,6 +19,11 @@ router.get("/my", protect, getMyEnrollments);
 router.get("/user/:userId", protect, requireAdmin, getEnrollmentsByUser);
 router.get("/", protect, getUserEnrollments);
 router.patch("/:enrollmentId/progress", protect, updateCourseProgress);
+
+// Certificate Endpoints
+router.post("/:enrollmentId/certificate", protect, generateCertificate);
+router.get("/:enrollmentId/certificate", protect, getCertificate);
+router.get("/certificate/verify/:certificateNumber", verifyCertificate);
 
 export default router;
 

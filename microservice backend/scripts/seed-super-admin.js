@@ -22,8 +22,8 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const SUPER_ADMIN = {
   name:     "Super Admin",
-  email:    "superadmin@codecampus.io",
-  password: "SuperAdmin@2024!",
+  email:    "maitymalay@gmail.com",
+  password: "000000",
   username: "super_admin",
   role:     "super_admin",
 };

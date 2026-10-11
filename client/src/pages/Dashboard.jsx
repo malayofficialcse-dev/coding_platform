@@ -40,16 +40,6 @@ const card = {
   boxShadow: "0 2px 8px rgba(27, 45, 66, 0.10)",
 };
 
-const STUDY_GROUPS = [
-  "General Feed",
-  "Python Learners 🐍",
-  "JavaScript Hub 🟨",
-  "Java Specialists ☕",
-  "C++ Wizards 🟦",
-  "Algorithms & DS 📊",
-  "Web Dev Bootcamp 🌐"
-];
-
 export default function Dashboard() {
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
@@ -59,7 +49,7 @@ export default function Dashboard() {
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const { user } = useContext(AuthContext);
-  const [activeGroup, setActiveGroup] = useState("General Feed");
+  const activeGroup = "General Feed";
 
   useEffect(() => {
     api.get("/users").then((res) => setUsers(res.data));
@@ -288,51 +278,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Study Groups */}
-            <div style={{ ...card, padding: "1rem 1.25rem", marginTop: "1rem" }}>
-              <div style={{ fontWeight: 700, color: C.ink, fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.65rem" }}>
-                Study Groups
-              </div>
-              {STUDY_GROUPS.map((g) => {
-                const isActive = activeGroup === g;
-                return (
-                  <button
-                    key={g}
-                    onClick={() => setActiveGroup(g)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      width: "100%",
-                      textAlign: "left",
-                      border: "none",
-                      background: isActive ? C.primaryLight : "transparent",
-                      color: isActive ? C.primary : C.inkMuted,
-                      padding: "0.55rem 0.6rem",
-                      borderRadius: "4px",
-                      fontSize: "0.82rem",
-                      fontWeight: isActive ? 700 : 500,
-                      cursor: "pointer",
-                      marginBottom: 2,
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = C.primaryLight;
-                        e.currentTarget.style.color = C.primary;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = C.inkMuted;
-                      }
-                    }}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
-            </div>
           </aside>
 
           {/* ══════════════════════════ CENTER FEED ═══════════════════════════ */}

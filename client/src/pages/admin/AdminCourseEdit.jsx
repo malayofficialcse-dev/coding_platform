@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { exportToExcel } from "../../utils/excelExport";
+import ExportExcelButton from "../../components/ExportExcelButton";
 
 const LANGUAGES = [
   "python",
@@ -29,6 +31,7 @@ export default function AdminCourseEdit() {
   const [course, setCourse] = useState(null);
   const [form, setForm] = useState({ title: "", description: "", image: "" });
   const [imageFile, setImageFile] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   // State for Topics management
   const [newTopic, setNewTopic] = useState({ title: "", order: 0 });
@@ -234,12 +237,87 @@ export default function AdminCourseEdit() {
     }
   };
 
+  const handleExport = () => {
+    if (!course) return;
+    setExporting(true);
+    try {
+      const courseInfoData = [
+        {
+          "Course Title": course.title || "N/A",
+          "Description": course.description || "N/A",
+          "Topics Count": Array.isArray(course.topics) ? course.topics.length : 0,
+          "Status": course.isPublished ? "Published" : "Draft",
+          "Course ID": course._id,
+        },
+      ];
+
+      const syllabusData = [];
+      let rowNum = 1;
+
+      (course.topics || []).forEach((top, topIdx) => {
+        const subtopics = top.subtopics || [];
+        if (subtopics.length === 0) {
+          syllabusData.push({
+            "S.No": rowNum++,
+            "Topic Number": topIdx + 1,
+            "Topic Title": top.title || "Untitled Topic",
+            "Topic Order": top.order ?? topIdx,
+            "Subtopic Number": "—",
+            "Subtopic Title": "No subtopics",
+            "Subtopic Order": "—",
+            "Code Snippets Count": 0,
+            "Images Count": 0,
+          });
+        } else {
+          subtopics.forEach((sub, subIdx) => {
+            syllabusData.push({
+              "S.No": rowNum++,
+              "Topic Number": topIdx + 1,
+              "Topic Title": top.title || "Untitled Topic",
+              "Topic Order": top.order ?? topIdx,
+              "Subtopic Number": `${topIdx + 1}.${subIdx + 1}`,
+              "Subtopic Title": sub.title || "Untitled Subtopic",
+              "Subtopic Order": sub.order ?? subIdx,
+              "Code Snippets Count": Array.isArray(sub.codeBlocks) ? sub.codeBlocks.length : 0,
+              "Images Count": Array.isArray(sub.images) ? sub.images.length : 0,
+            });
+          });
+        }
+      });
+
+      const sanitizedTitle = (course.title || "Course").replace(/\s+/g, "_");
+
+      exportToExcel({
+        filename: `${sanitizedTitle}_Syllabus`,
+        sheets: [
+          { sheetName: "Course Overview", data: courseInfoData },
+          {
+            sheetName: "Syllabus & Topics",
+            data: syllabusData.length > 0 ? syllabusData : [{ "Notice": "No topics in syllabus" }],
+          },
+        ],
+      });
+    } catch (err) {
+      alert("Failed to export course to Excel: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (!course)
     return <div className="container py-5 text-center">Loading...</div>;
 
   return (
     <div className="container py-4" style={{ maxWidth: "900px" }}>
-      <h2 className="fw-bold mb-4 text-primary">Course Editor & Builder</h2>
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h2 className="fw-bold m-0 text-primary">Course Editor &amp; Builder</h2>
+        <ExportExcelButton
+          onClick={handleExport}
+          loading={exporting}
+          label="Export Syllabus to Excel"
+          title="Export course details and syllabus outline to Excel"
+        />
+      </div>
 
       {/* Course General Settings */}
       <div className="card shadow-sm border-0 rounded-4 p-4 mb-5 bg-white">

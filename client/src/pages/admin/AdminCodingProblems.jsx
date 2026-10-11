@@ -862,6 +862,8 @@
 // ...existing code...
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
+import { exportToExcel } from "../../utils/excelExport";
+import ExportExcelButton from "../../components/ExportExcelButton";
 
 const LANGUAGES = [
   { label: "Python", value: "python3" },
@@ -878,6 +880,7 @@ export function AdminCodingProblems() {
   const [problems, setProblems] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -998,12 +1001,49 @@ export function AdminCodingProblems() {
     }
   }
 
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const data = problems.map((p, idx) => ({
+        "S.No": idx + 1,
+        "Title": p.title || "N/A",
+        "Difficulty": p.difficulty || "easy",
+        "DSA Topic": p.dsaTopic || "N/A",
+        "Tags": Array.isArray(p.tags) ? p.tags.join(", ") : "",
+        "Description": p.description || "",
+        "Test Cases Count": Array.isArray(p.testCases) ? p.testCases.length : 0,
+        "Visible Test Cases": Array.isArray(p.testCases) ? p.testCases.filter((tc) => tc.visible).length : 0,
+        "Hidden Test Cases": Array.isArray(p.testCases) ? p.testCases.filter((tc) => !tc.visible).length : 0,
+        "Problem ID": p._id,
+      }));
+
+      exportToExcel({
+        filename: "Coding_Problems_Bank",
+        sheetName: "Coding Problems",
+        data,
+      });
+    } catch (err) {
+      alert("Failed to export problems to Excel: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="container py-4">
-      <div className="mb-3 d-flex gap-2 align-items-start">
+      <div className="mb-3 d-flex flex-wrap gap-2 align-items-start justify-content-between">
         <div style={{ flex: 1 }}>
-          <h4 className="mb-1">Admin — Coding Problems</h4>
-          <div className="form-text">Use a valid admin JWT to create/update/delete problems.</div>
+          <div className="d-flex align-items-center gap-3">
+            <h4 className="mb-0">Admin — Coding Problems</h4>
+            <ExportExcelButton
+              size="sm"
+              onClick={handleExport}
+              loading={exporting}
+              disabled={problems.length === 0}
+              label="Export Problems to Excel"
+            />
+          </div>
+          <div className="form-text mt-1">Use a valid admin JWT to create/update/delete problems.</div>
         </div>
         <div style={{ width: 420 }}>
           <input className="form-control mb-2" placeholder="Admin JWT (token only or Bearer ...)" value={token} onChange={(e) => setToken(e.target.value)} />

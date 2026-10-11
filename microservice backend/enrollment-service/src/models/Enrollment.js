@@ -9,6 +9,10 @@ const enrollmentSchema = new mongoose.Schema(
     completedSubtopics: [{ type: mongoose.Schema.Types.ObjectId }],
     progress: { type: Number, default: 0, min: 0, max: 100 },
     completedAt: { type: Date, default: null },
+    certificateNumber: { type: String, default: null, index: true },
+    certificateIssuedAt: { type: Date, default: null },
+    certificateRecipientName: { type: String, default: null },
+    certificateCeoName: { type: String, default: "Malay Maity" },
   },
   { timestamps: true }
 );

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
+import { exportToExcel } from "../../utils/excelExport";
+import ExportExcelButton from "../../components/ExportExcelButton";
 
 export default function UserList({ type }) {
   const [users, setUsers] = useState([]);
@@ -10,17 +12,23 @@ export default function UserList({ type }) {
   const [attempts, setAttempts] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [modalExporting, setModalExporting] = useState(false);
 
   // Fetch users
   useEffect(() => {
     (async () => {
-      const res = await api.get("/users");
-      const filteredUsers =
-        type === "admin"
-          ? res.data.filter((user) => user.role === "admin")
-          : res.data.filter((user) => user.role !== "admin");
-      setUsers(filteredUsers);
-      setFiltered(filteredUsers);
+      try {
+        const res = await api.get("/users");
+        const filteredUsers =
+          type === "admin"
+            ? res.data.filter((user) => user.role === "admin")
+            : res.data.filter((user) => user.role !== "admin");
+        setUsers(filteredUsers);
+        setFiltered(filteredUsers);
+      } catch (err) {
+        console.error("Failed to load users:", err);
+      }
     })();
   }, [type]);
 
@@ -40,6 +48,90 @@ export default function UserList({ type }) {
       );
     }
   }, [search, users]);
+
+  // Export all/filtered users to Excel
+  const handleExportUsers = () => {
+    setExporting(true);
+    try {
+      const dataToExport = filtered.length > 0 ? filtered : users;
+      const data = dataToExport.map((u, idx) => ({
+        "S.No": idx + 1,
+        "Name": u.name || u.username || "N/A",
+        "Username": u.username || "N/A",
+        "Email": u.email || "N/A",
+        "Role": u.role || "N/A",
+        "College": u.college || "N/A",
+        "Degree": u.degree || "N/A",
+        "Year of Passing": u.yearOfPassing || "N/A",
+        "Created At": u.createdAt ? new Date(u.createdAt).toLocaleString() : "N/A",
+        "User ID": u._id,
+      }));
+
+      const sheetName = type === "admin" ? "All Admins" : "All Students";
+      const filename = type === "admin" ? "Admins_List" : "Students_List";
+
+      exportToExcel({
+        filename,
+        sheetName,
+        data,
+      });
+    } catch (err) {
+      alert("Failed to export users to Excel: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export single user modal details, attempts and enrollments
+  const handleExportUserHistory = () => {
+    if (!userDetails) return;
+    setModalExporting(true);
+    try {
+      const profileData = [
+        {
+          "Name": userDetails.name || userDetails.username || "N/A",
+          "Email": userDetails.email || "N/A",
+          "Role": userDetails.role || "N/A",
+          "College": userDetails.college || "N/A",
+          "Degree": userDetails.degree || "N/A",
+          "Year of Passing": userDetails.yearOfPassing || "N/A",
+          "User ID": userDetails._id,
+        },
+      ];
+
+      const attemptsData = attempts.map((a, idx) => ({
+        "S.No": idx + 1,
+        "Exam Title": a.exam?.title || "N/A",
+        "Score": a.score ?? 0,
+        "Warnings Count": a.warningsCount || 0,
+        "Auto Submitted": a.autoSubmitted ? "Yes" : "No",
+        "Cheating Logged": a.cheatingLogged ? "Yes" : "No",
+        "Date": a.createdAt ? new Date(a.createdAt).toLocaleString() : "N/A",
+      }));
+
+      const enrollmentsData = enrollments.map((en, idx) => ({
+        "S.No": idx + 1,
+        "Course Title": en.course?.title || "N/A",
+        "Status": en.status || "Enrolled",
+        "Enrolled Date": en.createdAt ? new Date(en.createdAt).toLocaleString() : "N/A",
+      }));
+
+      const sanitizedName = (userDetails.name || userDetails.username || "user").replace(/\s+/g, "_");
+
+      exportToExcel({
+        filename: `${sanitizedName}_Academic_History`,
+        sheets: [
+          { sheetName: "Profile", data: profileData },
+          { sheetName: "Exam Attempts", data: attemptsData.length > 0 ? attemptsData : [{ "Status": "No attempts found" }] },
+          { sheetName: "Course Enrollments", data: enrollmentsData.length > 0 ? enrollmentsData : [{ "Status": "No enrollments found" }] },
+        ],
+      });
+    } catch (err) {
+      alert("Failed to export user history to Excel: " + err.message);
+    } finally {
+      setModalExporting(false);
+    }
+  };
 
   // Show user details, attempts, and enrollments in modal
   const openUserModal = async (user) => {
@@ -82,16 +174,23 @@ export default function UserList({ type }) {
 
   return (
     <div className="container py-4">
-      <h2 className="fw-bold text-primary mb-4">
-        {type === "admin" ? "All Admins" : "All Students"}
-      </h2>
-      <div className="mb-3 row justify-content-end">
-        <div className="col-md-4 col-12">
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h2 className="fw-bold text-primary m-0">
+          {type === "admin" ? "All Admins" : "All Students"}
+        </h2>
+        <div className="d-flex flex-wrap gap-2 align-items-center">
           <input
             className="form-control"
+            style={{ width: "260px" }}
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+          />
+          <ExportExcelButton
+            onClick={handleExportUsers}
+            loading={exporting}
+            disabled={filtered.length === 0}
+            label={type === "admin" ? "Export Admins" : "Export Students"}
           />
         </div>
       </div>
@@ -255,7 +354,16 @@ export default function UserList({ type }) {
                   </>
                 )}
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer d-flex justify-content-between align-items-center">
+                {type !== "admin" ? (
+                  <ExportExcelButton
+                    size="sm"
+                    onClick={handleExportUserHistory}
+                    loading={modalExporting}
+                    label="Export Student History"
+                    title="Export student's profile, attempts, and course enrollments to Excel"
+                  />
+                ) : <div />}
                 <button
                   className="btn btn-secondary"
                   onClick={closeModal}
