@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
+import { formatDateTime } from "../../utils/formatDateTime";
 
 export default function AdminPostControl() {
   const [posts, setPosts] = useState([]);
@@ -82,6 +83,12 @@ export default function AdminPostControl() {
                       post.author._id
                     : post.author}
                   <div className="text-muted small">{post.content}</div>
+                  <time
+                    className="text-muted small d-block"
+                    dateTime={post.createdAt || undefined}
+                  >
+                    {formatDateTime(post.createdAt)}
+                  </time>
                 </div>
                 <div>
                   <button

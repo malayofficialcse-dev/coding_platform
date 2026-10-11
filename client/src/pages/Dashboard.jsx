@@ -7,6 +7,7 @@ import UsersLogo from "../assets/users-solid-full.svg";
 import UserPlus from "../assets/user-plus-regular-full.svg";
 import UserMinus from "../assets/user-minus-solid-full.svg";
 import { FaAlignLeft, FaCode, FaImage } from "react-icons/fa";
+import { formatDateTime } from "../utils/formatDateTime";
 
 /* ─────────────────────────────────────────────────────────────────────
    GLOBAL PALETTE  (4 colours, used everywhere)
@@ -142,7 +143,15 @@ export default function Dashboard() {
                   <span style={{ fontWeight: 700, color: C.ink, fontSize: "0.9rem" }}>{post.author?.name || post.author?.username}</span>
                   <span style={{ color: C.inkMuted, fontSize: "0.78rem" }}>reposted</span>
                 </div>
-                <span style={{ color: C.inkSoft, fontSize: "0.74rem" }}>Shared with the community</span>
+                <div style={{ color: C.inkSoft, fontSize: "0.74rem" }}>
+                  <span>Shared with the community</span>
+                  <time
+                    className="d-block"
+                    dateTime={post.createdAt || undefined}
+                  >
+                    {formatDateTime(post.createdAt)}
+                  </time>
+                </div>
               </div>
             </div>
             <div style={{

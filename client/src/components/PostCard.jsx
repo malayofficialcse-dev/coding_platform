@@ -12,6 +12,7 @@ import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import CodeMirror from "@uiw/react-codemirror";
 import { optimizedImageUrl } from "../utils/imageUrl";
+import { formatDateTime } from "../utils/formatDateTime";
 import { useTheme } from "../contexts/ThemeContext";
 
 import {
@@ -478,12 +479,20 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
                 style={{ width: 36, height: 36, objectFit: "cover" ,borderRadius:"50%"}}
               />
 
-              <Link
-                to={`/profile/${post.author._id}`}
-                className="fw-bold text-dark text-decoration-none"
-              >
-                {post.author.name || post.author.username}
-              </Link>
+              <div className="d-flex flex-column">
+                <Link
+                  to={`/profile/${post.author._id}`}
+                  className="fw-bold text-dark text-decoration-none"
+                >
+                  {post.author.name || post.author.username}
+                </Link>
+                <time
+                  className="small text-muted"
+                  dateTime={post.createdAt || undefined}
+                >
+                  {formatDateTime(post.createdAt)}
+                </time>
+              </div>
             </div>
 
             {isOwner && (

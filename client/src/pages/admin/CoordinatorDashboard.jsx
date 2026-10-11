@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/api";
+import { formatDateTime } from "../../utils/formatDateTime";
 import { AuthContext } from "../../contexts/AuthContext";
 import "./CoordinatorDashboard.css";
 
@@ -206,7 +207,7 @@ function FeedCoordinatorDash({ perm }) {
       <div className="cd-table-wrap">
         <table className="cd-table">
           <thead>
-            <tr><th>Content</th><th>Author</th><th>Date</th></tr>
+            <tr><th>Content</th><th>Author</th><th>Date &amp; time</th></tr>
           </thead>
           <tbody>
             {posts.length === 0 && (
@@ -216,7 +217,11 @@ function FeedCoordinatorDash({ perm }) {
               <tr key={p._id}>
                 <td className="cd-td-truncate">{p.content?.slice(0, 60) || "—"}{p.content?.length > 60 ? "…" : ""}</td>
                 <td>{p.author?.name || "—"}</td>
-                <td className="cd-td-date">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}</td>
+                <td className="cd-td-date">
+                  <time dateTime={p.createdAt || undefined}>
+                    {formatDateTime(p.createdAt)}
+                  </time>
+                </td>
               </tr>
             ))}
           </tbody>
