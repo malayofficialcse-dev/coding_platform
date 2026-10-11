@@ -36,6 +36,36 @@ export const protect = (req, res, next) => {
   }
 };
 
+export const optionalAuth = (req, res, next) => {
+  const gatewayUserId = req.headers["x-user-id"];
+  if (gatewayUserId) {
+    req.user = {
+      _id: gatewayUserId,
+      id: gatewayUserId,
+      role: req.headers["x-user-role"] || "user",
+      email: req.headers["x-user-email"] || "",
+      name: req.headers["x-user-name"] || "",
+      username: req.headers["x-user-username"] || "",
+    };
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_jwt_secret");
+      req.user = {
+        _id: decoded.userId || decoded.id,
+        id: decoded.userId || decoded.id,
+        role: decoded.role || "user",
+        email: decoded.email,
+      };
+    } catch (_) {}
+  }
+  next();
+};
+
 export const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== "admin") {
     return res.status(403).json({ error: "Forbidden: Admin privileges required." });
@@ -43,5 +73,5 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-export default { protect, requireAdmin };
+export default { protect, requireAdmin, optionalAuth };
 

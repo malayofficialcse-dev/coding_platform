@@ -12,7 +12,7 @@ import {
   getSubmissionsByProblem,
   getMySubmissions,
 } from "../controllers/codingSubmission.controller.js";
-import { protect, requireAdmin } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, optionalAuth } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -24,10 +24,10 @@ router.put("/problems/:id", protect, requireAdmin, updateProblem);
 router.delete("/problems/:id", protect, requireAdmin, deleteProblem);
 
 // Judge Routes - Run (sample tests only, no DB save)
-router.post("/problems/:id/run", protect, runCode);
+router.post("/problems/:id/run", optionalAuth, runCode);
 
 // Judge Routes - Submit (all tests, saves to DB)
-router.post("/problems/:id/submit", protect, submitCode);
+router.post("/problems/:id/submit", optionalAuth, submitCode);
 
 // Legacy alias
 router.post("/submit/:id", protect, submitCode);
