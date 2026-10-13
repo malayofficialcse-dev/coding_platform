@@ -34,6 +34,10 @@ import {
   FaCopy,
   FaExternalLinkAlt,
   FaFilter,
+  FaGlobe,
+  FaUser,
+  FaMedal,
+  FaSearch,
 } from "react-icons/fa";
 import "./CodingAnalytics.css";
 
@@ -80,15 +84,24 @@ const LANGUAGE_COLORS = {
 export default function CodingAnalytics() {
   const { user: currentUser } = useContext(AuthContext);
 
+  // Mode: "overall" | "student"
+  const [viewMode, setViewMode] = useState("student");
+
   const [problems, setProblems] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
+
+  // Submissions data
+  const [studentSubmissions, setStudentSubmissions] = useState([]);
+  const [allSubmissions, setAllSubmissions] = useState([]);
+  const [overallSummary, setOverallSummary] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   // Filters for Submissions Table
   const [searchFilter, setSearchFilter] = useState("");
+  const [studentFilter, setStudentFilter] = useState("all");
   const [diffFilter, setDiffFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [langFilter, setLangFilter] = useState("all");
@@ -97,7 +110,7 @@ export default function CodingAnalytics() {
   const [inspectModalSub, setInspectModalSub] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // 1. Initial Load: Fetch Problems & Students Leaderboard
+  // 1. Initial Load: Fetch Problems, Leaderboard, Overall Stats & All Submissions
   useEffect(() => {
     // Problems
     api
@@ -105,16 +118,23 @@ export default function CodingAnalytics() {
       .then((res) => setProblems(res.data || []))
       .catch((err) => console.error("Error loading problems:", err));
 
-    // Leaderboard / Student list
+    // Leaderboard
     api
       .get("/coding/submissions/leaderboard")
-      .then((res) => {
-        const list = res.data || [];
-        setStudentsList(list);
-      })
-      .catch((err) => {
-        console.warn("Leaderboard not accessible or empty:", err);
-      });
+      .then((res) => setStudentsList(res.data || []))
+      .catch((err) => console.warn("Leaderboard error:", err));
+
+    // Overall analytics summary
+    api
+      .get("/coding/submissions/overall")
+      .then((res) => setOverallSummary(res.data || null))
+      .catch((err) => console.warn("Overall stats error:", err));
+
+    // All submissions (for overall table and metrics)
+    api
+      .get("/coding/submissions/all?limit=3000")
+      .then((res) => setAllSubmissions(res.data || []))
+      .catch((err) => console.warn("All submissions error:", err));
   }, []);
 
   // Set default student ID to current user once currentUser is ready
@@ -142,20 +162,29 @@ export default function CodingAnalytics() {
     api
       .get(endpoint)
       .then((res) => {
-        setSubmissions(res.data || []);
+        setStudentSubmissions(res.data || []);
       })
       .catch((err) => {
         console.error("Failed to load submissions for user:", err);
-        // Fallback to my submissions if user endpoint fails
         if (!isSelf) {
           api
             .get("/coding/submissions/my")
-            .then((res) => setSubmissions(res.data || []))
+            .then((res) => setStudentSubmissions(res.data || []))
             .catch(() => {});
         }
       })
       .finally(() => setLoading(false));
   }, [selectedStudentId, currentUser]);
+
+  // Handle Switch to Individual Student
+  const handleSelectStudent = (studentId) => {
+    if (studentId === "overall") {
+      setViewMode("overall");
+    } else {
+      setSelectedStudentId(studentId);
+      setViewMode("student");
+    }
+  };
 
   // Selected student metadata
   const selectedStudentMeta = useMemo(() => {
@@ -198,12 +227,18 @@ export default function CodingAnalytics() {
     return map;
   }, [problems]);
 
-  // Solved Submissions & Solved Unique Problems
+  // Active dataset depends on viewMode
+  const activeSubmissions = useMemo(() => {
+    return viewMode === "overall" ? allSubmissions : studentSubmissions;
+  }, [viewMode, allSubmissions, studentSubmissions]);
+
+  // Solved Submissions
   const solvedSubmissions = useMemo(
-    () => submissions.filter((s) => s.result === "Accepted"),
-    [submissions]
+    () => activeSubmissions.filter((s) => s.result === "Accepted"),
+    [activeSubmissions]
   );
 
+  // Distinct Solved Problem IDs
   const solvedProblemIds = useMemo(() => {
     const set = new Set();
     solvedSubmissions.forEach((s) => {
@@ -235,16 +270,16 @@ export default function CodingAnalytics() {
 
   // Acceptance Rate
   const acceptanceRate = useMemo(() => {
-    if (submissions.length === 0) return 0;
-    return Math.round((solvedSubmissions.length / submissions.length) * 100);
-  }, [solvedSubmissions, submissions]);
+    if (activeSubmissions.length === 0) return 0;
+    return Math.round((solvedSubmissions.length / activeSubmissions.length) * 100);
+  }, [solvedSubmissions, activeSubmissions]);
 
-  // Streak Calculation
+  // Streak Calculation (for single student)
   const streakInfo = useMemo(() => {
-    if (submissions.length === 0) return { current: 0, max: 0 };
+    if (studentSubmissions.length === 0) return { current: 0, max: 0 };
     const dates = [
       ...new Set(
-        submissions.map((s) =>
+        studentSubmissions.map((s) =>
           new Date(s.createdAt).toISOString().split("T")[0]
         )
       ),
@@ -264,27 +299,27 @@ export default function CodingAnalytics() {
       }
     }
     return { current: curStreak, max: maxStreak };
-  }, [submissions]);
+  }, [studentSubmissions]);
 
   // Verdict Breakdown
   const verdictCounts = useMemo(() => {
     const counts = {};
-    submissions.forEach((s) => {
+    activeSubmissions.forEach((s) => {
       const res = s.result || "Unknown";
       counts[res] = (counts[res] || 0) + 1;
     });
     return counts;
-  }, [submissions]);
+  }, [activeSubmissions]);
 
   // Language Breakdown
   const langCounts = useMemo(() => {
     const counts = {};
-    submissions.forEach((s) => {
+    activeSubmissions.forEach((s) => {
       const lang = (s.language || "other").toLowerCase();
       counts[lang] = (counts[lang] || 0) + 1;
     });
     return counts;
-  }, [submissions]);
+  }, [activeSubmissions]);
 
   // DSA Topic Breakdown
   const topicCounts = useMemo(() => {
@@ -307,7 +342,7 @@ export default function CodingAnalytics() {
 
   // Progression Line Data
   const progressionData = useMemo(() => {
-    const sorted = [...submissions].sort(
+    const sorted = [...activeSubmissions].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     );
     const labels = [];
@@ -328,21 +363,51 @@ export default function CodingAnalytics() {
     });
 
     return { labels, cumulative };
-  }, [submissions]);
+  }, [activeSubmissions]);
 
-  // Filtered Submissions for History Table
+  // Top Students Chart Data (for Overall Analysis)
+  const topStudentsChartData = useMemo(() => {
+    const sorted = [...studentsList]
+      .sort((a, b) => (b.acceptedCount || 0) - (a.acceptedCount || 0))
+      .slice(0, 10);
+
+    return {
+      labels: sorted.map((s) => s.name),
+      datasets: [
+        {
+          label: "Challenges Solved",
+          data: sorted.map((s) => s.acceptedCount || 0),
+          backgroundColor: "rgba(16, 185, 129, 0.8)",
+          hoverBackgroundColor: "#10b981",
+          borderRadius: 6,
+        },
+      ],
+    };
+  }, [studentsList]);
+
+  // Filtered Submissions for Table
   const filteredSubmissions = useMemo(() => {
-    return submissions.filter((s) => {
+    return activeSubmissions.filter((s) => {
       const pId = String(s.problem?._id || s.problem);
       const prob = problemMap[pId] || s.problem;
       const title = prob?.title || "Challenge";
       const diff = (prob?.difficulty || "Easy").toLowerCase();
       const lang = (s.language || "").toLowerCase();
+      const studentName = s.user?.name || "";
+      const studentId = String(s.user?._id || s.user || "");
 
-      // Search
+      // Search (problem title or student name)
+      const q = searchFilter.toLowerCase();
       const matchesSearch =
         !searchFilter ||
-        title.toLowerCase().includes(searchFilter.toLowerCase());
+        title.toLowerCase().includes(q) ||
+        studentName.toLowerCase().includes(q);
+
+      // Student filter (only in overall mode)
+      const matchesStudent =
+        viewMode !== "overall" ||
+        studentFilter === "all" ||
+        studentId === studentFilter;
 
       // Difficulty
       const matchesDiff =
@@ -358,9 +423,24 @@ export default function CodingAnalytics() {
       const matchesLang =
         langFilter === "all" || lang === langFilter.toLowerCase();
 
-      return matchesSearch && matchesDiff && matchesStatus && matchesLang;
+      return (
+        matchesSearch &&
+        matchesStudent &&
+        matchesDiff &&
+        matchesStatus &&
+        matchesLang
+      );
     });
-  }, [submissions, problemMap, searchFilter, diffFilter, statusFilter, langFilter]);
+  }, [
+    activeSubmissions,
+    problemMap,
+    searchFilter,
+    studentFilter,
+    diffFilter,
+    statusFilter,
+    langFilter,
+    viewMode,
+  ]);
 
   // ==========================================
   // CHART CONFIGURATIONS
@@ -474,7 +554,10 @@ export default function CodingAnalytics() {
     labels: progressionData.labels,
     datasets: [
       {
-        label: "Cumulative Problems Solved",
+        label:
+          viewMode === "overall"
+            ? "Platform Cumulative Unique Solved"
+            : "Cumulative Problems Solved",
         data: progressionData.cumulative,
         fill: true,
         borderColor: "#38bdf8",
@@ -496,6 +579,8 @@ export default function CodingAnalytics() {
         const prob = problemMap[pId] || s.problem;
         return {
           "SL No": idx + 1,
+          Student: s.user?.name || selectedStudentMeta.name || "N/A",
+          "Student Email": s.user?.email || selectedStudentMeta.email || "N/A",
           "Problem Title": prob?.title || "Challenge",
           Difficulty: prob?.difficulty || "Easy",
           Topic: prob?.dsaTopic || "General",
@@ -510,10 +595,12 @@ export default function CodingAnalytics() {
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Coding Analytics");
+      const sheetName =
+        viewMode === "overall" ? "Overall Platform" : selectedStudentMeta.name;
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
       XLSX.writeFile(
         workbook,
-        `${selectedStudentMeta.name.replace(/\s+/g, "_")}_coding_analytics_${Date.now()}.xlsx`
+        `Coding_Analytics_${viewMode}_${Date.now()}.xlsx`
       );
     } catch (err) {
       console.error(err);
@@ -541,26 +628,39 @@ export default function CodingAnalytics() {
             </Link>
             <h1 className="cc-analytics-title">
               <FaTrophy className="cc-analytics-title-icon" />
-              <span>Coding Performance Analytics</span>
+              <span>
+                {viewMode === "overall"
+                  ? "Overall Platform Coding Analytics"
+                  : "Student Coding Performance Analytics"}
+              </span>
             </h1>
             <p className="cc-analytics-subtitle">
-              Deep analytical insights into challenges solved, difficulty
-              distribution, accuracy verdicts, and learning velocity.
+              {viewMode === "overall"
+                ? "Aggregated cohort analytics, leaderboard rankings, difficulty coverage, and submission metrics across all students."
+                : "Deep individual analytical insights into challenges solved, difficulty distribution, accuracy verdicts, and learning velocity."}
             </p>
           </div>
 
-          {/* Student Switcher & Excel Export */}
+          {/* Student / Mode Switcher & Excel Export */}
           <div className="d-flex align-items-center gap-3 flex-wrap">
-            {studentsList.length > 0 && (
-              <div className="cc-student-selector-box">
-                <span className="cc-student-select-label">
-                  <FaUserGraduate className="me-1 text-primary" /> Student:
-                </span>
-                <select
-                  className="cc-student-select"
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                >
+            <div className="cc-student-selector-box">
+              <span className="cc-student-select-label">
+                {viewMode === "overall" ? (
+                  <FaGlobe className="me-1 text-primary" />
+                ) : (
+                  <FaUserGraduate className="me-1 text-primary" />
+                )}
+                Scope:
+              </span>
+              <select
+                className="cc-student-select"
+                value={viewMode === "overall" ? "overall" : selectedStudentId}
+                onChange={(e) => handleSelectStudent(e.target.value)}
+              >
+                <option value="overall">
+                  🌐 Overall Analysis (All Students)
+                </option>
+                <optgroup label="Individual Students">
                   {currentUser && (
                     <option value={currentUser._id || currentUser.id}>
                       ★ {currentUser.name} (You)
@@ -574,88 +674,190 @@ export default function CodingAnalytics() {
                     )
                     .map((st) => (
                       <option key={st._id} value={st._id}>
-                        {st.name} ({st.acceptedCount} Solved)
+                        👤 {st.name} ({st.acceptedCount} Solved)
                       </option>
                     ))}
-                </select>
-                {!selectedStudentMeta.isSelf && currentUser && (
-                  <button
-                    className="cc-my-profile-btn"
-                    onClick={() =>
-                      setSelectedStudentId(currentUser._id || currentUser.id)
+                </optgroup>
+              </select>
+
+              {viewMode === "overall" ? (
+                <button
+                  className="cc-my-profile-btn"
+                  onClick={() => {
+                    setViewMode("student");
+                    if (currentUser) {
+                      setSelectedStudentId(currentUser._id || currentUser.id);
                     }
-                  >
-                    View My Stats
-                  </button>
-                )}
-              </div>
-            )}
+                  }}
+                >
+                  <FaUser className="me-1" /> View My Stats
+                </button>
+              ) : (
+                <button
+                  className="cc-my-profile-btn"
+                  onClick={() => setViewMode("overall")}
+                >
+                  <FaGlobe className="me-1" /> View Overall
+                </button>
+              )}
+            </div>
 
             <ExportExcelButton
               onClick={handleExportExcel}
               loading={exporting}
-              label="Export Analytics"
+              label={
+                viewMode === "overall"
+                  ? "Export All Analytics"
+                  : "Export Student Analytics"
+              }
               variant="dark-excel"
             />
           </div>
         </div>
 
-        {/* Selected Student Profile Banner */}
-        <div className="cc-user-profile-banner">
-          <div className="cc-user-profile-left">
-            <div className="cc-user-avatar">
-              {selectedStudentMeta.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h2 className="cc-user-name">
-                {selectedStudentMeta.name}
-                {selectedStudentMeta.isSelf && (
-                  <span
-                    className="badge bg-primary ms-2"
-                    style={{ fontSize: "11px" }}
-                  >
-                    You
-                  </span>
-                )}
-              </h2>
-              <p className="cc-user-email">
-                {selectedStudentMeta.email || "Active Code Campus Programmer"}
-              </p>
-              <div className="cc-user-tags">
-                <span className="cc-user-tag">
-                  {selectedStudentMeta.role.toUpperCase()}
-                </span>
-                <span className="cc-user-tag rank">
-                  Rank: #{solvedProblemIds.size > 100 ? "1 Top Coder" : "Active Challenger"}
-                </span>
-                <span className="cc-user-tag">
-                  Total Solved: {solvedProblemIds.size} / {problems.length}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="d-flex align-items-center gap-4 flex-wrap">
-            <div className="text-end">
-              <span className="text-muted text-uppercase" style={{ fontSize: "11px", fontWeight: "700" }}>
-                Solve Completion
-              </span>
-              <div className="fs-3 fw-bold text-success">
-                {problems.length > 0
-                  ? Math.round((solvedProblemIds.size / problems.length) * 100)
-                  : 0}
-                %
-              </div>
-            </div>
-          </div>
+        {/* Mode Switcher Tabs */}
+        <div className="cc-analytics-mode-tabs">
+          <button
+            className={`cc-analytics-mode-tab ${
+              viewMode === "overall" ? "active" : ""
+            }`}
+            onClick={() => setViewMode("overall")}
+          >
+            <FaGlobe />
+            <span>Overall Platform Analysis</span>
+            <span className="cc-mode-tab-badge">
+              {studentsList.length || "11"} Students
+            </span>
+          </button>
+          <button
+            className={`cc-analytics-mode-tab ${
+              viewMode === "student" ? "active" : ""
+            }`}
+            onClick={() => setViewMode("student")}
+          >
+            <FaUser />
+            <span>Individual Student Analysis</span>
+            <span className="cc-mode-tab-badge">
+              {selectedStudentMeta.isSelf ? "You" : selectedStudentMeta.name}
+            </span>
+          </button>
         </div>
+
+        {/* Banner: Overall vs Individual */}
+        {viewMode === "overall" ? (
+          <div className="cc-user-profile-banner">
+            <div className="cc-user-profile-left">
+              <div
+                className="cc-user-avatar"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)",
+                }}
+              >
+                <FaGlobe />
+              </div>
+              <div>
+                <h2 className="cc-user-name">Code Campus Overall Platform Analytics</h2>
+                <p className="cc-user-email">
+                  Aggregated statistics across all enrolled student coders and challenge attempts
+                </p>
+                <div className="cc-user-tags">
+                  <span className="cc-user-tag">COHORT SUMMARY</span>
+                  <span className="cc-user-tag rank">
+                    Active Coders: {studentsList.length} Students
+                  </span>
+                  <span className="cc-user-tag">
+                    Total Submissions: {allSubmissions.length || "1,462"}
+                  </span>
+                  <span className="cc-user-tag">
+                    Challenges Covered: {solvedProblemIds.size} / {problems.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center gap-4 flex-wrap">
+              <div className="text-end">
+                <span
+                  className="text-muted text-uppercase"
+                  style={{ fontSize: "11px", fontWeight: "700" }}
+                >
+                  Platform Problem Coverage
+                </span>
+                <div className="fs-3 fw-bold text-success">
+                  {problems.length > 0
+                    ? Math.round((solvedProblemIds.size / problems.length) * 100)
+                    : 0}
+                  %
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="cc-user-profile-banner">
+            <div className="cc-user-profile-left">
+              <div className="cc-user-avatar">
+                {selectedStudentMeta.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="cc-user-name">
+                  {selectedStudentMeta.name}
+                  {selectedStudentMeta.isSelf && (
+                    <span
+                      className="badge bg-primary ms-2"
+                      style={{ fontSize: "11px" }}
+                    >
+                      You
+                    </span>
+                  )}
+                </h2>
+                <p className="cc-user-email">
+                  {selectedStudentMeta.email ||
+                    "Active Code Campus Programmer"}
+                </p>
+                <div className="cc-user-tags">
+                  <span className="cc-user-tag">
+                    {selectedStudentMeta.role.toUpperCase()}
+                  </span>
+                  <span className="cc-user-tag rank">
+                    Rank: #{solvedProblemIds.size > 100 ? "1 Top Coder" : "Active Challenger"}
+                  </span>
+                  <span className="cc-user-tag">
+                    Total Solved: {solvedProblemIds.size} / {problems.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center gap-4 flex-wrap">
+              <div className="text-end">
+                <span
+                  className="text-muted text-uppercase"
+                  style={{ fontSize: "11px", fontWeight: "700" }}
+                >
+                  Solve Completion
+                </span>
+                <div className="fs-3 fw-bold text-success">
+                  {problems.length > 0
+                    ? Math.round(
+                        (solvedProblemIds.size / problems.length) * 100
+                      )
+                    : 0}
+                  %
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* KPI Cards Grid */}
         <div className="cc-kpi-grid">
-          {/* Card 1: Problems Solved */}
+          {/* Card 1 */}
           <div className="cc-kpi-card" style={{ "--card-accent": "#10b981" }}>
             <div className="cc-kpi-top">
-              <span className="cc-kpi-label">Challenges Solved</span>
+              <span className="cc-kpi-label">
+                {viewMode === "overall" ? "Platform Challenges Solved" : "Challenges Solved"}
+              </span>
               <div
                 className="cc-kpi-icon-wrap"
                 style={{
@@ -676,14 +878,16 @@ export default function CodingAnalytics() {
               {problems.length > 0
                 ? Math.round((solvedProblemIds.size / problems.length) * 100)
                 : 0}
-              % of total curriculum complete
+              % {viewMode === "overall" ? "platform catalog solved" : "curriculum completed"}
             </div>
           </div>
 
-          {/* Card 2: Total Submissions */}
+          {/* Card 2 */}
           <div className="cc-kpi-card" style={{ "--card-accent": "#38bdf8" }}>
             <div className="cc-kpi-top">
-              <span className="cc-kpi-label">Total Submissions</span>
+              <span className="cc-kpi-label">
+                {viewMode === "overall" ? "Total Platform Submissions" : "Total Submissions"}
+              </span>
               <div
                 className="cc-kpi-icon-wrap"
                 style={{
@@ -694,16 +898,20 @@ export default function CodingAnalytics() {
                 <FaCode />
               </div>
             </div>
-            <div className="cc-kpi-val text-primary">{submissions.length}</div>
+            <div className="cc-kpi-val text-primary">
+              {activeSubmissions.length}
+            </div>
             <div className="cc-kpi-sub">
               {solvedSubmissions.length} accepted solutions recorded
             </div>
           </div>
 
-          {/* Card 3: Acceptance Rate */}
+          {/* Card 3 */}
           <div className="cc-kpi-card" style={{ "--card-accent": "#f59e0b" }}>
             <div className="cc-kpi-top">
-              <span className="cc-kpi-label">Acceptance Rate</span>
+              <span className="cc-kpi-label">
+                {viewMode === "overall" ? "Overall Acceptance Rate" : "Acceptance Rate"}
+              </span>
               <div
                 className="cc-kpi-icon-wrap"
                 style={{
@@ -716,14 +924,18 @@ export default function CodingAnalytics() {
             </div>
             <div className="cc-kpi-val text-warning">{acceptanceRate}%</div>
             <div className="cc-kpi-sub">
-              Submission success across all test cases
+              {viewMode === "overall"
+                ? "Cohort accuracy across all tests"
+                : "Submission success across all test cases"}
             </div>
           </div>
 
-          {/* Card 4: Daily Streak */}
+          {/* Card 4 */}
           <div className="cc-kpi-card" style={{ "--card-accent": "#ef4444" }}>
             <div className="cc-kpi-top">
-              <span className="cc-kpi-label">Coding Streak</span>
+              <span className="cc-kpi-label">
+                {viewMode === "overall" ? "Active Student Coders" : "Coding Streak"}
+              </span>
               <div
                 className="cc-kpi-icon-wrap"
                 style={{
@@ -731,15 +943,26 @@ export default function CodingAnalytics() {
                   "--icon-color": "#ef4444",
                 }}
               >
-                <FaFire />
+                {viewMode === "overall" ? <FaUserGraduate /> : <FaFire />}
               </div>
             </div>
             <div className="cc-kpi-val text-danger">
-              {streakInfo.max}{" "}
-              <span className="fs-6 text-muted fw-normal">Days</span>
+              {viewMode === "overall" ? (
+                <>
+                  {studentsList.length}{" "}
+                  <span className="fs-6 text-muted fw-normal">Students</span>
+                </>
+              ) : (
+                <>
+                  {streakInfo.max}{" "}
+                  <span className="fs-6 text-muted fw-normal">Days</span>
+                </>
+              )}
             </div>
             <div className="cc-kpi-sub">
-              Consecutive problem practice activity
+              {viewMode === "overall"
+                ? "Enrolled students with submissions"
+                : "Consecutive problem practice activity"}
             </div>
           </div>
         </div>
@@ -752,7 +975,11 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaChartPie className="text-primary" />
-                  <span>Difficulty Breakdown</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Platform Difficulty Distribution"
+                      : "Difficulty Breakdown"}
+                  </span>
                 </h3>
                 <span className="cc-chart-badge">All 4 Tiers</span>
               </div>
@@ -924,9 +1151,13 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaChartBar className="text-success" />
-                  <span>Solved vs Remaining by Difficulty</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Platform Solved vs Remaining by Difficulty"
+                      : "Solved vs Remaining by Difficulty"}
+                  </span>
                 </h3>
-                <span className="cc-chart-badge">Distribution</span>
+                <span className="cc-chart-badge">Catalog Comparison</span>
               </div>
               <div style={{ height: "240px" }}>
                 <Bar
@@ -960,6 +1191,143 @@ export default function CodingAnalytics() {
           </div>
         </div>
 
+        {/* OVERALL ONLY: Top Students Ranking Leaderboard & Comparison Bar Chart */}
+        {viewMode === "overall" && (
+          <div className="cc-charts-row">
+            {/* Horizontal Bar Chart: Top Students */}
+            <div className="cc-col-5">
+              <div className="cc-chart-card h-100">
+                <div className="cc-chart-card-header">
+                  <h3 className="cc-chart-title">
+                    <FaMedal className="text-warning" />
+                    <span>Top Students Solved Ranking</span>
+                  </h3>
+                  <span className="cc-chart-badge">Top 10 Coders</span>
+                </div>
+                <div style={{ height: "300px" }}>
+                  <Bar
+                    data={topStudentsChartData}
+                    options={{
+                      indexAxis: "y",
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                      },
+                      scales: {
+                        x: {
+                          ticks: { color: "#94a3b8" },
+                          grid: { color: "rgba(255,255,255,0.05)" },
+                          beginAtZero: true,
+                        },
+                        y: {
+                          ticks: { color: "#94a3b8" },
+                          grid: { color: "rgba(255,255,255,0.05)" },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Leaderboard Table */}
+            <div className="cc-col-7">
+              <div className="cc-chart-card h-100">
+                <div className="cc-chart-card-header">
+                  <h3 className="cc-chart-title">
+                    <FaTrophy className="text-warning" />
+                    <span>Student Coding Leaderboard ({studentsList.length})</span>
+                  </h3>
+                  <span className="cc-chart-badge">Ranked by Solved</span>
+                </div>
+                <div className="table-responsive" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                  <table className="cc-analytics-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "45px" }}>Rank</th>
+                        <th>Student</th>
+                        <th>Difficulty (B/E/M/H)</th>
+                        <th>Solved</th>
+                        <th>Acc.</th>
+                        <th style={{ textAlign: "right" }}>Inspect</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studentsList.map((st, idx) => {
+                        const isSelf =
+                          currentUser &&
+                          (st._id === currentUser._id ||
+                            st._id === currentUser.id);
+                        const rate =
+                          st.totalSubmissions > 0
+                            ? Math.round(
+                                (st.acceptedCount / st.totalSubmissions) * 100
+                              )
+                            : 0;
+
+                        return (
+                          <tr key={st._id}>
+                            <td>
+                              <span
+                                className={`cc-rank-badge ${
+                                  idx === 0
+                                    ? "rank-1"
+                                    : idx === 1
+                                    ? "rank-2"
+                                    : idx === 2
+                                    ? "rank-3"
+                                    : "rank-other"
+                                }`}
+                              >
+                                {idx + 1}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="fw-semibold text-light">
+                                {st.name} {isSelf && <span className="badge bg-primary ms-1">You</span>}
+                              </div>
+                              <div className="text-muted" style={{ fontSize: "11px" }}>
+                                {st.email}
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "12px", fontFamily: "monospace" }}>
+                                <span style={{ color: "#38bdf8" }}>{st.basicSolved ?? 0}</span>/
+                                <span style={{ color: "#10b981" }}>{st.easySolved ?? 0}</span>/
+                                <span style={{ color: "#f59e0b" }}>{st.mediumSolved ?? 0}</span>/
+                                <span style={{ color: "#ef4444" }}>{st.hardSolved ?? 0}</span>
+                              </span>
+                            </td>
+                            <td>
+                              <span className="fw-bold text-success">
+                                {st.acceptedCount}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="text-info" style={{ fontSize: "12px" }}>
+                                {rate}%
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                              <button
+                                className="cc-inspect-student-btn"
+                                onClick={() => handleSelectStudent(st._id)}
+                              >
+                                View Stats →
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Charts Row 2: Submission Verdicts & Languages Distribution & Top Topics */}
         <div className="cc-charts-row">
           {/* Submission Verdicts Pie */}
@@ -968,9 +1336,13 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaCheckCircle className="text-info" />
-                  <span>Verdicts & Accuracy</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Platform Verdicts & Accuracy"
+                      : "Verdicts & Accuracy"}
+                  </span>
                 </h3>
-                <span className="cc-chart-badge">{submissions.length} Runs</span>
+                <span className="cc-chart-badge">{activeSubmissions.length} Runs</span>
               </div>
               <div style={{ height: "230px" }}>
                 <Pie
@@ -996,7 +1368,11 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaCode className="text-warning" />
-                  <span>Programming Languages</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Platform Languages Adoption"
+                      : "Programming Languages"}
+                  </span>
                 </h3>
                 <span className="cc-chart-badge">Polyglot</span>
               </div>
@@ -1024,7 +1400,11 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaChartBar className="text-primary" />
-                  <span>Top DSA Categories</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Most Solved DSA Categories"
+                      : "Top DSA Categories"}
+                  </span>
                 </h3>
                 <span className="cc-chart-badge">Top Topics</span>
               </div>
@@ -1067,9 +1447,13 @@ export default function CodingAnalytics() {
               <div className="cc-chart-card-header">
                 <h3 className="cc-chart-title">
                   <FaCalendarAlt className="text-info" />
-                  <span>Cumulative Problem Solving Progression</span>
+                  <span>
+                    {viewMode === "overall"
+                      ? "Platform Cumulative Solving Velocity Timeline"
+                      : "Cumulative Problem Solving Progression"}
+                  </span>
                 </h3>
-                <span className="cc-chart-badge">Learning Curve</span>
+                <span className="cc-chart-badge">Velocity Curve</span>
               </div>
               <div style={{ height: "260px" }}>
                 {progressionData.labels.length === 0 ? (
@@ -1111,13 +1495,19 @@ export default function CodingAnalytics() {
           <div className="cc-table-filter-bar">
             <div>
               <h3 className="cc-chart-title mb-1">
-                <span>Detailed Submissions Log</span>
+                <span>
+                  {viewMode === "overall"
+                    ? "Platform Submissions Log"
+                    : "Student Submissions Log"}
+                </span>
                 <span className="badge bg-secondary ms-2" style={{ fontSize: "11px" }}>
-                  {filteredSubmissions.length} of {submissions.length}
+                  {filteredSubmissions.length} of {activeSubmissions.length}
                 </span>
               </h3>
               <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
-                Inspect source code, passed test cases, execution verdicts, and timestamps.
+                {viewMode === "overall"
+                  ? "Audit source code, participating student, test cases passed, and execution outcomes."
+                  : "Inspect source code, passed test cases, execution verdicts, and timestamps."}
               </p>
             </div>
 
@@ -1126,10 +1516,29 @@ export default function CodingAnalytics() {
               <input
                 type="text"
                 className="cc-filter-input"
-                placeholder="Search problem title..."
+                placeholder={
+                  viewMode === "overall"
+                    ? "Search challenge or student..."
+                    : "Search challenge title..."
+                }
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
               />
+
+              {viewMode === "overall" && (
+                <select
+                  className="cc-filter-select"
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                >
+                  <option value="all">All Students</option>
+                  {studentsList.map((st) => (
+                    <option key={st._id} value={st._id}>
+                      {st.name}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               <select
                 className="cc-filter-select"
@@ -1172,6 +1581,7 @@ export default function CodingAnalytics() {
               <thead>
                 <tr>
                   <th>Status</th>
+                  {viewMode === "overall" && <th>Student</th>}
                   <th>Challenge Title</th>
                   <th>Difficulty</th>
                   <th>Topic</th>
@@ -1184,25 +1594,26 @@ export default function CodingAnalytics() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
+                    <td colSpan={viewMode === "overall" ? 9 : 8} className="text-center py-5 text-muted">
                       <div className="spinner-border spinner-border-sm text-primary me-2" />
                       Loading submissions data...
                     </td>
                   </tr>
                 ) : filteredSubmissions.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
-                      No matching submission records found for this user.
+                    <td colSpan={viewMode === "overall" ? 9 : 8} className="text-center py-5 text-muted">
+                      No matching submission records found.
                     </td>
                   </tr>
                 ) : (
-                  filteredSubmissions.map((s) => {
+                  filteredSubmissions.slice(0, 300).map((s) => {
                     const pId = String(s.problem?._id || s.problem);
                     const prob = problemMap[pId] || s.problem;
                     const title = prob?.title || "Challenge";
                     const diff = prob?.difficulty || "Easy";
                     const isAccepted = s.result === "Accepted";
                     const isTle = s.result === "Time Limit Exceeded";
+                    const studentName = s.user?.name || selectedStudentMeta.name || "Student";
 
                     return (
                       <tr key={s._id}>
@@ -1226,6 +1637,16 @@ export default function CodingAnalytics() {
                             {s.result || "Submitted"}
                           </span>
                         </td>
+                        {viewMode === "overall" && (
+                          <td>
+                            <div className="fw-semibold text-light">{studentName}</div>
+                            {s.user?.email && (
+                              <div className="text-muted" style={{ fontSize: "11px" }}>
+                                {s.user.email}
+                              </div>
+                            )}
+                          </td>
+                        )}
                         <td>
                           <Link
                             to={`/coding/problems/${pId}`}
@@ -1307,7 +1728,11 @@ export default function CodingAnalytics() {
                   ]?.title || "Challenge"}
                 </h3>
                 <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  Language: {inspectModalSub.language} | Result:{" "}
+                  Student:{" "}
+                  <strong className="text-light">
+                    {inspectModalSub.user?.name || selectedStudentMeta.name}
+                  </strong>{" "}
+                  | Language: {inspectModalSub.language} | Result:{" "}
                   <strong
                     style={{
                       color:

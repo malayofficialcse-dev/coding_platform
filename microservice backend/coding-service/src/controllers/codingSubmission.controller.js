@@ -531,6 +531,20 @@ export const getAllStudentsCodingStats = async (req, res) => {
       },
       { $unwind: "$userInfo" },
       {
+        $lookup: {
+          from: "codingproblems",
+          localField: "problem",
+          foreignField: "_id",
+          as: "problemInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$problemInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
         $group: {
           _id: "$user",
           name: { $first: "$userInfo.name" },
@@ -539,6 +553,62 @@ export const getAllStudentsCodingStats = async (req, res) => {
           totalSubmissions: { $sum: 1 },
           acceptedCount: {
             $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
+          },
+          basicSolved: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$result", "Accepted"] },
+                    { $eq: [{ $toLower: "$problemInfo.difficulty" }, "basic"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          easySolved: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$result", "Accepted"] },
+                    { $eq: [{ $toLower: "$problemInfo.difficulty" }, "easy"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          mediumSolved: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$result", "Accepted"] },
+                    { $eq: [{ $toLower: "$problemInfo.difficulty" }, "medium"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          hardSolved: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$result", "Accepted"] },
+                    { $eq: [{ $toLower: "$problemInfo.difficulty" }, "hard"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
           },
           lastSubmissionAt: { $max: "$createdAt" }
         }
@@ -550,4 +620,89 @@ export const getAllStudentsCodingStats = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getAllSubmissions = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 2000, 5000);
+    const submissions = await CodingSubmission.find()
+      .populate("user", "name email username")
+      .populate("problem", "title difficulty dsaTopic")
+      .sort({ createdAt: -1 })
+      .limit(limit);
+    res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getOverallCodingAnalytics = async (req, res) => {
+  try {
+    const totalSubmissions = await CodingSubmission.countDocuments();
+    const totalAccepted = await CodingSubmission.countDocuments({ result: "Accepted" });
+
+    const solvedProblemIds = await CodingSubmission.distinct("problem", { result: "Accepted" });
+    const activeUserIds = await CodingSubmission.distinct("user");
+
+    const verdicts = await CodingSubmission.aggregate([
+      { $group: { _id: "$result", count: { $sum: 1 } } }
+    ]);
+
+    const languages = await CodingSubmission.aggregate([
+      { $group: { _id: { $toLower: "$language" }, count: { $sum: 1 } } }
+    ]);
+
+    const diffBreakdown = await CodingSubmission.aggregate([
+      { $match: { result: "Accepted" } },
+      {
+        $lookup: {
+          from: "codingproblems",
+          localField: "problem",
+          foreignField: "_id",
+          as: "problemInfo"
+        }
+      },
+      { $unwind: "$problemInfo" },
+      {
+        $group: {
+          _id: { $toLower: "$problemInfo.difficulty" },
+          count: { $sum: 1 },
+          uniqueProblems: { $addToSet: "$problem" }
+        }
+      }
+    ]);
+
+    const difficultySolved = {
+      basic: 0,
+      easy: 0,
+      medium: 0,
+      hard: 0,
+    };
+    diffBreakdown.forEach((item) => {
+      if (item._id && difficultySolved[item._id] !== undefined) {
+        difficultySolved[item._id] = item.uniqueProblems ? item.uniqueProblems.length : item.count;
+      }
+    });
+
+    res.json({
+      totalSubmissions,
+      totalAccepted,
+      acceptanceRate:
+        totalSubmissions > 0
+          ? Math.round((totalAccepted / totalSubmissions) * 100)
+          : 0,
+      uniqueProblemsSolved: solvedProblemIds.length,
+      activeUsersCount: activeUserIds.length,
+      difficultySolved,
+      verdicts: Object.fromEntries(
+        verdicts.map((v) => [v._id || "Unknown", v.count])
+      ),
+      languages: Object.fromEntries(
+        languages.map((l) => [l._id || "other", l.count])
+      ),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
