@@ -2,15 +2,17 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import api from "../../api/api";
 import { AuthContext } from "../../contexts/AuthContext";
 import { exportToExcel } from "../../utils/excelExport";
-import { FaFileExcel } from "react-icons/fa";
+import { FaFileExcel, FaTrashAlt, FaKey, FaEdit, FaBan, FaCheck, FaTimes } from "react-icons/fa";
 import "./SuperAdmin.css";
 
 const ROLES = [
-  { value: "student",          label: "Student",           color: "#3b82f6" },
-  { value: "exam_coordinator", label: "Exam Coordinator",  color: "#8b5cf6" },
+  { value: "student",            label: "Student",            color: "#3b82f6" },
+  { value: "exam_coordinator",   label: "Exam Coordinator",   color: "#8b5cf6" },
   { value: "course_coordinator", label: "Course Coordinator", color: "#059669" },
-  { value: "feed_coordinator", label: "Feed Coordinator",  color: "#d97706" },
-  { value: "admin",            label: "Admin",             color: "#dc2626" },
+  { value: "feed_coordinator",   label: "Feed Coordinator",   color: "#d97706" },
+  { value: "teacher",            label: "Teacher",            color: "#0891b2" },
+  { value: "admin",              label: "Admin",              color: "#dc2626" },
+  { value: "user",               label: "User",               color: "#6b7280" },
 ];
 
 const MODULES = [
@@ -25,32 +27,94 @@ const MODULES = [
 const ACTIONS = ["view", "create", "edit", "delete"];
 
 const ROLE_BADGE_COLORS = {
-  student:           "#3b82f6",
-  exam_coordinator:  "#8b5cf6",
-  course_coordinator:"#059669",
-  feed_coordinator:  "#d97706",
-  admin:             "#dc2626",
-  super_admin:       "#1e293b",
-  teacher:           "#0891b2",
-  user:              "#6b7280",
+  student:            "#3b82f6",
+  exam_coordinator:   "#8b5cf6",
+  course_coordinator: "#059669",
+  feed_coordinator:   "#d97706",
+  admin:              "#dc2626",
+  super_admin:        "#1e293b",
+  teacher:            "#0891b2",
+  user:               "#6b7280",
 };
 
 const DEFAULT_PERMS = {
-  exam_coordinator:   { exams: { create:true,edit:true,delete:true,view:true }, courses:{view:true}, feed:{view:true}, coding:{view:true}, users:{view:true}, analytics:{view:true} },
-  course_coordinator: { courses:{create:true,edit:true,delete:true,view:true}, exams:{view:true}, feed:{view:true}, coding:{view:true}, users:{view:true}, analytics:{view:true} },
-  feed_coordinator:   { feed:{create:true,edit:true,delete:true,view:true}, exams:{view:true}, courses:{view:true}, coding:{view:true}, users:{view:true}, analytics:{view:true} },
-  student:            { exams:{view:true}, courses:{view:true}, feed:{create:true,view:true}, coding:{view:true}, users:{view:true}, analytics:{} },
-  admin:              { exams:{create:true,edit:true,delete:true,view:true}, courses:{create:true,edit:true,delete:true,view:true}, feed:{create:true,edit:true,delete:true,view:true}, coding:{create:true,edit:true,delete:true,view:true}, users:{create:true,edit:true,delete:true,view:true}, analytics:{view:true} },
+  admin: {
+    exams:     { create:true, edit:true, delete:true, view:true },
+    courses:   { create:true, edit:true, delete:true, view:true },
+    feed:      { create:true, edit:true, delete:true, view:true },
+    coding:    { create:true, edit:true, delete:true, view:true },
+    users:     { create:true, edit:true, delete:true, view:true },
+    analytics: { create:true, edit:true, delete:true, view:true },
+  },
+  exam_coordinator: {
+    exams:     { create:true, edit:true, delete:true, view:true },
+    courses:   { create:false, edit:false, delete:false, view:true },
+    feed:      { create:false, edit:false, delete:false, view:true },
+    coding:    { create:false, edit:false, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:true },
+  },
+  course_coordinator: {
+    exams:     { create:false, edit:false, delete:false, view:true },
+    courses:   { create:true, edit:true, delete:true, view:true },
+    feed:      { create:false, edit:false, delete:false, view:true },
+    coding:    { create:false, edit:false, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:true },
+  },
+  feed_coordinator: {
+    exams:     { create:false, edit:false, delete:false, view:true },
+    courses:   { create:false, edit:false, delete:false, view:true },
+    feed:      { create:true, edit:true, delete:true, view:true },
+    coding:    { create:false, edit:false, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:true },
+  },
+  teacher: {
+    exams:     { create:true, edit:true, delete:false, view:true },
+    courses:   { create:true, edit:true, delete:false, view:true },
+    feed:      { create:true, edit:false, delete:false, view:true },
+    coding:    { create:true, edit:true, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:true },
+  },
+  student: {
+    exams:     { create:false, edit:false, delete:false, view:true },
+    courses:   { create:false, edit:false, delete:false, view:true },
+    feed:      { create:true, edit:false, delete:false, view:true },
+    coding:    { create:false, edit:false, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:false },
+  },
+  user: {
+    exams:     { create:false, edit:false, delete:false, view:true },
+    courses:   { create:false, edit:false, delete:false, view:true },
+    feed:      { create:true, edit:false, delete:false, view: true },
+    coding:    { create:false, edit:false, delete:false, view:true },
+    users:     { create:false, edit:false, delete:false, view:true },
+    analytics: { create:false, edit:false, delete:false, view:false },
+  },
 };
 
 function emptyPerms() {
   return Object.fromEntries(MODULES.map(m => [m.key, { view:false, create:false, edit:false, delete:false }]));
 }
 
+function fullPerms() {
+  return Object.fromEntries(MODULES.map(m => [m.key, { view:true, create:true, edit:true, delete:true }]));
+}
+
 function roleBadge(role) {
+  const meta = ROLES.find(r => r.value === role);
   return (
-    <span className="sa-role-badge" style={{ background: ROLE_BADGE_COLORS[role] || "#6b7280" }}>
-      {ROLES.find(r => r.value === role)?.label || role}
+    <span
+      className="sa-role-badge"
+      style={{
+        background: ROLE_BADGE_COLORS[role] || "#6b7280",
+        color: "#fff",
+      }}
+    >
+      {meta?.label || role}
     </span>
   );
 }
@@ -75,12 +139,13 @@ function StatsBar({ stats }) {
       ))}
       {roleCounts.map(rc => {
         const roleInfo = ROLES.find(r => r.value === rc._id);
-        if (!roleInfo) return null;
+        const label = roleInfo?.label || rc._id;
+        const color = roleInfo?.color || ROLE_BADGE_COLORS[rc._id] || "#6b7280";
         return (
-          <div key={rc._id} className="sa-stat-card" style={{ borderTopColor: roleInfo.color }}>
+          <div key={rc._id} className="sa-stat-card" style={{ borderTopColor: color }}>
             <span className="sa-stat-icon">🔑</span>
             <span className="sa-stat-value">{rc.count}</span>
-            <span className="sa-stat-label">{roleInfo.label}</span>
+            <span className="sa-stat-label">{label}</span>
           </div>
         );
       })}
@@ -91,19 +156,79 @@ function StatsBar({ stats }) {
 // ─── Permission Grid ─────────────────────────────────────────────────────────
 function PermissionGrid({ permissions, onChange, readOnly = false }) {
   const perms = permissions || emptyPerms();
+
+  const handleRowToggle = (moduleKey) => {
+    if (readOnly || !onChange) return;
+    const current = perms[moduleKey] || {};
+    const allChecked = ACTIONS.every(a => !!current[a]);
+    const nextVal = !allChecked;
+    const updated = {
+      ...perms,
+      [moduleKey]: {
+        view: nextVal,
+        create: nextVal,
+        edit: nextVal,
+        delete: nextVal,
+      },
+    };
+    onChange(updated);
+  };
+
+  const handleColToggle = (action) => {
+    if (readOnly || !onChange) return;
+    const allChecked = MODULES.every(m => !!perms[m.key]?.[action]);
+    const nextVal = !allChecked;
+    const updated = { ...perms };
+    MODULES.forEach(m => {
+      updated[m.key] = { ...(updated[m.key] || {}), [action]: nextVal };
+    });
+    onChange(updated);
+  };
+
   return (
     <div className="sa-perm-grid-wrap">
       <table className="sa-perm-grid">
         <thead>
           <tr>
             <th>Module</th>
-            {ACTIONS.map(a => <th key={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</th>)}
+            {ACTIONS.map(a => (
+              <th
+                key={a}
+                style={{ cursor: readOnly ? "default" : "pointer" }}
+                title={readOnly ? undefined : `Click to toggle all ${a} permissions`}
+                onClick={() => !readOnly && handleColToggle(a)}
+              >
+                {a.charAt(0).toUpperCase() + a.slice(1)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {MODULES.map(mod => (
             <tr key={mod.key}>
-              <td className="sa-perm-module"><span>{mod.icon}</span>{mod.label}</td>
+              <td className="sa-perm-module">
+                <button
+                  type="button"
+                  className="sa-module-toggle-btn"
+                  disabled={readOnly}
+                  onClick={() => handleRowToggle(mod.key)}
+                  title={readOnly ? undefined : "Click to toggle all permissions for this module"}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: readOnly ? "default" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontWeight: 600,
+                    color: "inherit",
+                    padding: 0,
+                  }}
+                >
+                  <span>{mod.icon}</span>
+                  <span>{mod.label}</span>
+                </button>
+              </td>
               {ACTIONS.map(action => (
                 <td key={action} className="sa-perm-cell">
                   <label className="sa-toggle">
@@ -162,6 +287,7 @@ function UserModal({ editUser, onClose, onSave }) {
     try {
       const payload = { ...form, permissions };
       if (isEdit) {
+        if (!payload.password) delete payload.password;
         await api.put(`/admin/rbac/users/${editUser._id}`, payload);
       } else {
         if (!payload.password) { setError("Password is required."); setSaving(false); return; }
@@ -194,14 +320,12 @@ function UserModal({ editUser, onClose, onSave }) {
               <input className="sa-input" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required disabled={isEdit} />
             </div>
           </div>
-          {!isEdit && (
-            <div className="sa-form-group">
-              <label>Password *</label>
-              <input className="sa-input" type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
-            </div>
-          )}
           <div className="sa-form-group">
-            <label>Role *</label>
+            <label>{isEdit ? "New Password (leave blank to keep current)" : "Password *"}</label>
+            <input className="sa-input" type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required={!isEdit} />
+          </div>
+          <div className="sa-form-group">
+            <label>Assigned Role *</label>
             <div className="sa-role-selector">
               {ROLES.map(r => (
                 <button
@@ -232,8 +356,36 @@ function UserModal({ editUser, onClose, onSave }) {
           </div>
 
           <div className="sa-perm-section">
-            <h3 className="sa-perm-title">Module Permissions</h3>
-            <p className="sa-perm-hint">Defaults loaded from role. Adjust as needed.</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <h3 className="sa-perm-title">Module Permissions</h3>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button
+                  type="button"
+                  className="sa-btn sa-btn-ghost"
+                  style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                  onClick={() => setPermissions(fullPerms())}
+                >
+                  Grant All
+                </button>
+                <button
+                  type="button"
+                  className="sa-btn sa-btn-ghost"
+                  style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                  onClick={() => setPermissions(emptyPerms())}
+                >
+                  Revoke All
+                </button>
+                <button
+                  type="button"
+                  className="sa-btn sa-btn-ghost"
+                  style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                  onClick={() => setPermissions(DEFAULT_PERMS[form.role] || emptyPerms())}
+                >
+                  Reset to Role Defaults
+                </button>
+              </div>
+            </div>
+            <p className="sa-perm-hint">Fine-tune individual module actions or click headers to batch-toggle.</p>
             <PermissionGrid permissions={permissions} onChange={setPermissions} />
           </div>
 
@@ -249,8 +401,78 @@ function UserModal({ editUser, onClose, onSave }) {
   );
 }
 
+// ─── Interactive Dedicated Permission Manager Modal ─────────────────────────
+function PermEditModal({ user, onClose, onSave }) {
+  const [permissions, setPermissions] = useState(user.permissions || DEFAULT_PERMS[user.role] || emptyPerms());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const applyPreset = (presetRole) => {
+    if (DEFAULT_PERMS[presetRole]) {
+      setPermissions(DEFAULT_PERMS[presetRole]);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await api.patch(`/admin/rbac/users/${user._id}/permissions`, { permissions });
+      onSave();
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.error || err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="sa-modal-overlay" onClick={onClose}>
+      <div className="sa-modal sa-modal-md" onClick={e => e.stopPropagation()}>
+        <div className="sa-modal-header">
+          <div>
+            <h2>Manage Permissions — {user.name}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--cc-muted)" }}>{user.email}</span>
+              {roleBadge(user.role)}
+            </div>
+          </div>
+          <button className="sa-modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="sa-modal-body">
+          {error && <div className="sa-alert sa-alert-error">{error}</div>}
+
+          {/* Preset Buttons */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "var(--cc-muted)" }}>
+              Presets:
+            </span>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => applyPreset("student")}>Student</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => applyPreset("exam_coordinator")}>Exam Coord</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => applyPreset("course_coordinator")}>Course Coord</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => applyPreset("feed_coordinator")}>Feed Coord</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => applyPreset("admin")}>Full Admin</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => setPermissions(fullPerms())}>Grant All</button>
+            <button type="button" className="sa-btn sa-btn-ghost sa-btn-xs" onClick={() => setPermissions(emptyPerms())}>Revoke All</button>
+          </div>
+
+          <PermissionGrid permissions={permissions} onChange={setPermissions} />
+        </div>
+
+        <div className="sa-modal-footer">
+          <button type="button" className="sa-btn sa-btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="sa-btn sa-btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Permissions"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── User Table Row ───────────────────────────────────────────────────────────
-function UserRow({ u, onEdit, onToggleActive, onViewPerms }) {
+function UserRow({ u, onEdit, onToggleActive, onViewPerms, onDelete }) {
   return (
     <tr className={!u.isActive ? "sa-row-inactive" : ""}>
       <td>
@@ -269,35 +491,24 @@ function UserRow({ u, onEdit, onToggleActive, onViewPerms }) {
         </span>
       </td>
       <td className="sa-actions-cell">
-        <button className="sa-icon-btn sa-icon-btn-blue" title="Edit" onClick={() => onEdit(u)}>✏️</button>
-        <button className="sa-icon-btn sa-icon-btn-purple" title="View Permissions" onClick={() => onViewPerms(u)}>🔑</button>
+        <button className="sa-icon-btn sa-icon-btn-blue" title="Edit User" onClick={() => onEdit(u)}>
+          <FaEdit />
+        </button>
+        <button className="sa-icon-btn sa-icon-btn-purple" title="Manage Permissions" onClick={() => onViewPerms(u)}>
+          <FaKey />
+        </button>
         <button
           className={`sa-icon-btn ${u.isActive !== false ? "sa-icon-btn-red" : "sa-icon-btn-green"}`}
-          title={u.isActive !== false ? "Deactivate" : "Activate"}
+          title={u.isActive !== false ? "Deactivate User" : "Activate User"}
           onClick={() => onToggleActive(u)}
         >
-          {u.isActive !== false ? "🚫" : "✅"}
+          {u.isActive !== false ? <FaBan /> : <FaCheck />}
+        </button>
+        <button className="sa-icon-btn sa-icon-btn-red" title="Delete User Permanently" onClick={() => onDelete(u)}>
+          <FaTrashAlt />
         </button>
       </td>
     </tr>
-  );
-}
-
-// ─── Permission Viewer Modal ──────────────────────────────────────────────────
-function PermViewModal({ user, onClose }) {
-  return (
-    <div className="sa-modal-overlay" onClick={onClose}>
-      <div className="sa-modal sa-modal-md" onClick={e => e.stopPropagation()}>
-        <div className="sa-modal-header">
-          <h2>Permissions — {user.name}</h2>
-          <button className="sa-modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="sa-modal-body">
-          {roleBadge(user.role)}
-          <PermissionGrid permissions={user.permissions} readOnly />
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -418,7 +629,7 @@ export default function SuperAdminPanel() {
     setModal(null);
     fetchUsers();
     fetchStats();
-    showToast("User saved successfully!");
+    showToast("User updated successfully!");
   };
 
   const handleToggleActive = async (u) => {
@@ -434,6 +645,20 @@ export default function SuperAdminPanel() {
       fetchStats();
     } catch (e) {
       showToast(e.response?.data?.error || "Action failed.", "error");
+    }
+  };
+
+  const handleDeletePermanent = async (u) => {
+    const confirmed = window.confirm(`Are you sure you want to PERMANENTLY delete user "${u.name}" (${u.email})? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/admin/rbac/users/${u._id}/permanent`);
+      showToast(`${u.name} permanently deleted.`);
+      fetchUsers();
+      fetchStats();
+    } catch (e) {
+      showToast(e.response?.data?.error || "Failed to delete user.", "error");
     }
   };
 
@@ -510,9 +735,10 @@ export default function SuperAdminPanel() {
                 <UserRow
                   key={u._id}
                   u={u}
-                  onEdit={u => setModal({ type: "edit", user: u })}
+                  onEdit={user => setModal({ type: "edit", user })}
                   onToggleActive={handleToggleActive}
-                  onViewPerms={u => setModal({ type: "perm", user: u })}
+                  onViewPerms={user => setModal({ type: "perm", user })}
+                  onDelete={handleDeletePermanent}
                 />
               ))
             )}
@@ -543,7 +769,7 @@ export default function SuperAdminPanel() {
         <UserModal editUser={modal.user} onClose={() => setModal(null)} onSave={handleSave} />
       )}
       {modal?.type === "perm" && (
-        <PermViewModal user={modal.user} onClose={() => setModal(null)} />
+        <PermEditModal user={modal.user} onClose={() => setModal(null)} onSave={handleSave} />
       )}
     </div>
   );

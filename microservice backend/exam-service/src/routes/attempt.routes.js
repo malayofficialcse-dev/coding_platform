@@ -5,14 +5,14 @@ import {
   getExamAttempts,
   getUserAttempts,
 } from "../controllers/attempt.controller.js";
-import { protect, requireAdmin } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.post("/", protect, submitAttempt);
 router.get("/my", protect, getMyAttempts);
-router.get("/exam/:id", protect, requireAdmin, getExamAttempts);
-router.get("/user/:userId", protect, requireAdmin, getUserAttempts);
+router.get("/exam/:id", protect, requirePermission("exams", "view"), getExamAttempts);
+router.get("/user/:userId", protect, requirePermission("exams", "view"), getUserAttempts);
 
 export default router;
 

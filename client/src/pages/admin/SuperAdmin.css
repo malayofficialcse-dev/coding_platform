@@ -778,3 +778,26 @@
     border-radius: 4px;
   }
 }
+
+.sa-btn-xs {
+  height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.sa-module-toggle-btn:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+[data-theme="dark"] .sa-perm-grid th[style*="cursor: pointer"]:hover {
+  background: #21262d;
+  color: #58a6ff;
+}
+
+.sa-perm-grid th[style*="cursor: pointer"]:hover {
+  background: #e2e8f0;
+  color: #0078d4;
+}

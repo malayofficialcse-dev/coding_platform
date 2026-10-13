@@ -30,11 +30,15 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        setUser(res.data);
-        localStorage.setItem("user", JSON.stringify(res.data));
+        if (res.data?.token) {
+          localStorage.setItem("token", res.data.token);
+        }
+        const { token: _newToken, ...userData } = res.data;
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
 
-        if (res.data?._id) {
-          initSocket(res.data._id);
+        if (userData?._id) {
+          initSocket(userData._id);
         }
       } catch (err) {
         console.error("Auth check failed:", err);

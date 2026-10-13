@@ -18,7 +18,7 @@ import {
   updateSubtopicInTopic,
   deleteSubtopicFromTopic,
 } from "../controllers/course.controller.js";
-import { protect, requireAdmin } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
 
 dotenv.config({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env"),
@@ -46,16 +46,16 @@ const upload = multer({ storage });
 
 router.get("/", getAllCourses);
 router.get("/:id", getCourseById);
-router.post("/", protect, requireAdmin, upload.single("image"), createCourse);
-router.put("/:id", protect, requireAdmin, upload.single("image"), updateCourse);
-router.delete("/:id", protect, requireAdmin, deleteCourse);
+router.post("/", protect, requirePermission("courses", "create"), upload.single("image"), createCourse);
+router.put("/:id", protect, requirePermission("courses", "edit"), upload.single("image"), updateCourse);
+router.delete("/:id", protect, requirePermission("courses", "delete"), deleteCourse);
 
 // Topics & Subtopics
-router.post("/:id/topics", protect, requireAdmin, addTopicToCourse);
-router.put("/:id/topics/:topicId", protect, requireAdmin, updateTopicInCourse);
-router.delete("/:id/topics/:topicId", protect, requireAdmin, deleteTopicFromCourse);
-router.post("/:id/topics/:topicId/subtopics", protect, requireAdmin, upload.array("images", 10), addSubtopicToTopic);
-router.put("/:id/topics/:topicId/subtopics/:subtopicId", protect, requireAdmin, upload.array("images", 10), updateSubtopicInTopic);
-router.delete("/:id/topics/:topicId/subtopics/:subtopicId", protect, requireAdmin, deleteSubtopicFromTopic);
+router.post("/:id/topics", protect, requirePermission("courses", "edit"), addTopicToCourse);
+router.put("/:id/topics/:topicId", protect, requirePermission("courses", "edit"), updateTopicInCourse);
+router.delete("/:id/topics/:topicId", protect, requirePermission("courses", "delete"), deleteTopicFromCourse);
+router.post("/:id/topics/:topicId/subtopics", protect, requirePermission("courses", "edit"), upload.array("images", 10), addSubtopicToTopic);
+router.put("/:id/topics/:topicId/subtopics/:subtopicId", protect, requirePermission("courses", "edit"), upload.array("images", 10), updateSubtopicInTopic);
+router.delete("/:id/topics/:topicId/subtopics/:subtopicId", protect, requirePermission("courses", "delete"), deleteSubtopicFromTopic);
 
 export default router;

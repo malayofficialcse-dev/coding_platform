@@ -58,11 +58,36 @@ export const protect = (req, res, next) => {
   }
 };
 
+export const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized." });
+  if (req.user.role === "super_admin") return next();
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ error: `Forbidden: Requires role: ${roles.join(" or ")}.` });
+  }
+  next();
+};
+
 export const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || !["admin", "super_admin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Forbidden: Admin privileges required." });
   }
   next();
 };
 
-export default { protect, requireAdmin };
+export const requirePermission = (module, action = "view") => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized." });
+  const { role, permissions } = req.user;
+
+  if (["super_admin", "admin"].includes(role)) return next();
+  if (role === "exam_coordinator" && module === "exams") return next();
+  if (role === "course_coordinator" && module === "courses") return next();
+  if (role === "feed_coordinator" && module === "feed") return next();
+
+  if (permissions?.[module]?.[action]) return next();
+
+  return res.status(403).json({
+    error: `Forbidden: Missing required permission for ${module}:${action}.`,
+  });
+};
+
+export default { protect, requireRole, requireAdmin, requirePermission };

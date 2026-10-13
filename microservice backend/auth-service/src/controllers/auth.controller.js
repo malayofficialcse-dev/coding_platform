@@ -17,6 +17,65 @@ const generateToken = (user) => {
   );
 };
 
+const DEFAULT_PERMISSIONS = {
+  admin: {
+    exams:     { create: true,  edit: true,  delete: true,  view: true },
+    courses:   { create: true,  edit: true,  delete: true,  view: true },
+    feed:      { create: true,  edit: true,  delete: true,  view: true },
+    coding:    { create: true,  edit: true,  delete: true,  view: true },
+    users:     { create: true,  edit: true,  delete: true,  view: true },
+    analytics: { create: true,  edit: true,  delete: true,  view: true },
+  },
+  exam_coordinator: {
+    exams:     { create: true,  edit: true,  delete: true,  view: true },
+    courses:   { create: false, edit: false, delete: false, view: true },
+    feed:      { create: false, edit: false, delete: false, view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: true },
+  },
+  course_coordinator: {
+    exams:     { create: false, edit: false, delete: false, view: true },
+    courses:   { create: true,  edit: true,  delete: true,  view: true },
+    feed:      { create: false, edit: false, delete: false, view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: true },
+  },
+  feed_coordinator: {
+    exams:     { create: false, edit: false, delete: false, view: true },
+    courses:   { create: false, edit: false, delete: false, view: true },
+    feed:      { create: true,  edit: true,  delete: true,  view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: true },
+  },
+  teacher: {
+    exams:     { create: true,  edit: true,  delete: false, view: true },
+    courses:   { create: true,  edit: true,  delete: false, view: true },
+    feed:      { create: true,  edit: false, delete: false, view: true },
+    coding:    { create: true,  edit: true,  delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: true },
+  },
+  student: {
+    exams:     { create: false, edit: false, delete: false, view: true },
+    courses:   { create: false, edit: false, delete: false, view: true },
+    feed:      { create: true,  edit: false, delete: false, view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: false },
+  },
+  user: {
+    exams:     { create: false, edit: false, delete: false, view: true },
+    courses:   { create: false, edit: false, delete: false, view: true },
+    feed:      { create: true,  edit: false, delete: false, view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: false },
+  },
+};
+
 export const register = async (req, res) => {
   try {
     const { name, email, password, role, college, degree, yearOfPassing, username } = req.body;
@@ -32,16 +91,19 @@ export const register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const assignedRole = role || "student";
+    const assignedPerms = DEFAULT_PERMISSIONS[assignedRole] || DEFAULT_PERMISSIONS.student;
 
     const user = new User({
       name,
       username: username || email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: role || "student",
+      role: assignedRole,
       college: college || "",
       degree: degree || "",
       yearOfPassing: yearOfPassing || "",
+      permissions: assignedPerms,
     });
 
     await user.save();
@@ -79,6 +141,10 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "Your account is deactivated. Please contact an administrator." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -147,8 +213,12 @@ export const me = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+    if (user.isActive === false) {
+      return res.status(403).json({ error: "Your account is deactivated." });
+    }
 
-    res.json(user);
+    const token = generateToken(user);
+    res.json({ ...user.toObject(), token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -6,6 +6,7 @@ import {
   getManagedUser,
   updateManagedUser,
   deactivateManagedUser,
+  deleteUserPermanently,
   updateUserPermissions,
   getRbacStats,
 } from "../controllers/rbac.controller.js";
@@ -21,6 +22,7 @@ router.post("/users",             createManagedUser);
 router.get("/users/:id",          getManagedUser);
 router.put("/users/:id",          updateManagedUser);
 router.delete("/users/:id",       deactivateManagedUser);
+router.delete("/users/:id/permanent", deleteUserPermanently);
 router.patch("/users/:id/permissions", updateUserPermissions);
 
 export default router;

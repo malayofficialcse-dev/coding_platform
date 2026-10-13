@@ -9,6 +9,14 @@ const MODULES = ["exams", "courses", "feed", "coding", "users", "analytics"];
 
 // Default permissions per role
 const DEFAULT_PERMISSIONS = {
+  admin: {
+    exams:     { create: true,  edit: true,  delete: true,  view: true },
+    courses:   { create: true,  edit: true,  delete: true,  view: true },
+    feed:      { create: true,  edit: true,  delete: true,  view: true },
+    coding:    { create: true,  edit: true,  delete: true,  view: true },
+    users:     { create: true,  edit: true,  delete: true,  view: true },
+    analytics: { create: true,  edit: true,  delete: true,  view: true },
+  },
   exam_coordinator: {
     exams:     { create: true,  edit: true,  delete: true,  view: true },
     courses:   { create: false, edit: false, delete: false, view: true },
@@ -33,7 +41,23 @@ const DEFAULT_PERMISSIONS = {
     users:     { create: false, edit: false, delete: false, view: true },
     analytics: { create: false, edit: false, delete: false, view: true },
   },
+  teacher: {
+    exams:     { create: true,  edit: true,  delete: false, view: true },
+    courses:   { create: true,  edit: true,  delete: false, view: true },
+    feed:      { create: true,  edit: false, delete: false, view: true },
+    coding:    { create: true,  edit: true,  delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: true },
+  },
   student: {
+    exams:     { create: false, edit: false, delete: false, view: true },
+    courses:   { create: false, edit: false, delete: false, view: true },
+    feed:      { create: true,  edit: false, delete: false, view: true },
+    coding:    { create: false, edit: false, delete: false, view: true },
+    users:     { create: false, edit: false, delete: false, view: true },
+    analytics: { create: false, edit: false, delete: false, view: false },
+  },
+  user: {
     exams:     { create: false, edit: false, delete: false, view: true },
     courses:   { create: false, edit: false, delete: false, view: true },
     feed:      { create: true,  edit: false, delete: false, view: true },
@@ -138,39 +162,53 @@ export const getManagedUser = async (req, res) => {
 
 /**
  * PUT /api/admin/rbac/users/:id
- * Update role and/or permissions
+ * Update role, profile, and/or permissions
  */
 export const updateManagedUser = async (req, res) => {
   try {
-    const { role, permissions, isActive, name, college, degree, yearOfPassing } = req.body;
+    const { role, permissions, isActive, name, email, college, degree, yearOfPassing, password } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot modify a super_admin." });
     }
 
-    if (role)          user.role    = role;
-    if (name)          user.name    = name;
-    if (college !== undefined) user.college = college;
-    if (degree  !== undefined) user.degree  = degree;
+    if (role)                  user.role          = role;
+    if (name)                  user.name          = name;
+    if (email)                 user.email         = email.toLowerCase();
+    if (college !== undefined) user.college       = college;
+    if (degree  !== undefined) user.degree        = degree;
     if (yearOfPassing !== undefined) user.yearOfPassing = yearOfPassing;
-    if (isActive !== undefined) user.isActive = isActive;
+    if (isActive !== undefined) user.isActive     = isActive;
 
-    // Merge permissions if provided
+    if (password && password.trim()) {
+      user.password = await bcrypt.hash(password.trim(), 10);
+    }
+
+    if (!user.permissions) user.permissions = {};
+
+    // Apply permissions if provided
     if (permissions) {
       for (const mod of MODULES) {
         if (permissions[mod]) {
-          user.permissions[mod] = { ...((user.permissions[mod] || {})), ...permissions[mod] };
+          user.permissions[mod] = {
+            view:   !!permissions[mod].view,
+            create: !!permissions[mod].create,
+            edit:   !!permissions[mod].edit,
+            delete: !!permissions[mod].delete,
+          };
         }
       }
+      user.markModified("permissions");
     } else if (role && DEFAULT_PERMISSIONS[role]) {
-      // Auto-apply defaults when role changes and no explicit permissions
+      // Auto-apply defaults when role changes and no explicit permissions given
       user.permissions = DEFAULT_PERMISSIONS[role];
+      user.markModified("permissions");
     }
 
     await user.save();
     const { password: _pw, ...safeUser } = user.toObject();
-    res.json({ message: "User updated.", user: safeUser });
+    res.json({ message: "User updated successfully.", user: safeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -195,15 +233,29 @@ export const deactivateManagedUser = async (req, res) => {
 };
 
 /**
+ * DELETE /api/admin/rbac/users/:id/permanent (hard delete)
+ */
+export const deleteUserPermanently = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role === "super_admin") {
+      return res.status(403).json({ error: "Cannot delete a super_admin." });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "User permanently deleted." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
  * PATCH /api/admin/rbac/users/:id/permissions
- * Fine-grained permission update for a single module
+ * Fine-grained permission update
  */
 export const updateUserPermissions = async (req, res) => {
   try {
-    const { module: mod, create, edit, delete: del, view } = req.body;
-    if (!MODULES.includes(mod)) {
-      return res.status(400).json({ error: `Unknown module: ${mod}` });
-    }
+    const { permissions } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
@@ -211,6 +263,27 @@ export const updateUserPermissions = async (req, res) => {
     }
 
     if (!user.permissions) user.permissions = {};
+
+    if (permissions) {
+      for (const mod of MODULES) {
+        if (permissions[mod]) {
+          user.permissions[mod] = {
+            view:   !!permissions[mod].view,
+            create: !!permissions[mod].create,
+            edit:   !!permissions[mod].edit,
+            delete: !!permissions[mod].delete,
+          };
+        }
+      }
+      user.markModified("permissions");
+      await user.save();
+      return res.json({ message: "Permissions updated successfully.", permissions: user.permissions });
+    }
+
+    const { module: mod, create, edit, delete: del, view } = req.body;
+    if (!MODULES.includes(mod)) {
+      return res.status(400).json({ error: `Unknown module: ${mod}` });
+    }
     if (!user.permissions[mod]) user.permissions[mod] = {};
 
     if (create !== undefined) user.permissions[mod].create = !!create;
@@ -220,7 +293,7 @@ export const updateUserPermissions = async (req, res) => {
 
     user.markModified("permissions");
     await user.save();
-    res.json({ message: "Permissions updated.", permissions: user.permissions });
+    res.json({ message: "Permissions updated successfully.", permissions: user.permissions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -232,12 +305,13 @@ export const updateUserPermissions = async (req, res) => {
 export const getRbacStats = async (req, res) => {
   try {
     const pipeline = [
+      { $match: { role: { $ne: "super_admin" } } },
       { $group: { _id: "$role", count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ];
     const roleCounts = await User.aggregate(pipeline);
-    const total      = await User.countDocuments();
-    const active     = await User.countDocuments({ isActive: true });
+    const total      = await User.countDocuments({ role: { $ne: "super_admin" } });
+    const active     = await User.countDocuments({ role: { $ne: "super_admin" }, isActive: true });
     res.json({ total, active, inactive: total - active, roleCounts });
   } catch (err) {
     res.status(500).json({ error: err.message });

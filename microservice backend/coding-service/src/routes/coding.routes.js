@@ -12,16 +12,16 @@ import {
   getSubmissionsByProblem,
   getMySubmissions,
 } from "../controllers/codingSubmission.controller.js";
-import { protect, requireAdmin, optionalAuth } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, optionalAuth, requirePermission } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 // Problem CRUD Routes
 router.get("/problems", getAllProblems);
 router.get("/problems/:id", getProblemById);
-router.post("/problems", protect, requireAdmin, createProblem);
-router.put("/problems/:id", protect, requireAdmin, updateProblem);
-router.delete("/problems/:id", protect, requireAdmin, deleteProblem);
+router.post("/problems", protect, requirePermission("coding", "create"), createProblem);
+router.put("/problems/:id", protect, requirePermission("coding", "edit"), updateProblem);
+router.delete("/problems/:id", protect, requirePermission("coding", "delete"), deleteProblem);
 
 // Judge Routes - Run (sample tests only, no DB save)
 router.post("/problems/:id/run", optionalAuth, runCode);
