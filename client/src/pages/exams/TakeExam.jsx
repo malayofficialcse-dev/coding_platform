@@ -1,40 +1,205 @@
-import React, { useEffect, useRef, useState } from "react";
-import { FaArrowLeft, FaArrowRight, FaCheckCircle, FaClock, FaExpand, FaExclamationTriangle, FaFlag, FaPaperPlane, FaShieldAlt, FaTimesCircle, FaTrophy } from "react-icons/fa";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import {
+  FaArrowLeft,
+  FaArrowRight,
+  FaCheckCircle,
+  FaClock,
+  FaExpand,
+  FaExclamationTriangle,
+  FaFlag,
+  FaPaperPlane,
+  FaShieldAlt,
+  FaTimesCircle,
+  FaVideo,
+  FaMicrophone,
+  FaWifi,
+  FaUserCheck,
+} from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/api";
+import { useAuth } from "../../contexts/AuthContext";
 import "./TakeExam.css";
+
+const MAX_PROCTOR_WARNINGS = 5;
 
 export default function TakeExam() {
   const { id: examId } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
+
   const [exam, setExam] = useState(null);
   const [selected, setSelected] = useState({});
   const [flagged, setFlagged] = useState({});
   const [activeQuestion, setActiveQuestion] = useState(0);
   const [timeLeft, setTimeLeft] = useState(null);
-  const [showAnswers, setShowAnswers] = useState(false);
-  const [lastAttempt, setLastAttempt] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
   const [warnings, setWarnings] = useState(0);
-  const timerRef = useRef();
 
+  // Pre-exam agreement & system checks
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [hasCamera, setHasCamera] = useState(false);
+
+  // Question matrix filter: "all" | "answered" | "flagged" | "unanswered"
+  const [matrixFilter, setMatrixFilter] = useState("all");
+
+  // In-app modals
+  const [warningModal, setWarningModal] = useState(null);
+  const [submitConfirmModal, setSubmitConfirmModal] = useState(false);
+
+  const videoRef = useRef(null);
+  const timerRef = useRef();
+  const submittingRef = useRef(false);
+  const lastWarningTimeRef = useRef(0);
+
+  const sessionKey = `cc_exam_session_${examId}_${user?._id || user?.id || "guest"}`;
+
+  // 1. Load Exam
   useEffect(() => {
     (async () => {
       try {
         const res = await api.get(`/exams/${examId}`);
         setExam(res.data);
-        setTimeLeft((res.data.duration || 30) * 60);
+
+        // Restore local storage session if exists
+        try {
+          const saved = localStorage.getItem(sessionKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.selected) setSelected(parsed.selected);
+            if (parsed.flagged) setFlagged(parsed.flagged);
+            if (typeof parsed.activeQuestion === "number") setActiveQuestion(parsed.activeQuestion);
+            if (typeof parsed.timeLeft === "number" && parsed.timeLeft > 0) {
+              setTimeLeft(parsed.timeLeft);
+            } else {
+              setTimeLeft((res.data.duration || 30) * 60);
+            }
+          } else {
+            setTimeLeft((res.data.duration || 30) * 60);
+          }
+        } catch {
+          setTimeLeft((res.data.duration || 30) * 60);
+        }
       } catch (err) {
         alert(err.response?.data?.message || "Cannot load exam");
         nav("/exams");
       }
     })();
-  }, [examId, nav]);
+  }, [examId, nav, sessionKey]);
 
+  // 2. Autosave session to localStorage
   useEffect(() => {
-    if (!examStarted || timeLeft === null || showAnswers) return undefined;
+    if (examStarted && exam) {
+      try {
+        localStorage.setItem(
+          sessionKey,
+          JSON.stringify({
+            selected,
+            flagged,
+            activeQuestion,
+            timeLeft,
+            updatedAt: Date.now(),
+          })
+        );
+      } catch (e) {
+        // quota exceeded or private mode
+      }
+    }
+  }, [selected, flagged, activeQuestion, timeLeft, examStarted, exam, sessionKey]);
+
+  // 3. WebCam stream setup
+  useEffect(() => {
+    let stream = null;
+    if (examStarted && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { width: 320, height: 240 }, audio: true })
+        .then((s) => {
+          stream = s;
+          setHasCamera(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+          }
+        })
+        .catch(() => {
+          setHasCamera(false);
+        });
+    }
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [examStarted]);
+
+  // 4. Submit Handler
+  const submitAll = useCallback(
+    async (forcedWarnings = warnings, forceCheated = false, isTimeOut = false) => {
+      if (!exam || submittingRef.current) return;
+      submittingRef.current = true;
+
+      const answers = exam.questions.map((question) => {
+        const selectedIndex = selected[question._id];
+        return typeof selectedIndex === "number" ? question.options[selectedIndex] : "";
+      });
+
+      try {
+        const res = await api.post("/attempts", {
+          examId: exam._id,
+          answers,
+          warningsCount: forcedWarnings,
+          autoSubmitted: isTimeOut || forceCheated,
+          cheatingLogged: forceCheated,
+        });
+
+        // Clear saved session
+        try {
+          localStorage.removeItem(sessionKey);
+        } catch (e) {}
+
+        clearInterval(timerRef.current);
+        if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+
+        const attemptId = res.data?.attempt?._id || res.data?._id;
+        if (attemptId) {
+          nav(`/result/${attemptId}`);
+        } else {
+          nav("/my-attempts");
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || "Assessment recorded.";
+        if (errMsg.includes("already submitted")) {
+          try {
+            localStorage.removeItem(sessionKey);
+          } catch (e) {}
+          nav("/my-attempts");
+        } else {
+          alert("Submission error: " + errMsg);
+          submittingRef.current = false;
+        }
+      } finally {
+        setWarningModal(null);
+        setSubmitConfirmModal(false);
+      }
+    },
+    [exam, warnings, selected, sessionKey, nav]
+  );
+
+  const autoSubmitTimeUp = useCallback(async () => {
+    setWarningModal({
+      isFinal: true,
+      title: "Time Is Up",
+      reason: "The assessment duration has elapsed. Your answers have been submitted automatically.",
+    });
+    await submitAll(warnings, false, true);
+  }, [submitAll, warnings]);
+
+  // 5. Timer Countdown
+  useEffect(() => {
+    if (!examStarted || timeLeft === null) return undefined;
     if (timeLeft <= 0) {
-      autoSubmit();
+      autoSubmitTimeUp();
       return undefined;
     }
     timerRef.current = setInterval(() => {
@@ -47,84 +212,172 @@ export default function TakeExam() {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [timeLeft, showAnswers, examStarted]);
+  }, [timeLeft, examStarted, autoSubmitTimeUp]);
 
+  // 6. Proctoring Listeners with Cooldown
   useEffect(() => {
-    if (!examStarted || showAnswers) return undefined;
+    if (!examStarted) return undefined;
+
     const triggerWarning = (reason) => {
-      setWarnings((previous) => {
-        const next = previous + 1;
-        if (next >= 3) {
-          alert("Exam submitted automatically after reaching the proctoring warning limit.");
+      if (submittingRef.current) return;
+      const now = Date.now();
+      if (now - lastWarningTimeRef.current < 8000) return;
+      lastWarningTimeRef.current = now;
+
+      setWarnings((prev) => {
+        const next = prev + 1;
+        if (next >= MAX_PROCTOR_WARNINGS) {
+          setWarningModal({
+            isFinal: true,
+            title: "Proctoring Warning Limit Reached",
+            reason: `Exam submitted automatically after reaching ${MAX_PROCTOR_WARNINGS} proctoring violations (${reason}).`,
+          });
           submitAll(next, true, false);
         } else {
-          alert(`Proctoring warning: ${reason}. Warning ${next}/3.`);
-          try {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
-          } catch {
-            // Fullscreen may be unavailable in some browsers.
-          }
+          setWarningModal({
+            isFinal: false,
+            count: next,
+            title: `Proctoring Notice (Warning ${next}/${MAX_PROCTOR_WARNINGS})`,
+            reason: `${reason}. Please keep this tab active and remain in fullscreen mode.`,
+          });
         }
         return next;
       });
     };
-    const handleVisibilityChange = () => { if (document.visibilityState === "hidden") triggerWarning("You switched tabs or applications"); };
-    const handleFullscreenChange = () => { if (!document.fullscreenElement) triggerWarning("You exited fullscreen mode"); };
-    const handleBlur = () => triggerWarning("The exam window lost focus");
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        triggerWarning("Tab or browser window lost focus");
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !submittingRef.current) {
+        triggerWarning("Exited fullscreen mode");
+      }
+    };
+
+    // Keyboard shortcut prevention (Devtools, Print, Save, Inspect)
+    const handleKeyDown = (e) => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "C" || e.key === "c" || e.key === "J" || e.key === "j")) ||
+        (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "P" || e.key === "p" || e.key === "S" || e.key === "s"))
+      ) {
+        e.preventDefault();
+        triggerWarning("Restricted developer shortcut attempted");
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    window.addEventListener("blur", handleBlur);
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [examStarted, showAnswers]);
+  }, [examStarted, submitAll]);
 
-  const formatTime = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  const chooseOption = (questionId, optionIndex) => {
-    if (selected[questionId] !== undefined || showAnswers) return;
-    setSelected((previous) => ({ ...previous, [questionId]: optionIndex }));
+  const resumeFromWarning = () => {
+    setWarningModal(null);
+    try {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+    } catch {}
   };
+
+  const formatTime = (seconds) =>
+    `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+  const chooseOption = (questionId, optionIndex) => {
+    setSelected((prev) => ({ ...prev, [questionId]: optionIndex }));
+  };
+
   const startExam = async () => {
-    try { await document.documentElement.requestFullscreen?.(); } catch (err) { console.warn("Fullscreen request rejected:", err); }
+    try {
+      await document.documentElement.requestFullscreen?.();
+    } catch (err) {
+      console.warn("Fullscreen request rejected:", err);
+    }
     setExamStarted(true);
   };
-  const submitAll = async (forcedWarnings = warnings, forceCheated = false, isTimeOut = false) => {
-    if (!exam) return;
-    const answers = exam.questions.map((question) => {
-      const selectedIndex = selected[question._id];
-      return typeof selectedIndex === "number" ? question.options[selectedIndex] : "";
-    });
-    if (!forceCheated && !isTimeOut && answers.some((answer) => !answer)) {
-      alert("Please answer every question before submitting.");
-      return;
-    }
-    try {
-      const res = await api.post("/attempts", { examId: exam._id, answers, warningsCount: forcedWarnings, autoSubmitted: isTimeOut || forceCheated, cheatingLogged: forceCheated });
-      setLastAttempt(res.data.attempt || res.data);
-      setShowAnswers(true);
-      clearInterval(timerRef.current);
-      if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    } catch (err) {
-      alert(err.response?.data?.message || "Could not submit.");
-      setShowAnswers(true);
-      clearInterval(timerRef.current);
-    }
+
+  const handleManualSubmitClick = () => {
+    setSubmitConfirmModal(true);
   };
-  const autoSubmit = async () => { alert("Time is up. Your exam is being submitted automatically."); await submitAll(warnings, false, true); };
 
-  if (!exam) return <div className="cc-exam-loading"><div className="spinner-border text-primary" role="status" /><span>Loading assessment…</span></div>;
+  if (!exam) {
+    return (
+      <div className="cc-exam-loading">
+        <div className="spinner-border text-primary" role="status" />
+        <span>Loading assessment…</span>
+      </div>
+    );
+  }
 
-  if (!examStarted && !showAnswers) {
+  // Pre-Exam Welcome Screen
+  if (!examStarted) {
     return (
       <div className="cc-exam-start-shell">
         <div className="cc-exam-start-card">
-          <span className="cc-exam-eyebrow">Technical assessment</span>
+          <span className="cc-exam-eyebrow">Technical Assessment</span>
           <h1>{exam.title}</h1>
-          <p>{exam.description || "A focused assessment to check your understanding."}</p>
-          <div className="cc-exam-instructions"><strong><FaShieldAlt /> Secure assessment rules</strong><ul><li>{exam.questions.length} questions with a {exam.duration || 30}-minute time limit.</li><li>Fullscreen mode and focus monitoring are required.</li><li>Three proctoring warnings trigger automatic submission.</li></ul></div>
-          <button className="cc-exam-primary-button" onClick={startExam}><FaExpand /> Start assessment</button>
+          <p>{exam.description || "A comprehensive timed evaluation testing technical competencies and problem-solving skills."}</p>
+
+          <div className="cc-start-checks">
+            <div className="cc-start-check-item">
+              <FaUserCheck />
+              <span>{user?.name || "Verified Student"}</span>
+            </div>
+            <div className="cc-start-check-item">
+              <FaVideo />
+              <span>Camera Monitor</span>
+            </div>
+            <div className="cc-start-check-item">
+              <FaWifi />
+              <span>Secure Session</span>
+            </div>
+          </div>
+
+          <div className="cc-exam-instructions">
+            <strong>
+              <FaShieldAlt /> Assessment &amp; Proctoring Rules
+            </strong>
+            <ul>
+              <li>
+                <strong>{exam.questions.length} Questions</strong> with a{" "}
+                <strong>{exam.duration || 30}-minute</strong> time limit.
+              </li>
+              <li>Fullscreen mode is strictly enforced. Do not switch tabs or minimize the window.</li>
+              <li>
+                A maximum of <strong>{MAX_PROCTOR_WARNINGS} proctoring warnings</strong> are permitted before automatic submission.
+              </li>
+              <li>Questions carry 1 point each. Unsaved answers are cached locally so progress is preserved.</li>
+            </ul>
+          </div>
+
+          <label className="cc-exam-agreement">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+            />
+            <span>
+              I confirm that I am {user?.name || "the candidate"} and agree to the exam code of conduct, honor code, and continuous proctoring terms.
+            </span>
+          </label>
+
+          <button
+            className="cc-exam-primary-button"
+            onClick={startExam}
+            disabled={!agreedToTerms}
+            style={{ width: "100%", opacity: agreedToTerms ? 1 : 0.6 }}
+          >
+            <FaExpand /> Start Assessment Now
+          </button>
         </div>
       </div>
     );
@@ -133,45 +386,384 @@ export default function TakeExam() {
   const question = exam.questions[activeQuestion];
   const questionCount = exam.questions.length;
   const answeredCount = Object.keys(selected).length;
+  const flaggedCount = Object.values(flagged).filter(Boolean).length;
+  const unansweredCount = questionCount - answeredCount;
   const currentChoice = selected[question?._id];
   const progress = questionCount ? Math.round((answeredCount / questionCount) * 100) : 0;
 
+  // Filter matrix items
+  const filteredQuestions = exam.questions.map((item, idx) => ({ ...item, originalIndex: idx })).filter((item) => {
+    if (matrixFilter === "answered") return selected[item._id] !== undefined;
+    if (matrixFilter === "flagged") return !!flagged[item._id];
+    if (matrixFilter === "unanswered") return selected[item._id] === undefined;
+    return true;
+  });
+
+  const isWarningTimer = timeLeft !== null && timeLeft <= 300 && timeLeft > 60;
+  const isCriticalTimer = timeLeft !== null && timeLeft <= 60;
+
   return (
-    <div className="cc-exam-shell">
+    <div
+      className="cc-exam-shell"
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Proctoring Warning In-App Modal */}
+      {warningModal && (
+        <div className="cc-exam-modal-backdrop">
+          <div className="cc-exam-modal">
+            <div className={`cc-exam-modal-head ${warningModal.isFinal ? "danger" : "warning"}`}>
+              <FaExclamationTriangle size={20} />
+              <h2>{warningModal.title}</h2>
+            </div>
+            <div className="cc-exam-modal-body">
+              <p>{warningModal.reason}</p>
+              {!warningModal.isFinal && (
+                <div className="cc-exam-modal-note">
+                  Warning count: {warningModal.count} / {MAX_PROCTOR_WARNINGS}. Reaching {MAX_PROCTOR_WARNINGS} will immediately submit your assessment.
+                </div>
+              )}
+            </div>
+            <div className="cc-exam-modal-actions">
+              {warningModal.isFinal ? (
+                <button
+                  type="button"
+                  className="cc-exam-modal-btn cc-exam-modal-btn-danger"
+                  onClick={() => setWarningModal(null)}
+                >
+                  View Summary
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="cc-exam-modal-btn"
+                  onClick={resumeFromWarning}
+                >
+                  I Understand, Return to Assessment
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Submit Confirmation Modal */}
+      {submitConfirmModal && (
+        <div className="cc-exam-modal-backdrop">
+          <div className="cc-exam-modal">
+            <div className="cc-exam-modal-head warning">
+              <FaExclamationTriangle size={20} />
+              <h2>Finalize Assessment?</h2>
+            </div>
+            <div className="cc-exam-modal-body">
+              <p>Review your submission breakdown before submitting your final answers:</p>
+              <div className="cc-exam-modal-breakdown">
+                <div className="cc-exam-modal-stat">
+                  <span>Answered</span>
+                  <strong style={{ color: "#15803d" }}>{answeredCount}</strong>
+                </div>
+                <div className="cc-exam-modal-stat">
+                  <span>Unanswered</span>
+                  <strong style={{ color: "#b91c1c" }}>{unansweredCount}</strong>
+                </div>
+                <div className="cc-exam-modal-stat">
+                  <span>Flagged</span>
+                  <strong style={{ color: "#b45309" }}>{flaggedCount}</strong>
+                </div>
+              </div>
+              <p style={{ fontSize: 12, color: "#697687" }}>
+                Once submitted, you will not be able to change your choices for this evaluation.
+              </p>
+            </div>
+            <div className="cc-exam-modal-actions">
+              <button
+                type="button"
+                className="cc-exam-footer-button"
+                onClick={() => setSubmitConfirmModal(false)}
+              >
+                Continue Exam
+              </button>
+              <button
+                type="button"
+                className="cc-exam-modal-btn"
+                onClick={() => submitAll(warnings, false, false)}
+              >
+                Confirm &amp; Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header */}
       <div className="cc-exam-header">
-        <div className="cc-exam-breadcrumb">Assessments <span>/</span> {exam.title}</div>
+        <div className="cc-exam-breadcrumb">
+          Assessments <span>/</span> {exam.title}
+        </div>
         <div className="cc-exam-header-actions">
-          <div className="cc-exam-timer"><FaClock /><span>TIME REMAINING</span><strong>{timeLeft !== null ? formatTime(timeLeft) : "—"}</strong></div>
-          <div className="cc-exam-progress"><span>PROGRESS</span><strong>{answeredCount} / {questionCount} ({progress}%)</strong></div>
-          <button className="cc-exam-header-button" onClick={() => setFlagged((previous) => ({ ...previous, [question._id]: !previous[question._id] }))}><FaFlag /> {flagged[question._id] ? "Flagged" : "Flag question"}</button>
-          <button className="cc-exam-submit-button" onClick={() => submitAll()}><FaPaperPlane /> Submit exam</button>
+          <div
+            className={`cc-exam-timer ${
+              isCriticalTimer ? "is-critical" : isWarningTimer ? "is-warning" : ""
+            }`}
+          >
+            <FaClock />
+            <span>TIME REMAINING</span>
+            <strong>{timeLeft !== null ? formatTime(timeLeft) : "—"}</strong>
+          </div>
+          <div className="cc-exam-progress">
+            <span>PROGRESS</span>
+            <strong>
+              {answeredCount} / {questionCount} ({progress}%)
+            </strong>
+          </div>
+          <button
+            type="button"
+            className={`cc-exam-header-button ${flagged[question._id] ? "is-flagged" : ""}`}
+            onClick={() =>
+              setFlagged((prev) => ({
+                ...prev,
+                [question._id]: !prev[question._id],
+              }))
+            }
+          >
+            <FaFlag /> {flagged[question._id] ? "Flagged" : "Flag Question"}
+          </button>
+          <button
+            type="button"
+            className="cc-exam-submit-button"
+            onClick={handleManualSubmitClick}
+          >
+            <FaPaperPlane /> Submit Exam
+          </button>
         </div>
       </div>
 
       <div className="cc-exam-layout">
+        {/* Main Workspace */}
         <section className="cc-exam-workspace">
-          <div className="cc-exam-question-meta"><span className="cc-exam-question-number">Question {String(activeQuestion + 1).padStart(2, "0")}</span><span className="cc-exam-question-type">Single choice</span><span className="cc-exam-question-points">{question.points || 1} Point{question.points === 1 ? "" : "s"}</span></div>
-          <div className="cc-exam-question-title-row"><h1>{question.question}</h1>{flagged[question._id] && <span className="cc-exam-flagged"><FaFlag /> Flagged</span>}</div>
+          <div className="cc-exam-question-meta">
+            <span className="cc-exam-question-number">
+              Question {String(activeQuestion + 1).padStart(2, "0")} of {questionCount}
+            </span>
+            <span className="cc-exam-question-type">Single choice</span>
+            <span className="cc-exam-question-points">
+              {question.points || 1} Point
+            </span>
+          </div>
+
+          <div className="cc-exam-question-title-row">
+            <h1>{question.question}</h1>
+            {flagged[question._id] && (
+              <span className="cc-exam-flagged">
+                <FaFlag /> Flagged for review
+              </span>
+            )}
+          </div>
+
           <div className="cc-exam-options">
             {question.options.map((option, optionIndex) => {
               const isSelected = currentChoice === optionIndex;
-              const isCorrect = showAnswers && option === question.answer;
-              const isWrong = showAnswers && isSelected && option !== question.answer;
-              return <button key={option} className={`cc-exam-option${isSelected ? " is-selected" : ""}${isCorrect ? " is-correct" : ""}${isWrong ? " is-wrong" : ""}`} disabled={showAnswers || currentChoice !== undefined} onClick={() => chooseOption(question._id, optionIndex)}><span className="cc-exam-option-radio">{isSelected ? "✓" : String.fromCharCode(65 + optionIndex)}</span><span>{option}</span>{isCorrect && <FaCheckCircle className="cc-exam-answer-icon" />}{isWrong && <FaTimesCircle className="cc-exam-answer-icon" />}</button>;
+
+              return (
+                <button
+                  type="button"
+                  key={option}
+                  className={`cc-exam-option${isSelected ? " is-selected" : ""}`}
+                  onClick={() => chooseOption(question._id, optionIndex)}
+                >
+                  <span className="cc-exam-option-radio">
+                    {isSelected ? "✓" : String.fromCharCode(65 + optionIndex)}
+                  </span>
+                  <span>{option}</span>
+                </button>
+              );
             })}
           </div>
-          {showAnswers && <div className={`cc-exam-answer-note ${currentChoice !== undefined && question.options[currentChoice] === question.answer ? "is-correct" : "is-wrong"}`}>{currentChoice !== undefined && question.options[currentChoice] === question.answer ? <FaCheckCircle /> : <FaTimesCircle />} Correct answer: <strong>{question.answer}</strong></div>}
-          <div className="cc-exam-question-footer"><button className="cc-exam-footer-button" disabled={activeQuestion === 0} onClick={() => setActiveQuestion((current) => current - 1)}><FaArrowLeft /> Previous question</button><button className="cc-exam-clear-button" disabled={currentChoice === undefined || showAnswers} onClick={() => setSelected((previous) => { const next = { ...previous }; delete next[question._id]; return next; })}>Clear selection</button><button className="cc-exam-next-button" disabled={activeQuestion === questionCount - 1} onClick={() => setActiveQuestion((current) => current + 1)}>Save &amp; next <FaArrowRight /></button></div>
-          <div className="cc-exam-status-cards"><div><FaShieldAlt /><span><small>PROCTOR STATUS</small><strong>Screen &amp; audio locked</strong></span></div><div><FaClock /><span><small>AVG. SPEED / Q</small><strong>{answeredCount ? Math.max(1, Math.round(((exam.duration * 60) - (timeLeft || 0)) / answeredCount)) : "—"} seconds</strong></span></div><div><FaExclamationTriangle /><span><small>WARNINGS</small><strong>{warnings} / 3 recorded</strong></span></div></div>
+
+          <div className="cc-exam-question-footer">
+            <button
+              type="button"
+              className="cc-exam-footer-button"
+              disabled={activeQuestion === 0}
+              onClick={() => setActiveQuestion((curr) => curr - 1)}
+            >
+              <FaArrowLeft /> Previous Question
+            </button>
+            <button
+              type="button"
+              className="cc-exam-clear-button"
+              disabled={currentChoice === undefined}
+              onClick={() =>
+                setSelected((prev) => {
+                  const next = { ...prev };
+                  delete next[question._id];
+                  return next;
+                })
+              }
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              className="cc-exam-next-button"
+              disabled={activeQuestion === questionCount - 1}
+              onClick={() => setActiveQuestion((curr) => curr + 1)}
+            >
+              Save &amp; Next <FaArrowRight />
+            </button>
+          </div>
+
+          <div className="cc-exam-status-cards">
+            <div>
+              <FaShieldAlt />
+              <span>
+                <small>PROCTOR STATUS</small>
+                <strong>Screen &amp; audio locked</strong>
+              </span>
+            </div>
+            <div>
+              <FaClock />
+              <span>
+                <small>AVG. SPEED / Q</small>
+                <strong>
+                  {answeredCount
+                    ? Math.max(
+                        1,
+                        Math.round(
+                          (exam.duration * 60 - (timeLeft || 0)) / answeredCount
+                        )
+                      )
+                    : "—"}{" "}
+                  seconds
+                </strong>
+              </span>
+            </div>
+            <div>
+              <FaExclamationTriangle />
+              <span>
+                <small>WARNINGS</small>
+                <strong>
+                  {warnings} / {MAX_PROCTOR_WARNINGS} recorded
+                </strong>
+              </span>
+            </div>
+          </div>
         </section>
 
+        {/* Right Rail: Live Video Proctor & Question Matrix */}
         <aside className="cc-exam-rail">
-          <div className="cc-exam-rail-card"><div className="cc-exam-rail-heading"><h2>Question matrix</h2><span>1-{questionCount}</span></div><div className="cc-exam-matrix">{exam.questions.map((item, index) => <button key={item._id} className={`${index === activeQuestion ? "is-current " : ""}${selected[item._id] !== undefined ? "is-answered " : ""}${flagged[item._id] ? "is-flagged" : ""}`} onClick={() => setActiveQuestion(index)} aria-label={`Go to question ${index + 1}`}>{String(index + 1).padStart(2, "0")}{flagged[item._id] && <i />}</button>)}</div><div className="cc-exam-legend"><span><i className="answered" /> Answered</span><span><i className="flagged" /> Flagged</span><span><i className="remaining" /> Remaining</span></div></div>
-          <div className="cc-exam-rail-card cc-exam-heartbeat"><div><h2>Hardware &amp; proctor heartbeat</h2><span className="cc-heartbeat-dot" /></div><p>Screen capture <strong>Active</strong></p><p>Microphone monitor <strong>Active</strong></p><p>Browser lock <strong>Engaged</strong></p></div>
+          {/* Live Proctor Video Box */}
+          <div className="cc-exam-rail-card cc-exam-heartbeat">
+            <div>
+              <h2>Proctor Supervision</h2>
+              <span className="cc-heartbeat-dot" />
+            </div>
+
+            <div className="cc-proctor-video-wrap">
+              <span className="cc-proctor-live-tag">
+                <span className="cc-proctor-live-dot" /> LIVE FEED
+              </span>
+              {hasCamera ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="cc-proctor-video"
+                />
+              ) : (
+                <div className="cc-proctor-fallback-avatar">
+                  <FaShieldAlt />
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>SENSOR MONITORED</div>
+                </div>
+              )}
+            </div>
+
+            <p>
+              Screen Capture <strong>Active</strong>
+            </p>
+            <p>
+              Audio Analysis <strong>Active</strong>
+            </p>
+            <p>
+              Browser Lock <strong>Engaged</strong>
+            </p>
+          </div>
+
+          {/* Question Matrix */}
+          <div className="cc-exam-rail-card">
+            <div className="cc-exam-rail-heading">
+              <h2>Question Matrix</h2>
+              <span>{questionCount} Total</span>
+            </div>
+
+            {/* Matrix Filters */}
+            <div className="cc-matrix-tabs">
+              <button
+                type="button"
+                className={`cc-matrix-tab ${matrixFilter === "all" ? "active" : ""}`}
+                onClick={() => setMatrixFilter("all")}
+              >
+                All ({questionCount})
+              </button>
+              <button
+                type="button"
+                className={`cc-matrix-tab ${matrixFilter === "answered" ? "active" : ""}`}
+                onClick={() => setMatrixFilter("answered")}
+              >
+                Ans ({answeredCount})
+              </button>
+              <button
+                type="button"
+                className={`cc-matrix-tab ${matrixFilter === "flagged" ? "active" : ""}`}
+                onClick={() => setMatrixFilter("flagged")}
+              >
+                Flag ({flaggedCount})
+              </button>
+              <button
+                type="button"
+                className={`cc-matrix-tab ${matrixFilter === "unanswered" ? "active" : ""}`}
+                onClick={() => setMatrixFilter("unanswered")}
+              >
+                Left ({unansweredCount})
+              </button>
+            </div>
+
+            <div className="cc-exam-matrix">
+              {filteredQuestions.map((item) => (
+                <button
+                  type="button"
+                  key={item._id}
+                  className={`${
+                    item.originalIndex === activeQuestion ? "is-current " : ""
+                  }${selected[item._id] !== undefined ? "is-answered " : ""}${
+                    flagged[item._id] ? "is-flagged" : ""
+                  }`}
+                  onClick={() => setActiveQuestion(item.originalIndex)}
+                  aria-label={`Go to question ${item.originalIndex + 1}`}
+                >
+                  {String(item.originalIndex + 1).padStart(2, "0")}
+                  {flagged[item._id] && <i />}
+                </button>
+              ))}
+            </div>
+
+            <div className="cc-exam-legend">
+              <span>
+                <i className="answered" /> Answered
+              </span>
+              <span>
+                <i className="flagged" /> Flagged
+              </span>
+              <span>
+                <i className="remaining" /> Remaining
+              </span>
+            </div>
+          </div>
         </aside>
       </div>
-
-      {showAnswers && lastAttempt && <div className="cc-exam-result-banner"><FaTrophy /><span>Your score <strong>{lastAttempt.score}</strong></span>{lastAttempt.cheatingLogged && <em><FaExclamationTriangle /> Auto-submitted after proctoring violations</em>}</div>}
     </div>
   );
 }

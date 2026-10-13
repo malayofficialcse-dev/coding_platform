@@ -28,6 +28,7 @@ import {
   updateAnyPost,
   createPostAsAdmin,
   getPostDashboardMetrics,
+} from "../controllers/dashboard.controller.js";
 import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
 
 // This module is evaluated before the service entrypoint, so load env values

@@ -76,3 +76,15 @@ export const getUserAttempts = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getAttemptById = async (req, res) => {
+  try {
+    const attempt = await Attempt.findById(req.params.id)
+      .populate("exam")
+      .populate("user", "name email");
+    if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+    res.json(attempt);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

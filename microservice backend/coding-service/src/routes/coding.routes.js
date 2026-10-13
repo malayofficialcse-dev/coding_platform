@@ -11,6 +11,8 @@ import {
   submitCode,
   getSubmissionsByProblem,
   getMySubmissions,
+  getUserSubmissions,
+  getAllStudentsCodingStats,
 } from "../controllers/codingSubmission.controller.js";
 import { protect, requireAdmin, optionalAuth, requirePermission } from "../middleware/auth.middleware.js";
 
@@ -32,8 +34,10 @@ router.post("/problems/:id/submit", optionalAuth, submitCode);
 // Legacy alias
 router.post("/submit/:id", protect, submitCode);
 
-// Submission History
+// Submission History & Analytics
 router.get("/submissions/my", protect, getMySubmissions);
+router.get("/submissions/leaderboard", protect, getAllStudentsCodingStats);
+router.get("/submissions/user/:userId", protect, getUserSubmissions);
 router.get("/problems/:id/submissions", protect, getSubmissionsByProblem);
 
 export default router;

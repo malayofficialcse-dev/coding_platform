@@ -505,3 +505,49 @@ export const getMySubmissions = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getUserSubmissions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const submissions = await CodingSubmission.find({ user: userId })
+      .populate("problem", "title difficulty dsaTopic")
+      .sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getAllStudentsCodingStats = async (req, res) => {
+  try {
+    const stats = await CodingSubmission.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $group: {
+          _id: "$user",
+          name: { $first: "$userInfo.name" },
+          email: { $first: "$userInfo.email" },
+          avatar: { $first: "$userInfo.avatar" },
+          totalSubmissions: { $sum: 1 },
+          acceptedCount: {
+            $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
+          },
+          lastSubmissionAt: { $max: "$createdAt" }
+        }
+      },
+      { $sort: { acceptedCount: -1 } }
+    ]);
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

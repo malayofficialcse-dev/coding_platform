@@ -116,7 +116,7 @@ export function CodingProblems() {
         .then((res) => {
           const solved = (res.data || [])
             .filter((s) => s.result === "Accepted")
-            .map((s) => s.problem?._id || s.problem);
+            .map((s) => String(s.problem?._id || s.problem));
           setSolvedIds([...new Set(solved)]);
         })
         .catch((err) => console.error("Failed to load user submissions", err));
@@ -124,6 +124,10 @@ export function CodingProblems() {
       setSolvedIds([]);
     }
   }, [user]);
+
+  const solvedSet = useMemo(() => {
+    return new Set(solvedIds.map((id) => String(id)));
+  }, [solvedIds]);
 
   // Topic problem counts
   const topicCounts = useMemo(() => {
@@ -138,30 +142,30 @@ export function CodingProblems() {
   // Overall statistics (for LeetCode Donut and Bars)
   const stats = useMemo(() => {
     const total = problems.length;
-    const solvedCount = problems.filter((p) => solvedIds.includes(p._id)).length;
+    const solvedCount = problems.filter((p) => solvedSet.has(String(p._id))).length;
     const basicTotal = problems.filter(
       (p) => String(p.difficulty).toLowerCase() === "basic"
     ).length;
     const basicSolved = problems.filter(
-      (p) => String(p.difficulty).toLowerCase() === "basic" && solvedIds.includes(p._id)
+      (p) => String(p.difficulty).toLowerCase() === "basic" && solvedSet.has(String(p._id))
     ).length;
     const easyTotal = problems.filter(
       (p) => String(p.difficulty).toLowerCase() === "easy"
     ).length;
     const easySolved = problems.filter(
-      (p) => String(p.difficulty).toLowerCase() === "easy" && solvedIds.includes(p._id)
+      (p) => String(p.difficulty).toLowerCase() === "easy" && solvedSet.has(String(p._id))
     ).length;
     const medTotal = problems.filter(
       (p) => String(p.difficulty).toLowerCase() === "medium"
     ).length;
     const medSolved = problems.filter(
-      (p) => String(p.difficulty).toLowerCase() === "medium" && solvedIds.includes(p._id)
+      (p) => String(p.difficulty).toLowerCase() === "medium" && solvedSet.has(String(p._id))
     ).length;
     const hardTotal = problems.filter(
       (p) => String(p.difficulty).toLowerCase() === "hard"
     ).length;
     const hardSolved = problems.filter(
-      (p) => String(p.difficulty).toLowerCase() === "hard" && solvedIds.includes(p._id)
+      (p) => String(p.difficulty).toLowerCase() === "hard" && solvedSet.has(String(p._id))
     ).length;
     const percent = total > 0 ? Math.round((solvedCount / total) * 100) : 0;
     return {
@@ -177,7 +181,7 @@ export function CodingProblems() {
       hardTotal,
       hardSolved,
     };
-  }, [problems, solvedIds]);
+  }, [problems, solvedSet]);
 
   // Client-side filtering supporting multiple selections
   const filteredProblems = useMemo(() => {
@@ -196,7 +200,7 @@ export function CodingProblems() {
         selectedDifficulties.length === 0 || selectedDifficulties.includes(pDiff);
 
       // 3. Status Multi-selection
-      const isSolved = solvedIds.includes(p._id);
+      const isSolved = solvedSet.has(String(p._id));
       let matchesStatus = true;
       if (selectedStatuses.length > 0) {
         const wantsSolved = selectedStatuses.includes("solved");
@@ -213,7 +217,7 @@ export function CodingProblems() {
 
       return matchesSearch && matchesDiff && matchesStatus && matchesTopic;
     });
-  }, [problems, searchQuery, selectedDifficulties, selectedStatuses, selectedTopics, solvedIds]);
+  }, [problems, searchQuery, selectedDifficulties, selectedStatuses, selectedTopics, solvedSet]);
 
   // Toggle helpers for multiple selection
   const toggleDifficulty = (diff) => {
@@ -754,7 +758,7 @@ export function CodingProblems() {
             </thead>
             <tbody>
               {filteredProblems.map((p, index) => {
-                const isSolved = solvedIds.includes(p._id);
+                const isSolved = solvedSet.has(String(p._id));
                 const diff = String(p.difficulty || "Easy").toLowerCase();
                 const totalCases = p.testCases?.length || p.sampleTestCases?.length || 0;
                 return (
@@ -803,7 +807,7 @@ export function CodingProblems() {
         /* GRID / CARDS VIEW */
         <div className="cc-problems-grid">
           {filteredProblems.map((p) => {
-            const isSolved = solvedIds.includes(p._id);
+            const isSolved = solvedSet.has(String(p._id));
             const diff = String(p.difficulty || "Easy").toLowerCase();
             const totalCases = p.testCases?.length || p.sampleTestCases?.length || 0;
 
