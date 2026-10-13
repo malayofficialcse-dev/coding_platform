@@ -2,12 +2,17 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config();
+
 import examRoutes from "./routes/exam.routes.js";
 import attemptRoutes from "./routes/attempt.routes.js";
 import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5004;

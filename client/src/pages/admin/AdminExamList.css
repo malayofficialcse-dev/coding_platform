@@ -1,0 +1,643 @@
+/* ── Profile-matched Workspace Shell for Admin Exam List ─────────────────── */
+.ael-shell {
+  min-height: calc(100vh - 120px);
+  margin: -20px -20px -40px;
+  padding: 28px max(20px, calc((100% - 1280px) / 2)) 48px;
+  background: #f4f6f8;
+  color: #172033;
+  font-family: var(--cc-font-sans);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.ael-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.ael-eyebrow {
+  color: #0078d4;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.ael-heading h1 {
+  margin: 2px 0 4px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #172033;
+  line-height: 1.2;
+}
+
+.ael-heading p {
+  margin: 0;
+  color: #697687;
+  font-size: 14px;
+}
+
+.ael-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Action Buttons (matching profile-actions) ───────────────────────────── */
+.ael-action-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #0078d4;
+  border-radius: 4px;
+  background: #0078d4;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ael-action-btn-primary:hover {
+  background: #005a9e;
+  border-color: #005a9e;
+  color: #fff !important;
+}
+
+.ael-action-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #fff;
+  color: #465364;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ael-action-btn-ghost:hover {
+  background: #f5f7fa;
+  border-color: #b7d9f2;
+  color: #172033;
+}
+
+.ael-action-btn-excel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #b7e4c7;
+  border-radius: 4px;
+  background: #e8f5ec;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ael-action-btn-excel:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #065f46;
+}
+
+/* ── Metric Stats Grid (matching .cc-profile-stat-grid) ──────────────────── */
+.ael-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.ael-stat-card {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(27, 45, 66, 0.07);
+  transition: border-color 0.18s ease;
+}
+
+.ael-stat-card:hover {
+  border-color: #b7d9f2;
+}
+
+.ael-stat-card svg,
+.ael-stat-card .ael-stat-card-icon {
+  grid-row: span 3;
+  margin-top: 2px;
+  color: #0078d4;
+  font-size: 20px;
+}
+
+.ael-stat-card.green svg,
+.ael-stat-card.green .ael-stat-card-icon {
+  color: #15803d;
+}
+
+.ael-stat-card.orange svg,
+.ael-stat-card.orange .ael-stat-card-icon {
+  color: #b45309;
+}
+
+.ael-stat-card.purple svg,
+.ael-stat-card.purple .ael-stat-card-icon {
+  color: #7c3aed;
+}
+
+.ael-stat-card small {
+  color: #697687;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ael-stat-card strong {
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.ael-stat-card span {
+  color: #7a8694;
+  font-size: 11px;
+}
+
+/* ── Search Bar Card (matching profile inputs) ───────────────────────────── */
+.ael-controls-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: #fff;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(27, 45, 66, 0.05);
+}
+
+.ael-search-wrap {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 440px;
+}
+
+.ael-search-wrap svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #697687;
+  font-size: 12px;
+}
+
+.ael-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 30px;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #f5f7fa;
+  color: #172033;
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.ael-search-input:focus {
+  border-color: #0078d4;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.12);
+}
+
+.ael-counter-label {
+  color: #697687;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Table Card (matching .cc-profile-card) ──────────────────────────────── */
+.ael-table-card {
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(27, 45, 66, 0.07);
+  overflow: hidden;
+}
+
+.ael-table-wrap {
+  overflow-x: auto;
+}
+
+.ael-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.ael-table thead tr {
+  background: #f5f7fa;
+  border-bottom: 1px solid #d6dbe1;
+}
+
+.ael-table th {
+  padding: 11px 16px;
+  color: #697687;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ael-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #f0f2f4;
+  color: #172033;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.ael-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ael-table tbody tr:hover {
+  background: #f5f9fc;
+}
+
+/* ── Table Cell Details ──────────────────────────────────────────────────── */
+.ael-title-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ael-avatar-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: #e6f2fb;
+  color: #0078d4;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.ael-title-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #172033;
+  margin-bottom: 1px;
+}
+
+.ael-meta-text {
+  color: #697687;
+  font-size: 11px;
+}
+
+.ael-desc-text {
+  color: #465364;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 420px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Badges (matching profile pills: #e6f2fb / #005a9e) ──────────────────── */
+.ael-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ael-pill-questions {
+  background: #e6f2fb;
+  color: #005a9e;
+  border: 1px solid #b7d9f2;
+}
+
+.ael-pill-duration {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+/* ── Action Buttons Row (matching profile item buttons) ──────────────────── */
+.ael-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.ael-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #fff;
+  color: #465364;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ael-btn-sm:hover {
+  background: #f5f7fa;
+  border-color: #b7d9f2;
+  color: #172033;
+}
+
+.ael-btn-sm.edit {
+  color: #0078d4;
+  border-color: #b7d9f2;
+  background: #e6f2fb;
+}
+
+.ael-btn-sm.edit:hover {
+  background: #0078d4;
+  color: #fff !important;
+}
+
+.ael-btn-sm.analytics {
+  color: #7c3aed;
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
+
+.ael-btn-sm.analytics:hover {
+  background: #7c3aed;
+  color: #fff !important;
+}
+
+.ael-btn-sm.delete {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.ael-btn-sm.delete:hover {
+  background: #b91c1c;
+  color: #fff !important;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+.ael-empty-box {
+  padding: 36px 16px;
+  text-align: center;
+}
+
+.ael-empty-box svg {
+  color: #697687;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.ael-empty-title {
+  color: #172033;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ael-empty-sub {
+  color: #697687;
+  font-size: 12px;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.ael-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 2000;
+  padding: 12px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  animation: ael-toast-slide 0.2s ease;
+}
+
+@keyframes ael-toast-slide {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.ael-toast-success {
+  background: #15803d;
+  color: #fff;
+}
+
+.ael-toast-error {
+  background: #b91c1c;
+  color: #fff;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ael-shell {
+    margin-inline: -12px;
+    padding: 20px 12px 36px;
+  }
+  .ael-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ael-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ael-controls-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ael-search-wrap {
+    max-width: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK THEME SPEC (Exactly matches [data-theme="dark"] .cc-profile-shell)
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] .ael-shell {
+  background: var(--cc-background) !important;
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .ael-heading h1,
+[data-theme="dark"] .ael-stat-card strong,
+[data-theme="dark"] .ael-title-name,
+[data-theme="dark"] .ael-empty-title {
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .ael-heading p,
+[data-theme="dark"] .ael-stat-card small,
+[data-theme="dark"] .ael-stat-card span,
+[data-theme="dark"] .ael-meta-text,
+[data-theme="dark"] .ael-desc-text,
+[data-theme="dark"] .ael-counter-label,
+[data-theme="dark"] .ael-empty-sub {
+  color: var(--cc-muted) !important;
+}
+
+[data-theme="dark"] .ael-stat-card,
+[data-theme="dark"] .ael-controls-card,
+[data-theme="dark"] .ael-table-card {
+  background: var(--cc-surface) !important;
+  border-color: var(--cc-border) !important;
+  color: var(--cc-text) !important;
+  box-shadow: var(--cc-shadow-sm) !important;
+}
+
+[data-theme="dark"] .ael-search-input {
+  background: var(--cc-surface-muted) !important;
+  color: var(--cc-text) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .ael-search-input:focus {
+  background: var(--cc-surface) !important;
+  border-color: var(--cc-primary) !important;
+}
+
+[data-theme="dark"] .ael-table thead tr {
+  background: var(--cc-surface-muted) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .ael-table th {
+  color: var(--cc-muted) !important;
+}
+
+[data-theme="dark"] .ael-table td {
+  border-color: var(--cc-border) !important;
+  color: var(--cc-text) !important;
+}
+
+[data-theme="dark"] .ael-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] .ael-avatar-icon {
+  background: rgba(80, 181, 242, 0.15) !important;
+  color: var(--cc-primary) !important;
+}
+
+[data-theme="dark"] .ael-pill-questions {
+  background: rgba(80, 181, 242, 0.15) !important;
+  color: var(--cc-primary) !important;
+  border-color: rgba(80, 181, 242, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-pill-duration {
+  background: rgba(251, 191, 36, 0.15) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm {
+  background: var(--cc-surface-muted) !important;
+  color: var(--cc-text) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm:hover {
+  background: var(--cc-surface) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.edit {
+  background: rgba(80, 181, 242, 0.15) !important;
+  color: var(--cc-primary) !important;
+  border-color: rgba(80, 181, 242, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.edit:hover {
+  background: var(--cc-primary) !important;
+  color: #07111f !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.analytics {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.analytics:hover {
+  background: #8b5cf6 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.delete {
+  background: rgba(248, 113, 113, 0.15) !important;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-btn-sm.delete:hover {
+  background: #f87171 !important;
+  color: #07111f !important;
+}
+
+[data-theme="dark"] .ael-action-btn-ghost {
+  background: var(--cc-surface-muted) !important;
+  color: var(--cc-text) !important;
+  border-color: var(--cc-border) !important;
+}
+
+[data-theme="dark"] .ael-action-btn-excel {
+  background: rgba(74, 222, 128, 0.12) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+[data-theme="dark"] .ael-action-btn-excel:hover {
+  background: rgba(74, 222, 128, 0.2) !important;
+}

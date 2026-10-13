@@ -1,5 +1,6 @@
 import Exam from "../models/Exam.js";
 import Attempt from "../models/Attempt.js";
+import User from "../models/User.js";
 
 export const getAllExams = async (req, res) => {
   try {

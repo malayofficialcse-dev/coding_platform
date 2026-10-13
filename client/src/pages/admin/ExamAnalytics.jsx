@@ -12,8 +12,17 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
+import {
+  FaArrowLeft,
+  FaFileExcel,
+  FaUsers,
+  FaChartLine,
+  FaCheckCircle,
+  FaAward,
+  FaSpinner,
+} from "react-icons/fa";
 import { exportToExcel } from "../../utils/excelExport";
-import ExportExcelButton from "../../components/ExportExcelButton";
+import "./ExamAnalytics.css";
 
 ChartJS.register(
   Title,
@@ -121,16 +130,37 @@ export default function ExamAnalytics() {
     }
   };
 
-  if (loading) return <p className="text-center mt-5">Loading analytics...</p>;
-
-  if (!analytics)
+  if (loading) {
     return (
-      <div className="container mt-5">
-        <div className="alert alert-warning text-center">
-          No analytics data found for this exam.
+      <div className="exa-shell">
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <FaSpinner className="spin" size={24} style={{ color: "#0078d4", marginBottom: 12 }} />
+          <div style={{ fontWeight: 600 }}>Loading analytics…</div>
         </div>
       </div>
     );
+  }
+
+  if (!analytics) {
+    return (
+      <div className="exa-shell">
+        <div className="exa-heading">
+          <div>
+            <div className="exa-eyebrow">Assessments &amp; Testing</div>
+            <h1>Exam Analytics</h1>
+          </div>
+          <Link to="/admin/exams" className="exa-back-link">
+            <FaArrowLeft /> Back to All Exams
+          </Link>
+        </div>
+        <div className="exa-chart-card" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ fontWeight: 600, color: "#697687" }}>
+            No analytics data found for this assessment.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const scoreData = {
     labels: ["Average", "Highest", "Lowest"],
@@ -142,7 +172,8 @@ export default function ExamAnalytics() {
           Number(analytics.highestScore) || 0,
           Number(analytics.lowestScore) || 0,
         ],
-        backgroundColor: ["#36A2EB", "#4CAF50", "#FF6384"],
+        backgroundColor: ["#0078d4", "#15803d", "#b91c1c"],
+        borderRadius: 4,
       },
     ],
   };
@@ -151,105 +182,132 @@ export default function ExamAnalytics() {
     labels: ["Pass", "Fail"],
     datasets: [
       {
-        data: [analytics.passCount, analytics.failCount],
-        backgroundColor: ["#4CAF50", "#FF6384"],
+        data: [analytics.passCount || 0, analytics.failCount || 0],
+        backgroundColor: ["#15803d", "#b91c1c"],
       },
     ],
   };
 
   return (
-    <div className="container mt-4 mb-5">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div className="exa-shell">
+      {/* Header */}
+      <div className="exa-heading">
         <div>
-          <Link to="/admin/analytics" className="text-decoration-none small text-muted">
-            &larr; Back to All Analytics
+          <div className="exa-eyebrow">Assessments &amp; Performance</div>
+          <h1>{analytics.title}</h1>
+          <p>
+            Detailed performance breakdown, candidate distribution, and assessment outcome metrics.
+          </p>
+        </div>
+        <div className="exa-header-actions">
+          <Link to="/admin/exams" className="exa-back-link">
+            <FaArrowLeft /> Back to Exams
           </Link>
-          <h2 className="text-primary m-0 fw-bold">
-            {analytics.title} — Analytics
-          </h2>
-        </div>
-        <ExportExcelButton
-          onClick={handleExport}
-          loading={exporting}
-          label="Export Analytics to Excel"
-          title="Export analytics summary & student candidate attempts"
-        />
-      </div>
-
-      <div className="row g-4">
-        <div className="col-md-4">
-          <div className="card shadow-sm border-0 p-3 text-center">
-            <h5>Total Attempts</h5>
-            <h2 className="fw-bold text-primary">{analytics.totalAttempts}</h2>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm border-0 p-3 text-center">
-            <h5>Average Score</h5>
-            <h2 className="fw-bold text-info">{analytics.averageScore}</h2>
-            <div className="small text-muted">
-              Out of {analytics.totalQuestions} questions
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card shadow-sm border-0 p-3 text-center">
-            <h5>Pass Percentage</h5>
-            <h2 className="fw-bold text-success">{analytics.passPercentage}%</h2>
-            <div className="small text-muted">
-              Passing Marks: {analytics.passingMarks} / {analytics.totalQuestions}
-            </div>
-          </div>
+          <button
+            type="button"
+            className="ael-action-btn-excel"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              minHeight: 34,
+              padding: "0 14px",
+              border: "1px solid #b7e4c7",
+              borderRadius: 4,
+              background: "#e8f5ec",
+              color: "#166534",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            <FaFileExcel />
+            {exporting ? "Exporting…" : "Export to Excel"}
+          </button>
         </div>
       </div>
 
-      <div className="row mt-4 g-4">
-        <div className="col-md-6">
-          <div className="card shadow-sm border-0 p-3">
-            <h5 className="text-center mb-3">Score Distribution</h5>
-            <Bar data={scoreData} />
+      {/* KPI Stats Grid */}
+      <div className="exa-stat-grid">
+        <div className="exa-stat-card">
+          <span className="exa-stat-icon"><FaUsers /></span>
+          <small>Total Attempts</small>
+          <strong>{analytics.totalAttempts}</strong>
+          <span>Recorded submissions</span>
+        </div>
+
+        <div className="exa-stat-card purple">
+          <span className="exa-stat-icon"><FaChartLine /></span>
+          <small>Average Score</small>
+          <strong>
+            {analytics.averageScore} <span style={{ fontSize: 13, fontWeight: 500 }}>/ {analytics.totalQuestions}</span>
+          </strong>
+          <span>Across all candidates</span>
+        </div>
+
+        <div className="exa-stat-card green">
+          <span className="exa-stat-icon"><FaCheckCircle /></span>
+          <small>Pass Percentage</small>
+          <strong>{analytics.passPercentage}%</strong>
+          <span>Passing mark: {analytics.passingMarks}</span>
+        </div>
+
+        <div className="exa-stat-card orange">
+          <span className="exa-stat-icon"><FaAward /></span>
+          <small>High / Low</small>
+          <strong>
+            {analytics.highestScore} <span style={{ fontSize: 13, fontWeight: 500 }}>/ {analytics.lowestScore}</span>
+          </strong>
+          <span>Peak vs minimum</span>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="exa-charts-grid">
+        <div className="exa-chart-card">
+          <div className="exa-card-title">
+            <span>Score Distribution</span>
+            <span style={{ fontSize: 11, color: "#697687", fontWeight: 500 }}>Overview</span>
+          </div>
+          <div style={{ height: 260 }}>
+            <Bar data={scoreData} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
-        <div className="col-md-6">
-          <div className="card shadow-sm border-0 p-3">
-            <h5 className="text-center mb-3">Pass vs Fail</h5>
-            <div style={{ maxHeight: "260px" }} className="d-flex justify-content-center">
-              <Doughnut data={passFailData} />
-            </div>
-            <div className="text-center mt-3">
-              <span className="badge bg-success me-2 px-3 py-2">
-                Pass: {analytics.passCount}
-              </span>
-              <span className="badge bg-danger px-3 py-2">
-                Fail: {analytics.failCount}
-              </span>
-            </div>
+
+        <div className="exa-chart-card">
+          <div className="exa-card-title">
+            <span>Pass vs Fail Candidates</span>
+            <span style={{ fontSize: 11, color: "#697687", fontWeight: 500 }}>
+              {analytics.passCount} passed &bull; {analytics.failCount} failed
+            </span>
+          </div>
+          <div style={{ height: 260, display: "flex", justifyContent: "center" }}>
+            <Doughnut data={passFailData} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
       </div>
 
-      {/* Attempts Table if available */}
+      {/* Student Submissions Table Card */}
       {attempts.length > 0 && (
-        <div className="card shadow-sm border-0 mt-5 p-4">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="fw-bold m-0">Student Submissions ({attempts.length})</h5>
-            <ExportExcelButton
-              size="sm"
-              onClick={handleExport}
-              loading={exporting}
-              label="Export Results"
-            />
+        <div className="exa-table-card">
+          <div className="exa-table-header">
+            <h3>Candidate Submissions ({attempts.length})</h3>
+            <span style={{ fontSize: 11, color: "#697687", fontWeight: 600 }}>
+              Chronological log
+            </span>
           </div>
-          <div className="table-responsive">
-            <table className="table table-bordered table-hover align-middle mb-0">
-              <thead className="table-light">
+          <div className="exa-table-wrap">
+            <table className="exa-table">
+              <thead>
                 <tr>
                   <th>Student</th>
                   <th>Email</th>
                   <th>Score</th>
                   <th>Result</th>
                   <th>Warnings</th>
-                  <th>Date</th>
+                  <th>Submitted At</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,20 +315,22 @@ export default function ExamAnalytics() {
                   const isPass = att.score >= (analytics.passingMarks || 0);
                   return (
                     <tr key={att._id}>
-                      <td className="fw-semibold">{att.user?.name || att.user?.username || "N/A"}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {att.user?.name || att.user?.username || "N/A"}
+                      </td>
                       <td>{att.user?.email || "N/A"}</td>
                       <td>
-                        <span className="badge bg-primary">
+                        <span className="exa-badge-score">
                           {att.score} / {analytics.totalQuestions}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${isPass ? "bg-success" : "bg-danger"}`}>
+                        <span className={isPass ? "exa-badge-pass" : "exa-badge-fail"}>
                           {isPass ? "Pass" : "Fail"}
                         </span>
                       </td>
                       <td>{att.warningsCount || 0}</td>
-                      <td className="small text-muted">
+                      <td style={{ color: "#697687", fontSize: 12 }}>
                         {att.createdAt ? new Date(att.createdAt).toLocaleString() : "N/A"}
                       </td>
                     </tr>
