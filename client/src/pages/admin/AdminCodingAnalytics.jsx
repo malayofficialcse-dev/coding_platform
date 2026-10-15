@@ -95,7 +95,39 @@ export default function AdminCodingAnalytics() {
   const [selectedCollege,    setSelectedCollege]    = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedBatch,      setSelectedBatch]      = useState("");
+  const [startDate,          setStartDate]          = useState("");
+  const [endDate,            setEndDate]            = useState("");
+  const [datePreset,         setDatePreset]         = useState("all");
   const [comparisonMode,     setComparisonMode]     = useState("colleges"); // 'colleges' | 'batches' | 'departments'
+
+  // Quick date preset helper
+  const applyDatePreset = (preset) => {
+    setDatePreset(preset);
+    const today = new Date();
+    const toStr = today.toISOString().split("T")[0];
+
+    if (preset === "today") {
+      setStartDate(toStr);
+      setEndDate(toStr);
+    } else if (preset === "7days") {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 7);
+      setStartDate(past.toISOString().split("T")[0]);
+      setEndDate(toStr);
+    } else if (preset === "30days") {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 30);
+      setStartDate(past.toISOString().split("T")[0]);
+      setEndDate(toStr);
+    } else if (preset === "month") {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(firstDay.toISOString().split("T")[0]);
+      setEndDate(toStr);
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
 
   /* ── Fetch all data from backend ─────────────────────────── */
   useEffect(() => {
@@ -121,7 +153,7 @@ export default function AdminCodingAnalytics() {
     fetchAll();
   }, []);
 
-  /* ── Academic filtering for submissions ──────────────────── */
+  /* ── Academic & Date filtering for submissions ───────────── */
   const filteredSubmissions = useMemo(() => {
     return allSubmissions.filter((s) => {
       const uCollege = (s.user?.college || "").trim();
@@ -131,9 +163,21 @@ export default function AdminCodingAnalytics() {
       if (selectedCollege && uCollege.toLowerCase() !== selectedCollege.toLowerCase()) return false;
       if (selectedDepartment && uDegree.toLowerCase() !== selectedDepartment.toLowerCase()) return false;
       if (selectedBatch && uBatch !== selectedBatch) return false;
+
+      if (startDate) {
+        const from = new Date(startDate);
+        from.setHours(0, 0, 0, 0);
+        if (new Date(s.createdAt) < from) return false;
+      }
+      if (endDate) {
+        const to = new Date(endDate);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(s.createdAt) > to) return false;
+      }
+
       return true;
     });
-  }, [allSubmissions, selectedCollege, selectedDepartment, selectedBatch]);
+  }, [allSubmissions, selectedCollege, selectedDepartment, selectedBatch, startDate, endDate]);
 
   /* ── Academic filtering for leaderboard ──────────────────── */
   const filteredLeaderboardData = useMemo(() => {
@@ -493,7 +537,9 @@ export default function AdminCodingAnalytics() {
     }
   };
 
-  const hasActiveFilters = Boolean(selectedCollege || selectedDepartment || selectedBatch);
+  const hasActiveFilters = Boolean(
+    selectedCollege || selectedDepartment || selectedBatch || startDate || endDate
+  );
 
   /* ── Render ──────────────────────────────────────────────── */
   return (
@@ -536,9 +582,9 @@ export default function AdminCodingAnalytics() {
           <div className="aca-card aca-filter-card">
             <div className="aca-filter-header">
               <div className="aca-filter-title">
-                <FaFilter /> Academic Cohort Filters
+                <FaFilter /> Academic Cohort &amp; Date Filters
                 {hasActiveFilters && (
-                  <span className="aca-filter-badge-active">Active Cohort Filter</span>
+                  <span className="aca-filter-badge-active">Active Filters</span>
                 )}
               </div>
               {hasActiveFilters && (
@@ -549,6 +595,9 @@ export default function AdminCodingAnalytics() {
                     setSelectedCollege("");
                     setSelectedDepartment("");
                     setSelectedBatch("");
+                    setStartDate("");
+                    setEndDate("");
+                    setDatePreset("all");
                   }}
                 >
                   <FaUndo size={10} /> Reset Filters
@@ -610,6 +659,77 @@ export default function AdminCodingAnalytics() {
                   ))}
                 </select>
               </div>
+
+              {/* From Date Filter */}
+              <div className="aca-filter-group">
+                <label>
+                  <FaCalendarAlt /> From Date
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setDatePreset("custom");
+                  }}
+                />
+              </div>
+
+              {/* To Date Filter */}
+              <div className="aca-filter-group">
+                <label>
+                  <FaCalendarAlt /> To Date
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setDatePreset("custom");
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Date Presets Bar */}
+            <div className="aca-date-presets">
+              <span className="aca-preset-label">Date Presets:</span>
+              <button
+                type="button"
+                className={`aca-preset-btn ${datePreset === "today" ? "active" : ""}`}
+                onClick={() => applyDatePreset("today")}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={`aca-preset-btn ${datePreset === "7days" ? "active" : ""}`}
+                onClick={() => applyDatePreset("7days")}
+              >
+                Last 7 Days
+              </button>
+              <button
+                type="button"
+                className={`aca-preset-btn ${datePreset === "30days" ? "active" : ""}`}
+                onClick={() => applyDatePreset("30days")}
+              >
+                Last 30 Days
+              </button>
+              <button
+                type="button"
+                className={`aca-preset-btn ${datePreset === "month" ? "active" : ""}`}
+                onClick={() => applyDatePreset("month")}
+              >
+                This Month
+              </button>
+              <button
+                type="button"
+                className={`aca-preset-btn ${datePreset === "all" && !startDate && !endDate ? "active" : ""}`}
+                onClick={() => applyDatePreset("all")}
+              >
+                All Time
+              </button>
             </div>
 
             {/* Active Chips & Cohort Count */}
@@ -632,6 +752,21 @@ export default function AdminCodingAnalytics() {
                   <span className="aca-chip">
                     <FaCalendarAlt size={10} /> Batch {selectedBatch}
                     <button type="button" onClick={() => setSelectedBatch("")}>×</button>
+                  </span>
+                )}
+                {(startDate || endDate) && (
+                  <span className="aca-chip">
+                    <FaCalendarAlt size={10} /> Period: {startDate || "Start"} &rarr; {endDate || "Present"}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                        setDatePreset("all");
+                      }}
+                    >
+                      ×
+                    </button>
                   </span>
                 )}
                 <span className="aca-chip-count">

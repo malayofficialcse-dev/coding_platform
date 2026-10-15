@@ -6,11 +6,13 @@ import {
   updateExam,
   deleteExam,
   getExamAnalytics,
+  getOverallExamAnalytics,
 } from "../controllers/exam.controller.js";
 import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+router.get("/overview/analytics", getOverallExamAnalytics);
 router.get("/", getAllExams);
 router.get("/:id", getExamById);
 router.get("/:examId/analytics", getExamAnalytics);

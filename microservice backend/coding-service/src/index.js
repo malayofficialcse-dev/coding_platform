@@ -11,6 +11,9 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 dotenv.config();
 
+import "./models/User.js";
+import "./models/CodingProblem.js";
+import "./models/CodingSubmission.js";
 import codingRoutes from "./routes/coding.routes.js";
 import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";

@@ -206,8 +206,26 @@
 
 .aca-filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .aca-filter-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .aca-filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .aca-filter-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .aca-filter-group {
@@ -225,13 +243,17 @@
   color: #465364;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .aca-filter-group label svg {
   color: #0078d4;
 }
 
-.aca-filter-group select {
+.aca-filter-group select,
+.aca-filter-group input[type="date"] {
   width: 100%;
   min-height: 36px;
   padding: 0 10px;
@@ -242,13 +264,90 @@
   font-size: 12px;
   font-weight: 500;
   outline: none;
-  cursor: pointer;
+  font-family: inherit;
   transition: border-color 0.15s ease;
 }
 
-.aca-filter-group select:focus {
+.aca-filter-group select {
+  cursor: pointer;
+}
+
+.aca-filter-group select:focus,
+.aca-filter-group input[type="date"]:focus {
   border-color: #0078d4;
   box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.15);
+}
+
+/* ── Date Presets ── */
+.aca-date-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.aca-preset-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #697687;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+}
+
+.aca-preset-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #d6dbe1;
+  border-radius: 4px;
+  background: #fff;
+  color: #465364;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aca-preset-btn:hover {
+  background: #f0f7fd;
+  color: #0078d4;
+  border-color: #b7d9f2;
+}
+
+.aca-preset-btn.active {
+  background: #0078d4;
+  color: #ffffff;
+  border-color: #0078d4;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .aca-filter-group input[type="date"] {
+  background: #111a2e;
+  border-color: #2b3952;
+  color: #f1f5f9;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] .aca-preset-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .aca-preset-btn {
+  background: #111a2e;
+  border-color: #2b3952;
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .aca-preset-btn:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: #38bdf8;
+}
+
+[data-theme="dark"] .aca-preset-btn.active {
+  background: #0078d4;
+  color: #ffffff;
+  border-color: #38bdf8;
 }
 
 .aca-active-chips {

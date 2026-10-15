@@ -9,6 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config();
 
+import "./models/User.js";
+import "./models/Exam.js";
+import "./models/Attempt.js";
 import examRoutes from "./routes/exam.routes.js";
 import attemptRoutes from "./routes/attempt.routes.js";
 import { connectDB } from "./config/db.js";
