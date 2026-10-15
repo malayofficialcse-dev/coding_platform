@@ -22,15 +22,6 @@ import ProfileIcon from "../assets/user-solid-full.svg";
 import CodeCampus from "../assets/image1.jpeg";
 import { useTheme } from "../contexts/ThemeContext";
 
-const navItems = [
-  { to: "/", label: "Home", icon: FaHome, iconOnly: true },
-  { to: "/courses", label: "Courses", icon: FaBookOpen },
-  { to: "/exams", label: "Exams", icon: FaFlask },
-  { to: "/coding", label: "Coding Problems", icon: FaCode },
-  { to: "/about", label: "About", icon: FaInfoCircle },
-  { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
-];
-
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useContext(AuthContext);
@@ -39,6 +30,92 @@ export default function Header() {
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState([]);
   const navigate = useNavigate();
+
+  // Role and Permission based Navigation Visibility
+  const visibleNavItems = React.useMemo(() => {
+    // 1. Guest / Unauthenticated users: public views
+    if (!user) {
+      return [
+        { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+        { to: "/courses", label: "Courses", icon: FaBookOpen },
+        { to: "/about", label: "About", icon: FaInfoCircle },
+      ];
+    }
+
+    const role = user.role;
+
+    // 2. Super Admin & Admin: unrestricted full access
+    if (role === "super_admin" || role === "admin") {
+      return [
+        { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+        { to: "/courses", label: "Courses", icon: FaBookOpen },
+        { to: "/exams", label: "Exams", icon: FaFlask },
+        { to: "/coding", label: "Coding Problems", icon: FaCode },
+        { to: "/about", label: "About", icon: FaInfoCircle },
+        { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
+      ];
+    }
+
+    // 3. Students, Teachers & Standard Users: standard learner views
+    if (role === "student" || role === "user" || role === "teacher") {
+      return [
+        { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+        { to: "/courses", label: "Courses", icon: FaBookOpen },
+        { to: "/exams", label: "Exams", icon: FaFlask },
+        { to: "/coding", label: "Coding Problems", icon: FaCode },
+        { to: "/about", label: "About", icon: FaInfoCircle },
+        { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
+      ];
+    }
+
+    // 4. Coordinators (course_coordinator, exam_coordinator, feed_coordinator):
+    // Strict Role & Permission-based Access!
+    // A coordinator only sees their assigned core module, normal dashboard, and profile.
+    // They CANNOT see other module options on the header UNLESS explicit permission is granted!
+    const items = [
+      { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+    ];
+
+    // Courses module: Visible for course_coordinator OR if courses.view is granted
+    const canSeeCourses =
+      role === "course_coordinator" ||
+      user.permissions?.courses?.view === true ||
+      user.permissions?.courses?.create === true;
+    if (canSeeCourses) {
+      items.push({ to: "/courses", label: "Courses", icon: FaBookOpen });
+    }
+
+    // Exams module: Visible for exam_coordinator OR if exams.view is explicitly granted
+    const canSeeExams =
+      role === "exam_coordinator" ||
+      user.permissions?.exams?.view === true ||
+      user.permissions?.exams?.create === true;
+    if (canSeeExams) {
+      items.push({ to: "/exams", label: "Exams", icon: FaFlask });
+    }
+
+    // Coding module: Visible ONLY if coding.view is explicitly granted
+    const canSeeCoding =
+      user.permissions?.coding?.view === true ||
+      user.permissions?.coding?.create === true;
+    if (canSeeCoding) {
+      items.push({ to: "/coding", label: "Coding Problems", icon: FaCode });
+    }
+
+    // About page: General platform information
+    items.push({ to: "/about", label: "About", icon: FaInfoCircle });
+
+    // Messages: Visible for feed_coordinator OR if feed.view is granted
+    const canSeeMessages =
+      role === "feed_coordinator" ||
+      user.permissions?.feed?.view === true ||
+      user.permissions?.feed?.create === true;
+    if (canSeeMessages) {
+      items.push({ to: "/messages", label: "Messages", icon: FaComments, iconOnly: true });
+    }
+
+    return items;
+  }, [user]);
 
   useEffect(() => {
     api.get("/users").then((res) => setUsers(res.data || []));
@@ -100,7 +177,7 @@ export default function Header() {
       </Link>
 
       <nav className="d-none d-lg-flex" style={{ alignItems: "center", gap: 24, flexGrow: 1 }}>
-        {navItems.map(({ to, label, icon: Icon, iconOnly }) => (
+        {visibleNavItems.map(({ to, label, icon: Icon, iconOnly }) => (
           <NavLink
             key={to}
             to={to}
@@ -284,7 +361,7 @@ export default function Header() {
               <FaTimes />
             </button>
             <div style={{ clear: "both", paddingTop: 18 }}>
-              {navItems.map(({ to, label, icon: Icon }) => (
+              {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}

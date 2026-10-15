@@ -5,11 +5,11 @@ import User from "../models/User.js";
 const generateToken = (user) => {
   return jwt.sign(
     {
-      userId:      user._id,
-      id:          user._id,
-      email:       user.email,
-      role:        user.role,
-      name:        user.name,
+      userId: user._id,
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
       permissions: user.permissions || {},
     },
     process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74",
@@ -19,59 +19,62 @@ const generateToken = (user) => {
 
 const DEFAULT_PERMISSIONS = {
   admin: {
-    exams:     { create: true,  edit: true,  delete: true,  view: true },
-    courses:   { create: true,  edit: true,  delete: true,  view: true },
-    feed:      { create: true,  edit: true,  delete: true,  view: true },
-    coding:    { create: true,  edit: true,  delete: true,  view: true },
-    users:     { create: true,  edit: true,  delete: true,  view: true },
-    analytics: { create: true,  edit: true,  delete: true,  view: true },
+    exams: { create: true, edit: true, delete: true, view: true },
+    courses: { create: true, edit: true, delete: true, view: true },
+    feed: { create: true, edit: true, delete: true, view: true },
+    coding: { create: true, edit: true, delete: true, view: true },
+    users: { create: true, edit: true, delete: true, view: true },
+    analytics: { create: true, edit: true, delete: true, view: true },
   },
   exam_coordinator: {
-    exams:     { create: true,  edit: true,  delete: true,  view: true },
-    courses:   { create: false, edit: false, delete: false, view: true },
-    feed:      { create: false, edit: false, delete: false, view: true },
-    coding:    { create: false, edit: false, delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
-    analytics: { create: false, edit: false, delete: false, view: true },
+    exams: { create: true, edit: true, delete: true, view: true },
+    courses: {
+      create: false, edit: false, delete:
+        false, view: false
+    },
+    feed: { create: false, edit: false, delete: false, view: false },
+    coding: { create: false, edit: false, delete: false, view: false },
+    users: { create: false, edit: false, delete: false, view: false },
+    analytics: { create: false, edit: false, delete: false, view: false },
   },
   course_coordinator: {
-    exams:     { create: false, edit: false, delete: false, view: true },
-    courses:   { create: true,  edit: true,  delete: true,  view: true },
-    feed:      { create: false, edit: false, delete: false, view: true },
-    coding:    { create: false, edit: false, delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
-    analytics: { create: false, edit: false, delete: false, view: true },
+    exams: { create: false, edit: false, delete: false, view: false },
+    courses: { create: true, edit: true, delete: true, view: true },
+    feed: { create: false, edit: false, delete: false, view: false },
+    coding: { create: false, edit: false, delete: false, view: false },
+    users: { create: false, edit: false, delete: false, view: false },
+    analytics: { create: false, edit: false, delete: false, view: false },
   },
   feed_coordinator: {
-    exams:     { create: false, edit: false, delete: false, view: true },
-    courses:   { create: false, edit: false, delete: false, view: true },
-    feed:      { create: true,  edit: true,  delete: true,  view: true },
-    coding:    { create: false, edit: false, delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
-    analytics: { create: false, edit: false, delete: false, view: true },
+    exams: { create: false, edit: false, delete: false, view: false },
+    courses: { create: false, edit: false, delete: false, view: false },
+    feed: { create: true, edit: true, delete: true, view: true },
+    coding: { create: false, edit: false, delete: false, view: false },
+    users: { create: false, edit: false, delete: false, view: false },
+    analytics: { create: false, edit: false, delete: false, view: false },
   },
   teacher: {
-    exams:     { create: true,  edit: true,  delete: false, view: true },
-    courses:   { create: true,  edit: true,  delete: false, view: true },
-    feed:      { create: true,  edit: false, delete: false, view: true },
-    coding:    { create: true,  edit: true,  delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
+    exams: { create: true, edit: true, delete: false, view: true },
+    courses: { create: true, edit: true, delete: false, view: true },
+    feed: { create: true, edit: false, delete: false, view: true },
+    coding: { create: true, edit: true, delete: false, view: true },
+    users: { create: false, edit: false, delete: false, view: true },
     analytics: { create: false, edit: false, delete: false, view: true },
   },
   student: {
-    exams:     { create: false, edit: false, delete: false, view: true },
-    courses:   { create: false, edit: false, delete: false, view: true },
-    feed:      { create: true,  edit: false, delete: false, view: true },
-    coding:    { create: false, edit: false, delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
+    exams: { create: false, edit: false, delete: false, view: true },
+    courses: { create: false, edit: false, delete: false, view: true },
+    feed: { create: true, edit: false, delete: false, view: true },
+    coding: { create: false, edit: false, delete: false, view: true },
+    users: { create: false, edit: false, delete: false, view: true },
     analytics: { create: false, edit: false, delete: false, view: false },
   },
   user: {
-    exams:     { create: false, edit: false, delete: false, view: true },
-    courses:   { create: false, edit: false, delete: false, view: true },
-    feed:      { create: true,  edit: false, delete: false, view: true },
-    coding:    { create: false, edit: false, delete: false, view: true },
-    users:     { create: false, edit: false, delete: false, view: true },
+    exams: { create: false, edit: false, delete: false, view: true },
+    courses: { create: false, edit: false, delete: false, view: true },
+    feed: { create: true, edit: false, delete: false, view: true },
+    coding: { create: false, edit: false, delete: false, view: true },
+    users: { create: false, edit: false, delete: false, view: true },
     analytics: { create: false, edit: false, delete: false, view: false },
   },
 };
@@ -79,7 +82,7 @@ const DEFAULT_PERMISSIONS = {
 export const register = async (req, res) => {
   try {
     const { name, email, password, role, college, degree, yearOfPassing, username } = req.body;
-    
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required." });
     }
@@ -112,17 +115,17 @@ export const register = async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id:          user._id,
-        _id:         user._id,
-        name:        user.name,
-        username:    user.username,
-        email:       user.email,
-        role:        user.role,
-        college:     user.college,
-        degree:      user.degree,
-        profileImage:user.profileImage,
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        college: user.college,
+        degree: user.degree,
+        profileImage: user.profileImage,
         permissions: user.permissions || {},
-        isActive:    user.isActive,
+        isActive: user.isActive,
       },
     });
   } catch (err) {
@@ -157,17 +160,17 @@ export const login = async (req, res) => {
     res.json({
       token,
       user: {
-        id:          user._id,
-        _id:         user._id,
-        name:        user.name,
-        username:    user.username,
-        email:       user.email,
-        role:        user.role,
-        college:     user.college,
-        degree:      user.degree,
-        profileImage:user.profileImage,
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        college: user.college,
+        degree: user.degree,
+        profileImage: user.profileImage,
         permissions: user.permissions || {},
-        isActive:    user.isActive,
+        isActive: user.isActive,
       },
     });
   } catch (err) {

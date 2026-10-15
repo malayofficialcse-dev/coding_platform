@@ -83,17 +83,17 @@ function App() {
               <Route path="/profile/:id"   element={<PostToProfile />} />
               <Route path="/my-attempts"   element={<PrivateRoute><MyAttempts /></PrivateRoute>} />
               <Route path="/messages"      element={<PrivateRoute><ChatPage /></PrivateRoute>} />
-              <Route path="/courses"       element={<CourseList />} />
-              <Route path="/courses/:id"   element={<CourseDetail />} />
-              <Route path="/enroll/:id"    element={<EnrollCourse />} />
-              <Route path="/coding"        element={<PrivateRoute><CodingProblems /></PrivateRoute>} />
-              <Route path="/coding/problems/:id" element={<PrivateRoute><SolveProblem /></PrivateRoute>} />
-              <Route path="/coding/analytics"    element={<PrivateRoute><CodingAnalytics /></PrivateRoute>} />
+              <Route path="/courses"       element={<PrivateRoute moduleAccess="courses"><CourseList /></PrivateRoute>} />
+              <Route path="/courses/:id"   element={<PrivateRoute moduleAccess="courses"><CourseDetail /></PrivateRoute>} />
+              <Route path="/enroll/:id"    element={<PrivateRoute moduleAccess="courses"><EnrollCourse /></PrivateRoute>} />
+              <Route path="/coding"        element={<PrivateRoute moduleAccess="coding"><CodingProblems /></PrivateRoute>} />
+              <Route path="/coding/problems/:id" element={<PrivateRoute moduleAccess="coding"><SolveProblem /></PrivateRoute>} />
+              <Route path="/coding/analytics"    element={<PrivateRoute moduleAccess="coding"><CodingAnalytics /></PrivateRoute>} />
 
-              {/* ── Exams (all authenticated users can view) ── */}
-              <Route path="/exams"         element={<PrivateRoute><ExamList /></PrivateRoute>} />
-              <Route path="/take/:id"      element={<PrivateRoute><TakeExam /></PrivateRoute>} />
-              <Route path="/result/:attemptId" element={<PrivateRoute><Result /></PrivateRoute>} />
+              {/* ── Exams ── */}
+              <Route path="/exams"         element={<PrivateRoute moduleAccess="exams"><ExamList /></PrivateRoute>} />
+              <Route path="/take/:id"      element={<PrivateRoute moduleAccess="exams"><TakeExam /></PrivateRoute>} />
+              <Route path="/result/:attemptId" element={<PrivateRoute moduleAccess="exams"><Result /></PrivateRoute>} />
 
               {/* ── Coordinator Dashboards ── */}
               <Route
