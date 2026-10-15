@@ -15,6 +15,7 @@ import {
   getAllStudentsCodingStats,
   getAllSubmissions,
   getOverallCodingAnalytics,
+  getAcademicCodingAnalytics,
 } from "../controllers/codingSubmission.controller.js";
 import { protect, requireAdmin, optionalAuth, requirePermission } from "../middleware/auth.middleware.js";
 
@@ -39,6 +40,7 @@ router.post("/submit/:id", protect, submitCode);
 // Submission History & Analytics
 router.get("/submissions/my", protect, getMySubmissions);
 router.get("/submissions/leaderboard", protect, getAllStudentsCodingStats);
+router.get("/submissions/academic-analytics", protect, getAcademicCodingAnalytics);
 router.get("/submissions/overall", protect, getOverallCodingAnalytics);
 router.get("/submissions/all", protect, getAllSubmissions);
 router.get("/submissions/user/:userId", protect, getUserSubmissions);

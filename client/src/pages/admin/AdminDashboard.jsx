@@ -160,9 +160,17 @@ export default function AdminDashboard() {
               >
                 Control All Posts
               </Link>
+              <Link
+                to="/admin/coding-analytics"
+                className="btn btn-lg w-100"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", fontWeight: 700 }}
+              >
+                📊 Coding Analytics
+              </Link>
             </div>
           </div>
         </div>
+
       </div>
 
       {/* List of Exams */}

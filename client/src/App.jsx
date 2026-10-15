@@ -32,6 +32,7 @@ const AdminPostControl    = lazy(() => import("./pages/admin/AdminPostControl"))
 const AdminCodingProblems = lazy(() =>
   import("./pages/admin/AdminCodingProblems").then(m => ({ default: m.AdminCodingProblems }))
 );
+const AdminCodingAnalytics = lazy(() => import("./pages/admin/AdminCodingAnalytics"));
 
 // ── Coordinator Dashboards ───────────────────────────────────────────────────
 const CoordinatorDashboard = lazy(() => import("./pages/admin/CoordinatorDashboard"));
@@ -136,6 +137,7 @@ function App() {
 
               {/* ── Coding Problems ── */}
               <Route path="/admin/coding-problems" element={<PrivateRoute adminOnly><AdminCodingProblems /></PrivateRoute>} />
+              <Route path="/admin/coding-analytics" element={<PrivateRoute adminOnly><AdminCodingAnalytics /></PrivateRoute>} />
 
               {/* ── User Lists ── */}
               <Route path="/admin/students" element={<PrivateRoute adminOnly><UserList type="student" /></PrivateRoute>} />

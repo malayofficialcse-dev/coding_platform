@@ -5,6 +5,7 @@ import os from "os";
 import path from "path";
 import CodingSubmission from "../models/CodingSubmission.js";
 import CodingProblem from "../models/CodingProblem.js";
+import User from "../models/User.js";
 import { checkPlagiarism } from "../utils/plagiarism.js";
 
 const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
@@ -520,7 +521,13 @@ export const getUserSubmissions = async (req, res) => {
 
 export const getAllStudentsCodingStats = async (req, res) => {
   try {
-    const stats = await CodingSubmission.aggregate([
+    const { college, degree, yearOfPassing } = req.query;
+    const matchUser = {};
+    if (college) matchUser["userInfo.college"] = college;
+    if (degree) matchUser["userInfo.degree"] = degree;
+    if (yearOfPassing) matchUser["userInfo.yearOfPassing"] = yearOfPassing;
+
+    const pipeline = [
       {
         $lookup: {
           from: "users",
@@ -530,6 +537,13 @@ export const getAllStudentsCodingStats = async (req, res) => {
         }
       },
       { $unwind: "$userInfo" },
+    ];
+
+    if (Object.keys(matchUser).length > 0) {
+      pipeline.push({ $match: matchUser });
+    }
+
+    pipeline.push(
       {
         $lookup: {
           from: "codingproblems",
@@ -550,6 +564,9 @@ export const getAllStudentsCodingStats = async (req, res) => {
           name: { $first: "$userInfo.name" },
           email: { $first: "$userInfo.email" },
           avatar: { $first: "$userInfo.avatar" },
+          college: { $first: "$userInfo.college" },
+          degree: { $first: "$userInfo.degree" },
+          yearOfPassing: { $first: "$userInfo.yearOfPassing" },
           totalSubmissions: { $sum: 1 },
           acceptedCount: {
             $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
@@ -614,7 +631,9 @@ export const getAllStudentsCodingStats = async (req, res) => {
         }
       },
       { $sort: { acceptedCount: -1 } }
-    ]);
+    );
+
+    const stats = await CodingSubmission.aggregate(pipeline);
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -624,12 +643,284 @@ export const getAllStudentsCodingStats = async (req, res) => {
 export const getAllSubmissions = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 2000, 5000);
-    const submissions = await CodingSubmission.find()
-      .populate("user", "name email username")
+    const { college, degree, yearOfPassing } = req.query;
+
+    let userFilter = null;
+    if (college || degree || yearOfPassing) {
+      const uQuery = {};
+      if (college) uQuery.college = college;
+      if (degree) uQuery.degree = degree;
+      if (yearOfPassing) uQuery.yearOfPassing = yearOfPassing;
+      const matchedUsers = await User.find(uQuery, "_id");
+      userFilter = matchedUsers.map(u => u._id);
+    }
+
+    const filter = {};
+    if (userFilter) {
+      filter.user = { $in: userFilter };
+    }
+
+    const submissions = await CodingSubmission.find(filter)
+      .populate("user", "name email username college degree yearOfPassing")
       .populate("problem", "title difficulty dsaTopic")
       .sort({ createdAt: -1 })
       .limit(limit);
     res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getAcademicCodingAnalytics = async (req, res) => {
+  try {
+    // 1. Get distinct academic fields (colleges, departments/degrees, graduating batches)
+    const userAggregate = await CodingSubmission.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $group: {
+          _id: null,
+          colleges: { $addToSet: "$userInfo.college" },
+          departments: { $addToSet: "$userInfo.degree" },
+          batches: { $addToSet: "$userInfo.yearOfPassing" }
+        }
+      }
+    ]);
+
+    const colleges = (userAggregate[0]?.colleges || [])
+      .map(c => (c || "").trim())
+      .filter(Boolean);
+    const uniqueColleges = [...new Set(colleges)].sort();
+
+    const departments = (userAggregate[0]?.departments || [])
+      .map(d => (d || "").trim())
+      .filter(Boolean);
+    const uniqueDepartments = [...new Set(departments)].sort();
+
+    const batches = (userAggregate[0]?.batches || [])
+      .map(b => (b || "").trim())
+      .filter(Boolean);
+    const uniqueBatches = [...new Set(batches)].sort();
+
+    // 2. Aggregate comparison by College
+    const collegeStats = await CodingSubmission.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $match: {
+          "userInfo.college": { $exists: true, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: { $trim: { input: "$userInfo.college" } },
+          totalSubmissions: { $sum: 1 },
+          acceptedSubmissions: {
+            $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
+          },
+          students: { $addToSet: "$user" },
+          solvers: {
+            $addToSet: {
+              $cond: [{ $eq: ["$result", "Accepted"] }, "$user", null]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          college: "$_id",
+          totalSubmissions: 1,
+          acceptedSubmissions: 1,
+          totalStudents: { $size: "$students" },
+          uniqueSolvers: {
+            $size: {
+              $filter: {
+                input: "$solvers",
+                as: "s",
+                cond: { $ne: ["$$s", null] }
+              }
+            }
+          },
+          acceptanceRate: {
+            $cond: [
+              { $gt: ["$totalSubmissions", 0] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      { $divide: ["$acceptedSubmissions", "$totalSubmissions"] },
+                      100
+                    ]
+                  },
+                  1
+                ]
+              },
+              0
+            ]
+          }
+        }
+      },
+      { $sort: { acceptedSubmissions: -1 } }
+    ]);
+
+    // 3. Aggregate comparison by Batch (year of passing)
+    const batchStats = await CodingSubmission.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $match: {
+          "userInfo.yearOfPassing": { $exists: true, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: { $trim: { input: "$userInfo.yearOfPassing" } },
+          totalSubmissions: { $sum: 1 },
+          acceptedSubmissions: {
+            $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
+          },
+          students: { $addToSet: "$user" },
+          solvers: {
+            $addToSet: {
+              $cond: [{ $eq: ["$result", "Accepted"] }, "$user", null]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          batch: "$_id",
+          totalSubmissions: 1,
+          acceptedSubmissions: 1,
+          totalStudents: { $size: "$students" },
+          uniqueSolvers: {
+            $size: {
+              $filter: {
+                input: "$solvers",
+                as: "s",
+                cond: { $ne: ["$$s", null] }
+              }
+            }
+          },
+          acceptanceRate: {
+            $cond: [
+              { $gt: ["$totalSubmissions", 0] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      { $divide: ["$acceptedSubmissions", "$totalSubmissions"] },
+                      100
+                    ]
+                  },
+                  1
+                ]
+              },
+              0
+            ]
+          }
+        }
+      },
+      { $sort: { batch: 1 } }
+    ]);
+
+    // 4. Aggregate comparison by Department (degree)
+    const departmentStats = await CodingSubmission.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      { $unwind: "$userInfo" },
+      {
+        $match: {
+          "userInfo.degree": { $exists: true, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: { $trim: { input: "$userInfo.degree" } },
+          totalSubmissions: { $sum: 1 },
+          acceptedSubmissions: {
+            $sum: { $cond: [{ $eq: ["$result", "Accepted"] }, 1, 0] }
+          },
+          students: { $addToSet: "$user" },
+          solvers: {
+            $addToSet: {
+              $cond: [{ $eq: ["$result", "Accepted"] }, "$user", null]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          department: "$_id",
+          totalSubmissions: 1,
+          acceptedSubmissions: 1,
+          totalStudents: { $size: "$students" },
+          uniqueSolvers: {
+            $size: {
+              $filter: {
+                input: "$solvers",
+                as: "s",
+                cond: { $ne: ["$$s", null] }
+              }
+            }
+          },
+          acceptanceRate: {
+            $cond: [
+              { $gt: ["$totalSubmissions", 0] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      { $divide: ["$acceptedSubmissions", "$totalSubmissions"] },
+                      100
+                    ]
+                  },
+                  1
+                ]
+              },
+              0
+            ]
+          }
+        }
+      },
+      { $sort: { acceptedSubmissions: -1 } }
+    ]);
+
+    res.json({
+      colleges: uniqueColleges,
+      departments: uniqueDepartments,
+      batches: uniqueBatches,
+      collegeStats,
+      batchStats,
+      departmentStats
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
