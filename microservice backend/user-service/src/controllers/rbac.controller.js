@@ -1,13 +1,9 @@
-/**
- * Super-Admin RBAC Controller
- * All endpoints here require the caller to have role === "super_admin".
- */
 import bcrypt from "bcryptjs";
-import User from "../models/User.js";
+import User, { Op } from "../models/User.js";
+import { sequelize } from "../config/db.js";
 
 const MODULES = ["exams", "courses", "feed", "coding", "users", "analytics"];
 
-// Default permissions per role
 const DEFAULT_PERMISSIONS = {
   admin: {
     exams:     { create: true,  edit: true,  delete: true,  view: true },
@@ -67,46 +63,49 @@ const DEFAULT_PERMISSIONS = {
   },
 };
 
-/**
- * GET /api/admin/rbac/users
- * List all managed users (not super_admins)
- */
 export const listManagedUsers = async (req, res) => {
   try {
-    const page  = parseInt(req.query.page)  || 1;
+    const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || "";
     const roleFilter = req.query.role || "";
 
-    const query = { role: { $ne: "super_admin" } };
+    const where = {
+      role: { [Op.ne]: "super_admin" },
+    };
+
     if (search) {
-      query.$or = [
-        { name:     { $regex: search, $options: "i" } },
-        { email:    { $regex: search, $options: "i" } },
-        { username: { $regex: search, $options: "i" } },
+      const searchPattern = `%${search}%`;
+      where[Op.or] = [
+        { name: { [Op.iLike]: searchPattern } },
+        { email: { [Op.iLike]: searchPattern } },
+        { username: { [Op.iLike]: searchPattern } },
       ];
     }
-    if (roleFilter) query.role = roleFilter;
 
-    const [users, total] = await Promise.all([
-      User.find(query)
-          .select("-password")
-          .sort({ createdAt: -1 })
-          .skip((page - 1) * limit)
-          .limit(limit),
-      User.countDocuments(query),
-    ]);
+    if (roleFilter) {
+      where.role = roleFilter;
+    }
 
-    res.json({ users, total, page, pages: Math.ceil(total / limit) });
+    const { count: total, rows: users } = await User.findAndCountAll({
+      where,
+      attributes: { exclude: ["password"] },
+      order: [["createdAt", "DESC"]],
+      offset: (page - 1) * limit,
+      limit,
+    });
+
+    res.json({
+      users: users.map((u) => u.toObject()),
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * POST /api/admin/rbac/users
- * Create a new user (by super admin)
- */
 export const createManagedUser = async (req, res) => {
   try {
     const { name, email, password, role, college, degree, yearOfPassing, permissions } = req.body;
@@ -118,108 +117,98 @@ export const createManagedUser = async (req, res) => {
       return res.status(400).json({ message: "Cannot create another super_admin via this endpoint." });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ where: { email: cleanEmail } });
     if (existing) return res.status(400).json({ message: "User already exists." });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const defaultPerms   = DEFAULT_PERMISSIONS[role] || DEFAULT_PERMISSIONS.student;
-    const finalPerms     = permissions || defaultPerms;
+    const defaultPerms = DEFAULT_PERMISSIONS[role] || DEFAULT_PERMISSIONS.student;
+    const finalPerms = permissions || defaultPerms;
 
-    const user = new User({
+    const user = await User.create({
       name,
-      username:      email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
-      email:         email.toLowerCase(),
-      password:      hashedPassword,
-      role:          role || "student",
-      college:       college || "",
-      degree:        degree  || "",
+      username: cleanEmail.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
+      email: cleanEmail,
+      password: hashedPassword,
+      role: role || "student",
+      college: college || "",
+      degree: degree || "",
       yearOfPassing: yearOfPassing || "",
-      createdBy:     req.user._id || req.user.id,
-      permissions:   finalPerms,
+      createdBy: req.user?._id || req.user?.id || null,
+      permissions: finalPerms,
     });
 
-    await user.save();
-
-    const { password: _pw, ...safeUser } = user.toObject();
+    const safeUser = user.toObject();
+    delete safeUser.password;
     res.status(201).json({ message: "User created successfully.", user: safeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * GET /api/admin/rbac/users/:id
- */
 export const getManagedUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findByPk(req.params.id, {
+      attributes: { exclude: ["password"] },
+    });
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
+    res.json(user.toObject());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * PUT /api/admin/rbac/users/:id
- * Update role, profile, and/or permissions
- */
 export const updateManagedUser = async (req, res) => {
   try {
     const { role, permissions, isActive, name, email, college, degree, yearOfPassing, password } = req.body;
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot modify a super_admin." });
     }
 
-    if (role)                  user.role          = role;
-    if (name)                  user.name          = name;
-    if (email)                 user.email         = email.toLowerCase();
-    if (college !== undefined) user.college       = college;
-    if (degree  !== undefined) user.degree        = degree;
+    if (role) user.role = role;
+    if (name) user.name = name;
+    if (email) user.email = email.toLowerCase();
+    if (college !== undefined) user.college = college;
+    if (degree !== undefined) user.degree = degree;
     if (yearOfPassing !== undefined) user.yearOfPassing = yearOfPassing;
-    if (isActive !== undefined) user.isActive     = isActive;
+    if (isActive !== undefined) user.isActive = isActive;
 
     if (password && password.trim()) {
       user.password = await bcrypt.hash(password.trim(), 10);
     }
 
-    if (!user.permissions) user.permissions = {};
+    const currentPerms = { ...(user.permissions || {}) };
 
-    // Apply permissions if provided
     if (permissions) {
       for (const mod of MODULES) {
         if (permissions[mod]) {
-          user.permissions[mod] = {
-            view:   !!permissions[mod].view,
+          currentPerms[mod] = {
+            view: !!permissions[mod].view,
             create: !!permissions[mod].create,
-            edit:   !!permissions[mod].edit,
+            edit: !!permissions[mod].edit,
             delete: !!permissions[mod].delete,
           };
         }
       }
-      user.markModified("permissions");
+      user.permissions = currentPerms;
     } else if (role && DEFAULT_PERMISSIONS[role]) {
-      // Auto-apply defaults when role changes and no explicit permissions given
       user.permissions = DEFAULT_PERMISSIONS[role];
-      user.markModified("permissions");
     }
 
     await user.save();
-    const { password: _pw, ...safeUser } = user.toObject();
+    const safeUser = user.toObject();
+    delete safeUser.password;
     res.json({ message: "User updated successfully.", user: safeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * DELETE /api/admin/rbac/users/:id  (soft deactivate)
- */
 export const deactivateManagedUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot deactivate a super_admin." });
@@ -232,50 +221,43 @@ export const deactivateManagedUser = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/admin/rbac/users/:id/permanent (hard delete)
- */
 export const deleteUserPermanently = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot delete a super_admin." });
     }
-    await User.findByIdAndDelete(req.params.id);
+    await User.destroy({ where: { id: req.params.id } });
     res.json({ message: "User permanently deleted." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * PATCH /api/admin/rbac/users/:id/permissions
- * Fine-grained permission update
- */
 export const updateUserPermissions = async (req, res) => {
   try {
     const { permissions } = req.body;
-    const user = await User.findById(req.params.id);
+    const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot modify super_admin permissions." });
     }
 
-    if (!user.permissions) user.permissions = {};
+    const currentPerms = { ...(user.permissions || {}) };
 
     if (permissions) {
       for (const mod of MODULES) {
         if (permissions[mod]) {
-          user.permissions[mod] = {
-            view:   !!permissions[mod].view,
+          currentPerms[mod] = {
+            view: !!permissions[mod].view,
             create: !!permissions[mod].create,
-            edit:   !!permissions[mod].edit,
+            edit: !!permissions[mod].edit,
             delete: !!permissions[mod].delete,
           };
         }
       }
-      user.markModified("permissions");
+      user.permissions = currentPerms;
       await user.save();
       return res.json({ message: "Permissions updated successfully.", permissions: user.permissions });
     }
@@ -284,14 +266,14 @@ export const updateUserPermissions = async (req, res) => {
     if (!MODULES.includes(mod)) {
       return res.status(400).json({ error: `Unknown module: ${mod}` });
     }
-    if (!user.permissions[mod]) user.permissions[mod] = {};
+    if (!currentPerms[mod]) currentPerms[mod] = {};
 
-    if (create !== undefined) user.permissions[mod].create = !!create;
-    if (edit   !== undefined) user.permissions[mod].edit   = !!edit;
-    if (del    !== undefined) user.permissions[mod].delete = !!del;
-    if (view   !== undefined) user.permissions[mod].view   = !!view;
+    if (create !== undefined) currentPerms[mod].create = !!create;
+    if (edit !== undefined) currentPerms[mod].edit = !!edit;
+    if (del !== undefined) currentPerms[mod].delete = !!del;
+    if (view !== undefined) currentPerms[mod].view = !!view;
 
-    user.markModified("permissions");
+    user.permissions = currentPerms;
     await user.save();
     res.json({ message: "Permissions updated successfully.", permissions: user.permissions });
   } catch (err) {
@@ -299,19 +281,21 @@ export const updateUserPermissions = async (req, res) => {
   }
 };
 
-/**
- * GET /api/admin/rbac/stats
- */
 export const getRbacStats = async (req, res) => {
   try {
-    const pipeline = [
-      { $match: { role: { $ne: "super_admin" } } },
-      { $group: { _id: "$role", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ];
-    const roleCounts = await User.aggregate(pipeline);
-    const total      = await User.countDocuments({ role: { $ne: "super_admin" } });
-    const active     = await User.countDocuments({ role: { $ne: "super_admin" }, isActive: true });
+    const roleStats = await User.findAll({
+      where: { role: { [Op.ne]: "super_admin" } },
+      attributes: ["role", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
+      group: ["role"],
+      raw: true,
+    });
+
+    const roleCounts = roleStats.map((r) => ({ _id: r.role, count: parseInt(r.count, 10) }));
+    const total = await User.count({ where: { role: { [Op.ne]: "super_admin" } } });
+    const active = await User.count({
+      where: { role: { [Op.ne]: "super_admin" }, isActive: true },
+    });
+
     res.json({ total, active, inactive: total - active, roleCounts });
   } catch (err) {
     res.status(500).json({ error: err.message });

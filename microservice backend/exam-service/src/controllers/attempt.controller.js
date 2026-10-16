@@ -7,26 +7,33 @@ export const submitAttempt = async (req, res) => {
     const { examId, answers, warningsCount, autoSubmitted, cheatingLogged } = req.body;
     const userId = req.user?._id || req.user?.id;
 
-    const exam = await Exam.findById(examId);
+    const exam = await Exam.findByPk(examId);
     if (!exam) return res.status(404).json({ message: "Exam not found" });
 
-    // Check if the user already submitted
-    const existing = await Attempt.findOne({ exam: examId, user: userId });
+    // Check if user already submitted
+    const existing = await Attempt.findOne({
+      where: {
+        exam: String(examId),
+        user: String(userId),
+      },
+    });
+
     if (existing) {
       return res.status(400).json({ message: "You have already submitted this exam." });
     }
 
     // Evaluate answers
     let score = 0;
-    exam.questions.forEach((q, idx) => {
+    const questions = exam.questions || [];
+    questions.forEach((q, idx) => {
       if (answers && answers[idx] && answers[idx] === q.answer) {
         score++;
       }
     });
 
-    const attempt = new Attempt({
-      exam: examId,
-      user: userId,
+    const attempt = await Attempt.create({
+      exam: String(examId),
+      user: String(userId),
       answers: answers || [],
       score,
       warningsCount: warningsCount || 0,
@@ -34,8 +41,7 @@ export const submitAttempt = async (req, res) => {
       cheatingLogged: !!cheatingLogged,
     });
 
-    await attempt.save();
-    res.status(201).json({ message: "Attempt submitted successfully", attempt });
+    res.status(201).json({ message: "Attempt submitted successfully", attempt: attempt.toObject() });
   } catch (err) {
     res.status(500).json({ message: "Error submitting attempt", error: err.message });
   }
@@ -44,12 +50,22 @@ export const submitAttempt = async (req, res) => {
 export const getMyAttempts = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
-    const attempts = await Attempt.find({ user: userId })
-      .populate("exam", "title duration")
-      .select("-__v")
-      .sort({ createdAt: -1 });
+    const attempts = await Attempt.findAll({
+      where: { user: String(userId) },
+      order: [["createdAt", "DESC"]],
+    });
 
-    res.json(attempts);
+    const examIds = [...new Set(attempts.map((a) => a.exam))];
+    const exams = await Exam.findAll({ where: { id: examIds } });
+    const examMap = new Map(exams.map((e) => [String(e.id), e]));
+
+    const enriched = attempts.map((att) => {
+      const obj = att.toObject();
+      obj.exam = examMap.get(String(att.exam)) || { id: att.exam, title: "Exam" };
+      return obj;
+    });
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ message: "Error fetching attempts", error: err.message });
   }
@@ -57,12 +73,22 @@ export const getMyAttempts = async (req, res) => {
 
 export const getExamAttempts = async (req, res) => {
   try {
-    const attempts = await Attempt.find({ exam: req.params.id })
-      .populate("user", "name email")
-      .select("-__v")
-      .sort({ score: -1 });
+    const attempts = await Attempt.findAll({
+      where: { exam: req.params.id },
+      order: [["score", "DESC"]],
+    });
 
-    res.json(attempts);
+    const userIds = [...new Set(attempts.map((a) => a.user))];
+    const users = await User.findAll({ where: { id: userIds } });
+    const userMap = new Map(users.map((u) => [String(u.id), u]));
+
+    const enriched = attempts.map((att) => {
+      const obj = att.toObject();
+      obj.user = userMap.get(String(att.user)) || { id: att.user, name: "Student" };
+      return obj;
+    });
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ message: "Error fetching exam attempts", error: err.message });
   }
@@ -70,8 +96,22 @@ export const getExamAttempts = async (req, res) => {
 
 export const getUserAttempts = async (req, res) => {
   try {
-    const attempts = await Attempt.find({ user: req.params.userId }).populate("exam", "title");
-    res.json(attempts);
+    const attempts = await Attempt.findAll({
+      where: { user: req.params.userId },
+      order: [["createdAt", "DESC"]],
+    });
+
+    const examIds = [...new Set(attempts.map((a) => a.exam))];
+    const exams = await Exam.findAll({ where: { id: examIds } });
+    const examMap = new Map(exams.map((e) => [String(e.id), e]));
+
+    const enriched = attempts.map((att) => {
+      const obj = att.toObject();
+      obj.exam = examMap.get(String(att.exam)) || { id: att.exam, title: "Exam" };
+      return obj;
+    });
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -79,11 +119,17 @@ export const getUserAttempts = async (req, res) => {
 
 export const getAttemptById = async (req, res) => {
   try {
-    const attempt = await Attempt.findById(req.params.id)
-      .populate("exam")
-      .populate("user", "name email");
+    const attempt = await Attempt.findByPk(req.params.id);
     if (!attempt) return res.status(404).json({ message: "Attempt not found" });
-    res.json(attempt);
+
+    const obj = attempt.toObject();
+    const exam = await Exam.findByPk(attempt.exam);
+    const user = await User.findByPk(attempt.user);
+
+    obj.exam = exam ? exam.toObject() : { id: attempt.exam, title: "Exam" };
+    obj.user = user ? user.toObject() : { id: attempt.user, name: "Student" };
+
+    res.json(obj);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

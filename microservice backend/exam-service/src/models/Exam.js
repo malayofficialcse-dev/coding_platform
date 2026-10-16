@@ -1,20 +1,71 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/db.js";
 
-const questionSchema = new mongoose.Schema({
-  question: { type: String, required: true },
-  options: [{ type: String, required: true }],
-  answer: { type: String, required: true },
-});
+class Exam extends Model {
+  get _id() {
+    return this.getDataValue("id");
+  }
 
-const examSchema = new mongoose.Schema(
+  toObject() {
+    const raw = this.toJSON();
+    raw._id = raw.id;
+    return raw;
+  }
+
+  static async findById(id) {
+    if (!id) return null;
+    return await Exam.findByPk(id);
+  }
+
+  static async findByIdAndUpdate(id, data, options = {}) {
+    const exam = await Exam.findByPk(id);
+    if (!exam) return null;
+    await exam.update(data);
+    return exam;
+  }
+
+  static async findByIdAndDelete(id) {
+    const exam = await Exam.findByPk(id);
+    if (!exam) return null;
+    await exam.destroy();
+    return exam;
+  }
+}
+
+Exam.init(
   {
-    title: { type: String, required: true },
-    description: { type: String, default: "" },
-    duration: { type: Number, default: 30 }, // in minutes
-    questions: [questionSchema],
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      defaultValue: "",
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+      defaultValue: 30, // in minutes
+    },
+    questions: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
+    },
+    author: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: "Exam",
+    tableName: "exams",
+    timestamps: true,
+  }
 );
 
-export default mongoose.models.Exam || mongoose.model("Exam", examSchema);
+export default Exam;

@@ -1,58 +1,118 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/db.js";
 
-const ROLES = [
+export const ROLES = [
   "student",
   "exam_coordinator",
   "course_coordinator",
   "feed_coordinator",
   "super_admin",
-  // legacy / compat
   "admin",
   "teacher",
   "user",
 ];
 
-const MODULE_PERMISSIONS = {
-  type: new mongoose.Schema(
-    {
-      create: { type: Boolean, default: false },
-      edit:   { type: Boolean, default: false },
-      delete: { type: Boolean, default: false },
-      view:   { type: Boolean, default: true },
-    },
-    { _id: false }
-  ),
-  default: () => ({}),
-};
+class User extends Model {
+  // Virtual getter so user._id works seamlessly across existing code
+  get _id() {
+    return this.getDataValue("id");
+  }
 
-const userSchema = new mongoose.Schema(
+  toObject(options) {
+    const raw = this.toJSON();
+    raw._id = raw.id;
+    if (options && typeof options.transform === "function") {
+      return options.transform(null, raw);
+    }
+    return raw;
+  }
+
+  // Compatibility helper
+  static async findById(id) {
+    if (!id) return null;
+    return await User.findByPk(id);
+  }
+}
+
+User.init(
   {
-    name:          { type: String, required: true },
-    username:      { type: String, unique: true, sparse: true },
-    email:         { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password:      { type: String, required: true },
-    role:          { type: String, enum: ROLES, default: "student" },
-    college:       { type: String, default: "" },
-    degree:        { type: String, default: "" },
-    yearOfPassing: { type: String, default: "" },
-    profileImage:  { type: String, default: "" },
-    bannerImage:   { type: String, default: "" },
-    isActive:      { type: Boolean, default: true },
-    createdBy:     { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    // Granular per-module CRUD permissions (set by super_admin)
-    permissions: {
-      exams:    MODULE_PERMISSIONS,
-      courses:  MODULE_PERMISSIONS,
-      feed:     MODULE_PERMISSIONS,
-      coding:   MODULE_PERMISSIONS,
-      users:    MODULE_PERMISSIONS,
-      analytics:MODULE_PERMISSIONS,
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    username: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: true,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true,
+      },
+      set(val) {
+        this.setDataValue("email", val ? val.toLowerCase().trim() : val);
+      },
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    role: {
+      type: DataTypes.STRING,
+      defaultValue: "student",
+    },
+    college: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    degree: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    yearOfPassing: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    profileImage: {
+      type: DataTypes.TEXT,
+      defaultValue: "",
+    },
+    bannerImage: {
+      type: DataTypes.TEXT,
+      defaultValue: "",
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    createdBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null,
+    },
+    permissions: {
+      type: DataTypes.JSONB,
+      defaultValue: {},
+    },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: "User",
+    tableName: "users",
+    timestamps: true,
+    indexes: [
+      { unique: true, fields: ["email"] },
+      { unique: true, fields: ["username"] },
+    ],
+  }
 );
 
-export { ROLES };
-export default mongoose.models.User || mongoose.model("User", userSchema);
+export default User;

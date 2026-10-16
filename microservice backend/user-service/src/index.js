@@ -11,7 +11,9 @@ dotenv.config();
 
 import userRoutes from "./routes/user.routes.js";
 import rbacRoutes from "./routes/rbac.routes.js";
+import socialRoutes from "./routes/social.routes.js";
 import { connectDB } from "./config/db.js";
+import { verifyNeo4j } from "./lib/neo4j.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
 
 const app = express();
@@ -27,15 +29,18 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/users", userRoutes);
+app.use("/api/social", socialRoutes);
 app.use("/api/admin/rbac", rbacRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
 
-connectDB().then(() => {
+const startServer = async () => {
+  await connectDB();
+  await verifyNeo4j();
   app.listen(PORT, () => {
     console.log(`[User Service] Running on port ${PORT}`);
   });
-});
+};
 
-
+startServer();

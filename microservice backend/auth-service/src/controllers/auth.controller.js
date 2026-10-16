@@ -3,10 +3,11 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const generateToken = (user) => {
+  const userId = user.id || user._id;
   return jwt.sign(
     {
-      userId: user._id,
-      id: user._id,
+      userId,
+      id: userId,
       email: user.email,
       role: user.role,
       name: user.name,
@@ -28,10 +29,7 @@ const DEFAULT_PERMISSIONS = {
   },
   exam_coordinator: {
     exams: { create: true, edit: true, delete: true, view: true },
-    courses: {
-      create: false, edit: false, delete:
-        false, view: false
-    },
+    courses: { create: false, edit: false, delete: false, view: false },
     feed: { create: false, edit: false, delete: false, view: false },
     coding: { create: false, edit: false, delete: false, view: false },
     users: { create: false, edit: false, delete: false, view: false },
@@ -87,7 +85,8 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "Name, email and password are required." });
     }
 
-    let existing = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    let existing = await User.findOne({ where: { email: cleanEmail } });
     if (existing) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -97,10 +96,10 @@ export const register = async (req, res) => {
     const assignedRole = role || "student";
     const assignedPerms = DEFAULT_PERMISSIONS[assignedRole] || DEFAULT_PERMISSIONS.student;
 
-    const user = new User({
+    const user = await User.create({
       name,
-      username: username || email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
-      email: email.toLowerCase(),
+      username: username || cleanEmail.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
+      email: cleanEmail,
       password: hashedPassword,
       role: assignedRole,
       college: college || "",
@@ -109,14 +108,13 @@ export const register = async (req, res) => {
       permissions: assignedPerms,
     });
 
-    await user.save();
     const token = generateToken(user);
 
     res.status(201).json({
       token,
       user: {
-        id: user._id,
-        _id: user._id,
+        id: user.id,
+        _id: user.id,
         name: user.name,
         username: user.username,
         email: user.email,
@@ -141,7 +139,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ where: { email: cleanEmail } });
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -160,8 +159,8 @@ export const login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
-        _id: user._id,
+        id: user.id,
+        _id: user.id,
         name: user.name,
         username: user.username,
         email: user.email,
@@ -190,7 +189,7 @@ export const changePassword = async (req, res) => {
     }
 
     const userId = req.user?._id || req.user?.id;
-    const user = await User.findById(userId);
+    const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!(await bcrypt.compare(currentPassword, user.password))) {
       return res.status(400).json({ message: "Current password is incorrect" });
@@ -198,6 +197,7 @@ export const changePassword = async (req, res) => {
 
     user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     await user.save();
+
     res.json({ message: "Password updated successfully" });
   } catch (err) {
     console.error("[Auth Service Password Update Error]:", err);
@@ -212,7 +212,9 @@ export const me = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const user = await User.findById(userId).select("-password");
+    const user = await User.findByPk(userId, {
+      attributes: { exclude: ["password"] },
+    });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -235,7 +237,7 @@ export const updateProfileImage = async (req, res) => {
     }
 
     const userId = req.user?._id || req.user?.id;
-    const user = await User.findById(userId);
+    const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     user.profileImage = imageUrl;
@@ -253,12 +255,15 @@ export const updateBannerImage = async (req, res) => {
     if (!imageUrl) return res.status(400).json({ error: "No banner image uploaded" });
 
     const userId = req.user?._id || req.user?.id;
-    const user = await User.findById(userId);
+    const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     user.bannerImage = imageUrl;
     await user.save();
-    res.json({ bannerImage: user.bannerImage, user: user.toObject({ transform: (_, value) => { delete value.password; return value; } }) });
+
+    const sanitized = user.toObject();
+    delete sanitized.password;
+    res.json({ bannerImage: user.bannerImage, user: sanitized });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -266,11 +271,13 @@ export const updateBannerImage = async (req, res) => {
 
 export const verifyToken = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1] || req.body.token;
+    const token = req.headers.authorization?.split(" ")[1] || req.body?.token;
     if (!token) return res.status(400).json({ valid: false, message: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74");
-    const user = await User.findById(decoded.userId || decoded.id).select("-password");
+    const user = await User.findByPk(decoded.userId || decoded.id, {
+      attributes: { exclude: ["password"] },
+    });
     if (!user) return res.status(404).json({ valid: false, message: "User not found" });
 
     res.json({ valid: true, user });

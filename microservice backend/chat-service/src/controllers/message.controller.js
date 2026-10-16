@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Message from "../models/Message.js";
+import Conversation from "../models/Conversation.js";
 import { v2 as cloudinary } from "cloudinary";
 import { getSocket } from "../lib/socket.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
@@ -64,13 +65,10 @@ export const getMessages = async (req, res) => {
 
     const messages = await Message.find({
       $or: [
-        { senderId: myId, receiverId: otherUserId },
-        { senderId: otherUserId, receiverId: myId },
+        { senderId: String(myId), receiverId: String(otherUserId) },
+        { senderId: String(otherUserId), receiverId: String(myId) },
       ],
-    })
-      .sort({ createdAt: 1 })
-      .populate("senderId", "name username profileImage")
-      .populate("receiverId", "name username profileImage");
+    }).sort({ createdAt: 1 });
 
     res.status(200).json(messages);
   } catch (err) {
@@ -123,16 +121,30 @@ export const sendMessage = async (req, res) => {
       }
     }
 
+    // Find or create conversation
+    let conv = await Conversation.findOne({
+      participants: { $all: [String(senderId), String(receiverId)] },
+      isGroup: false,
+    });
+    if (!conv) {
+      conv = new Conversation({
+        participants: [String(senderId), String(receiverId)],
+      });
+    }
+
     const newMessage = new Message({
-      senderId,
-      receiverId,
+      senderId: String(senderId),
+      receiverId: String(receiverId),
+      conversationId: conv._id,
       text: text || "",
       image: imageUrl || "",
     });
 
     await newMessage.save();
-    await newMessage.populate("senderId", "name username profileImage");
-    await newMessage.populate("receiverId", "name username profileImage");
+
+    conv.lastMessage = newMessage._id;
+    conv.lastMessageAt = new Date();
+    await conv.save();
 
     // Real-time socket emission
     try {

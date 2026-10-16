@@ -471,7 +471,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             <div className="d-flex align-items-center">
               <img
                 src={
-                  post.author.profileImage ||
+                  post.author?.profileImage ||
                   "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
                 }
                 alt="Profile"
@@ -481,10 +481,10 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
 
               <div className="d-flex flex-column">
                 <Link
-                  to={`/profile/${post.author._id}`}
+                  to={`/profile/${post.author?._id || post.author?.id || post.author || ""}`}
                   className="fw-bold text-dark text-decoration-none"
                 >
-                  {post.author.name || post.author.username}
+                  {post.author?.name || post.author?.username || "Code Campus Member"}
                 </Link>
                 <time
                   className="small text-muted"

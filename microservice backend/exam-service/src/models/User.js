@@ -1,17 +1,71 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/db.js";
 
-const userSchema = new mongoose.Schema(
+class User extends Model {
+  get _id() {
+    return this.getDataValue("id");
+  }
+
+  toObject() {
+    const raw = this.toJSON();
+    raw._id = raw.id;
+    return raw;
+  }
+
+  static async findById(id) {
+    if (!id) return null;
+    return await User.findByPk(id);
+  }
+}
+
+User.init(
   {
-    name: { type: String, required: true },
-    username: { type: String, unique: true, sparse: true },
-    email: { type: String, required: true },
-    role: { type: String, default: "student" },
-    college: { type: String, default: "" },
-    degree: { type: String, default: "" },
-    yearOfPassing: { type: String, default: "" },
-    profileImage: { type: String, default: "" },
+    id: {
+      type: DataTypes.STRING,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Student",
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "",
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "",
+    },
+    role: {
+      type: DataTypes.STRING,
+      defaultValue: "student",
+    },
+    college: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    degree: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    yearOfPassing: {
+      type: DataTypes.STRING,
+      defaultValue: "",
+    },
+    profileImage: {
+      type: DataTypes.TEXT,
+      defaultValue: "",
+    },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: "User",
+    tableName: "users",
+    timestamps: true,
+  }
 );
 
-export default mongoose.models.User || mongoose.model("User", userSchema);
+export default User;

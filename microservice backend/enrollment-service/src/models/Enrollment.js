@@ -1,20 +1,90 @@
-import mongoose from "mongoose";
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/db.js";
 
-const enrollmentSchema = new mongoose.Schema(
+class Enrollment extends Model {
+  get _id() {
+    return this.getDataValue("id");
+  }
+
+  toObject() {
+    const raw = this.toJSON();
+    raw._id = raw.id;
+    return raw;
+  }
+
+  static async findById(id) {
+    if (!id) return null;
+    return await Enrollment.findByPk(id);
+  }
+}
+
+Enrollment.init(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    course: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
-    enrolledAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date, required: true },
-    completedSubtopics: [{ type: mongoose.Schema.Types.ObjectId }],
-    progress: { type: Number, default: 0, min: 0, max: 100 },
-    completedAt: { type: Date, default: null },
-    certificateNumber: { type: String, default: null, index: true },
-    certificateIssuedAt: { type: Date, default: null },
-    certificateRecipientName: { type: String, default: null },
-    certificateCeoName: { type: String, default: "Malay Maity" },
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    user: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    course: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    enrolledAt: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    completedSubtopics: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
+    },
+    progress: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      validate: { min: 0, max: 100 },
+    },
+    completedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
+    certificateNumber: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
+    certificateIssuedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
+    certificateRecipientName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
+    certificateCeoName: {
+      type: DataTypes.STRING,
+      defaultValue: "Malay Maity",
+    },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: "Enrollment",
+    tableName: "enrollments",
+    timestamps: true,
+    indexes: [
+      { fields: ["user", "course"] },
+      { fields: ["certificateNumber"] },
+    ],
+  }
 );
 
-export default mongoose.models.Enrollment || mongoose.model("Enrollment", enrollmentSchema);
+export default Enrollment;

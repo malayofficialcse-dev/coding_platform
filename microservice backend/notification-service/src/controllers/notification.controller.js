@@ -1,24 +1,12 @@
 import Notification from "../models/Notification.js";
-import mongoose from "mongoose";
-
-// Register minimal User, Post, Comment schemas so populate works if collections exist in DB
-if (!mongoose.models.User) {
-  mongoose.model("User", new mongoose.Schema({ name: String, username: String, email: String, profileImage: String }));
-}
-if (!mongoose.models.Post) {
-  mongoose.model("Post", new mongoose.Schema({ text: String, images: [String] }));
-}
-if (!mongoose.models.Comment) {
-  mongoose.model("Comment", new mongoose.Schema({ text: String, author: { type: mongoose.Schema.Types.ObjectId, ref: "User" } }));
-}
 
 export const getNotifications = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
-    const notifications = await Notification.find({ recipient: userId })
-      .populate("sender", "name email profileImage username")
-      .populate("post", "text images")
-      .populate("comment", "text author")
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const notifications = await Notification.find({ recipient: String(userId) })
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -30,9 +18,12 @@ export const getNotifications = async (req, res) => {
 
 export const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
     const unreadCount = await Notification.countDocuments({
-      recipient: userId,
+      recipient: String(userId),
       read: false,
     });
 
@@ -45,12 +36,12 @@ export const getUnreadCount = async (req, res) => {
 export const markAsRead = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user?._id || req.user?.id;
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
 
     const notification = await Notification.findById(notificationId);
     if (!notification) return res.status(404).json({ error: "Notification not found" });
 
-    if (notification.recipient.toString() !== userId.toString()) {
+    if (String(notification.recipient) !== String(userId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -65,8 +56,8 @@ export const markAsRead = async (req, res) => {
 
 export const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
-    await Notification.updateMany({ recipient: userId, read: false }, { read: true });
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    await Notification.updateMany({ recipient: String(userId), read: false }, { read: true });
     res.json({ message: "All notifications marked as read" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,12 +67,12 @@ export const markAllAsRead = async (req, res) => {
 export const deleteNotification = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user?._id || req.user?.id;
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
 
     const notification = await Notification.findById(notificationId);
     if (!notification) return res.status(404).json({ error: "Notification not found" });
 
-    if (notification.recipient.toString() !== userId.toString()) {
+    if (String(notification.recipient) !== String(userId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -94,8 +85,8 @@ export const deleteNotification = async (req, res) => {
 
 export const deleteAllNotifications = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
-    await Notification.deleteMany({ recipient: userId });
+    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    await Notification.deleteMany({ recipient: String(userId) });
     res.json({ message: "All notifications deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -107,22 +98,43 @@ export const deleteAllNotifications = async (req, res) => {
  */
 export const createInternalNotification = async (req, res) => {
   try {
-    const { recipient, sender, type, post, comment, message, title, description, actionUrl } = req.body;
+    const {
+      recipient,
+      sender,
+      senderName,
+      senderAvatar,
+      type,
+      post,
+      comment,
+      message,
+      refPostId,
+      refCommentId,
+      refMessageId,
+      title,
+      description,
+      actionUrl,
+    } = req.body;
 
     if (!recipient || !sender || !type || !title) {
       return res.status(400).json({ error: "Missing required notification fields" });
     }
 
     const notification = new Notification({
-      recipient,
-      sender,
+      recipient: String(recipient),
+      sender: String(sender),
+      senderName: senderName || "",
+      senderAvatar: senderAvatar || "",
       type,
-      post: post || null,
-      comment: comment || null,
-      message: message || null,
+      post: post || refPostId || null,
+      comment: comment || refCommentId || null,
+      message: message || refMessageId || null,
+      refPostId: refPostId || post || null,
+      refCommentId: refCommentId || comment || null,
+      refMessageId: refMessageId || message || null,
       title,
       description: description || "",
       actionUrl: actionUrl || "",
+      deliveredAt: new Date(),
     });
 
     await notification.save();

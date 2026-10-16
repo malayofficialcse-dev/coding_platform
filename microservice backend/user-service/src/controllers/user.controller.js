@@ -1,15 +1,33 @@
-import User from "../models/User.js";
-import { dispatchNotification } from "../utils/serviceClient.js";
+import User, { Op } from "../models/User.js";
+import { runCypher } from "../lib/neo4j.js";
 import { deleteCached, getCached, setCached } from "../config/cache.js";
+export { followUser, unfollowUser } from "./social.controller.js";
 
 export const getAllUsers = async (req, res) => {
   try {
     const cacheKey = "users:directory";
     const cached = await getCached(cacheKey);
     if (cached) return res.json(cached);
-    const users = await User.find({}, "name username email profileImage bannerImage followers following role");
-    await setCached(cacheKey, users, 30);
-    res.json(users);
+
+    const users = await User.findAll({
+      attributes: [
+        "id",
+        "name",
+        "username",
+        "email",
+        "profileImage",
+        "bannerImage",
+        "role",
+        "college",
+        "degree",
+        "yearOfPassing",
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const userList = users.map((u) => u.toObject());
+    await setCached(cacheKey, userList, 30);
+    res.json(userList);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -17,13 +35,53 @@ export const getAllUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .populate("followers", "name username profileImage bannerImage")
-      .populate("following", "name username profileImage bannerImage")
-      .select("-password");
+    const userId = req.params.id;
+    const user = await User.findByPk(userId, {
+      attributes: { exclude: ["password"] },
+    });
 
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
+
+    // Fetch followers and following from Neo4j
+    let followerIds = [];
+    let followingIds = [];
+    try {
+      const followersResult = await runCypher(
+        `MATCH (f:User)-[:FOLLOWS]->(u:User {id: $userId}) RETURN f.id AS id`,
+        { userId: String(userId) }
+      );
+      followerIds = followersResult.records.map((r) => r.get("id"));
+
+      const followingResult = await runCypher(
+        `MATCH (u:User {id: $userId})-[:FOLLOWS]->(f:User) RETURN f.id AS id`,
+        { userId: String(userId) }
+      );
+      followingIds = followingResult.records.map((r) => r.get("id"));
+    } catch (neoErr) {
+      console.warn("[Social Graph Query Warning]:", neoErr.message);
+    }
+
+    const followers = followerIds.length
+      ? await User.findAll({
+          where: { id: { [Op.in]: followerIds } },
+          attributes: ["id", "name", "username", "profileImage", "bannerImage"],
+        })
+      : [];
+
+    const following = followingIds.length
+      ? await User.findAll({
+          where: { id: { [Op.in]: followingIds } },
+          attributes: ["id", "name", "username", "profileImage", "bannerImage"],
+        })
+      : [];
+
+    const userData = user.toObject();
+    userData.followers = followers;
+    userData.following = following;
+    userData.followersCount = followers.length;
+    userData.followingCount = following.length;
+
+    res.json(userData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -34,92 +92,20 @@ export const searchUsers = async (req, res) => {
     const { query } = req.query;
     if (!query) return res.status(400).json({ error: "Search query required" });
 
-    const users = await User.find(
-      {
-        $or: [
-          { name: { $regex: query, $options: "i" } },
-          { username: { $regex: query, $options: "i" } },
-          { email: { $regex: query, $options: "i" } },
+    const searchPattern = `%${query}%`;
+    const users = await User.findAll({
+      where: {
+        [Op.or]: [
+          { name: { [Op.iLike]: searchPattern } },
+          { username: { [Op.iLike]: searchPattern } },
+          { email: { [Op.iLike]: searchPattern } },
         ],
       },
-      "name username profileImage bannerImage followers following"
-    ).limit(20);
-
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const followUser = async (req, res) => {
-  try {
-    const targetUserId = req.params.id;
-    const currentUserId = req.user._id || req.user.id;
-
-    if (targetUserId === currentUserId.toString()) {
-      return res.status(400).json({ error: "Cannot follow yourself" });
-    }
-
-    const targetUser = await User.findById(targetUserId);
-    const currentUser = await User.findById(currentUserId);
-
-    if (!targetUser) return res.status(404).json({ error: "Target user not found" });
-    if (!currentUser) return res.status(404).json({ error: "Current user not found" });
-
-    if (currentUser.following.includes(targetUserId)) {
-      return res.status(400).json({ error: "Already following" });
-    }
-
-    currentUser.following.push(targetUserId);
-    targetUser.followers.push(currentUserId);
-
-    await currentUser.save();
-    await targetUser.save();
-    await deleteCached("users:directory");
-
-    // Notify target user asynchronously via notification service
-    await dispatchNotification({
-      recipientId: targetUserId,
-      senderId: currentUserId,
-      type: "follow",
-      title: `${currentUser.name || currentUser.username} started following you`,
-      description: "",
-      actionUrl: `/profile/${currentUserId}`,
+      attributes: ["id", "name", "username", "profileImage", "bannerImage", "role"],
+      limit: 20,
     });
 
-    res.json({ message: "Following", targetUserId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const unfollowUser = async (req, res) => {
-  try {
-    const targetUserId = req.params.id;
-    const currentUserId = req.user._id || req.user.id;
-
-    if (targetUserId === currentUserId.toString()) {
-      return res.status(400).json({ error: "Cannot unfollow yourself" });
-    }
-
-    const targetUser = await User.findById(targetUserId);
-    const currentUser = await User.findById(currentUserId);
-
-    if (!targetUser) return res.status(404).json({ error: "Target user not found" });
-    if (!currentUser) return res.status(404).json({ error: "Current user not found" });
-
-    currentUser.following = currentUser.following.filter(
-      (id) => id.toString() !== targetUserId.toString()
-    );
-    targetUser.followers = targetUser.followers.filter(
-      (id) => id.toString() !== currentUserId.toString()
-    );
-
-    await currentUser.save();
-    await targetUser.save();
-    await deleteCached("users:directory");
-
-    res.json({ message: "Unfollowed", targetUserId });
+    res.json(users.map((u) => u.toObject()));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -127,21 +113,23 @@ export const unfollowUser = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const currentUserId = req.user._id || req.user.id;
-    const { name, college, degree, yearOfPassing } = req.body;
+    const currentUserId = req.user?._id || req.user?.id;
+    const { name, college, degree, yearOfPassing, bannerImage, profileImage } = req.body;
 
-    const user = await User.findById(currentUserId);
+    const user = await User.findByPk(currentUserId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     if (name) user.name = name;
     if (college !== undefined) user.college = college;
     if (degree !== undefined) user.degree = degree;
     if (yearOfPassing !== undefined) user.yearOfPassing = yearOfPassing;
+    if (bannerImage !== undefined) user.bannerImage = bannerImage;
+    if (profileImage !== undefined) user.profileImage = profileImage;
 
     await user.save();
-    res.json({ message: "Profile updated successfully", user });
+    await deleteCached("users:directory");
+    res.json({ message: "Profile updated successfully", user: user.toObject() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-

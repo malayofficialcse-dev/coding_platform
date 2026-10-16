@@ -1,20 +1,29 @@
-import mongoose from "mongoose";
+import { Sequelize } from "sequelize";
 
-export const connectDB = async (customUri) => {
-  const uri = customUri || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/code_campus";
+const dbUrl =
+  process.env.AUTH_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  "postgres://cc_auth:cc_auth_pass@127.0.0.1:5431/auth_db";
+
+export const sequelize = new Sequelize(dbUrl, {
+  dialect: "postgres",
+  logging: false,
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
+  },
+});
+
+export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(uri, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-    console.log(`[Database] MongoDB Connected: ${conn.connection.host} (${conn.connection.name})`);
-    return conn;
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    console.log("[Auth Service] PostgreSQL connected — auth_db");
   } catch (err) {
-    console.error(`[Database Error] Connection failed: ${err.message}`);
-    process.exit(1);
+    console.error(`[Auth Service DB Error]: ${err.message}`);
   }
 };
 
 export default connectDB;
-

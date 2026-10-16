@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import Redis from "ioredis";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -28,6 +30,26 @@ const SERVICES = {
   notification: process.env.NOTIFICATION_SERVICE_URL || "http://localhost:5008",
   chat: process.env.CHAT_SERVICE_URL || "http://localhost:5009",
 };
+
+// ---- Redis Client (graceful: works without Redis too) ----
+let redis = null;
+try {
+  redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+  });
+  redis.on("error", (err) => {
+    console.warn("[Gateway Redis] Connection error:", err.message, "— falling back to in-memory rate limiting");
+  });
+  await redis.connect().catch(() => {
+    redis = null;
+  });
+  if (redis) console.log("[Gateway Redis] Connected ✓");
+} catch {
+  redis = null;
+  console.warn("[Gateway Redis] Unavailable — using in-memory rate limiting");
+}
 
 // 1. CORS Configuration
 const allowedOrigins = [
@@ -55,14 +77,22 @@ app.use(
 // 2. Logging
 app.use(morgan("dev"));
 
-// 3. Global Rate Limiter
-const limiter = rateLimit({
+// 3. Global Rate Limiter — Redis-backed, falls back to memory if Redis unavailable
+const limiterConfig = {
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests from this IP, please try again later." },
-});
+};
+
+if (redis) {
+  limiterConfig.store = new RedisStore({
+    sendCommand: (...args) => redis.call(...args),
+  });
+}
+
+const limiter = rateLimit(limiterConfig);
 app.use(limiter);
 
 // 4. Token Decoder & Header Enrichment Middleware
