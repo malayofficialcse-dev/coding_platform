@@ -78,11 +78,47 @@ export default function Profile() {
   }, [user, refresh]);
 
   const examMetrics = useMemo(() => {
-    const scored = attempts.filter((attempt) => Number(attempt.total) > 0);
+    // Resolve total from direct field OR from the nested exam's question count
+    const getTotal = (attempt) =>
+      Number(attempt.total) ||
+      (Array.isArray(attempt.exam?.questions) ? attempt.exam.questions.length : 0);
+    const scored = attempts.filter((attempt) => getTotal(attempt) > 0);
     const totalScore = scored.reduce((sum, attempt) => sum + Number(attempt.score || 0), 0);
-    const totalPossible = scored.reduce((sum, attempt) => sum + Number(attempt.total || 0), 0);
-    const passCount = scored.filter((attempt) => Number(attempt.score || 0) >= Number(attempt.total || 0) * 0.4).length;
+    const totalPossible = scored.reduce((sum, attempt) => sum + getTotal(attempt), 0);
+    const passCount = scored.filter((attempt) => Number(attempt.score || 0) >= getTotal(attempt) * 0.4).length;
     return { average: totalPossible ? Math.round((totalScore / totalPossible) * 100) : 0, passRate: scored.length ? Math.round((passCount / scored.length) * 100) : 0 };
+  }, [attempts]);
+
+  const examChartData = useMemo(() => {
+    const getTotal = (attempt) =>
+      Number(attempt.total) ||
+      (Array.isArray(attempt.exam?.questions) ? attempt.exam.questions.length : 0);
+    const sorted = [...attempts]
+      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+      .slice(-20); // Show latest 20 attempts max
+    return {
+      labels: sorted.map((attempt, index) => {
+        const date = attempt.createdAt
+          ? new Date(attempt.createdAt).toLocaleDateString()
+          : `Attempt ${index + 1}`;
+        return date;
+      }),
+      datasets: [
+        {
+          label: "Score %",
+          data: sorted.map((attempt) => {
+            const total = getTotal(attempt);
+            return total > 0 ? Math.round((Number(attempt.score || 0) / total) * 100) : 0;
+          }),
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99,102,241,0.12)",
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: "#6366f1",
+        },
+      ],
+    };
   }, [attempts]);
 
   const profileStats = [
@@ -91,6 +127,7 @@ export default function Profile() {
     { label: "Exam attempts", value: attempts.length, icon: FaFlask, tone: "orange" },
     { label: "Followers", value: followers.length, icon: FaUsers, tone: "purple" },
   ];
+
 
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];

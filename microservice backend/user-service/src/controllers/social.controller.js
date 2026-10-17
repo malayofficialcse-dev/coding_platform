@@ -12,8 +12,24 @@ export const followUser = async (req, res) => {
       return res.status(400).json({ error: "Cannot follow yourself" });
     }
 
-    const targetUser = await User.findByPk(targetUserId);
-    const currentUser = await User.findByPk(currentUserId);
+    let targetUser = await User.findByPk(targetUserId);
+    let currentUser = await User.findByPk(currentUserId);
+
+    if (!currentUser && req.user?.email) {
+      currentUser = await User.findOne({ where: { email: req.user.email.toLowerCase().trim() } });
+    }
+    if (!currentUser && currentUserId) {
+      try {
+        currentUser = await User.create({
+          id: currentUserId,
+          name: req.user?.name || "Student",
+          username: req.user?.username || `user_${currentUserId.slice(0, 6)}`,
+          email: req.user?.email || `${currentUserId}@example.com`,
+          role: req.user?.role || "student",
+          permissions: req.user?.permissions || {},
+        });
+      } catch {}
+    }
 
     if (!targetUser) return res.status(404).json({ error: "Target user not found" });
     if (!currentUser) return res.status(404).json({ error: "Current user not found" });

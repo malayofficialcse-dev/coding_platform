@@ -1,6 +1,28 @@
 import Comment from "../models/Comment.js";
 import Post from "../models/Post.js";
+import User from "../models/User.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
+
+const upsertUserMirror = async (req) => {
+  const userId = req.user?._id || req.user?.id;
+  if (!userId) return;
+  try {
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        _id: userId,
+        name: req.user.name || req.user.username || "User",
+        username: req.user.username || "",
+        email: req.user.email || "",
+        role: req.user.role || "student",
+        profileImage: req.user.profileImage || "",
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } catch (err) {
+    console.warn("[Post Service] User mirror upsert failed:", err.message);
+  }
+};
 
 export const addComment = async (req, res) => {
   try {
@@ -14,6 +36,9 @@ export const addComment = async (req, res) => {
 
     const post = await Post.findById(postId).populate("author");
     if (!post) return res.status(404).json({ error: "Post not found" });
+
+    // Ensure the commenter exists in MongoDB mirror so populate works
+    await upsertUserMirror(req);
 
     const comment = new Comment({
       author: userId,
@@ -46,6 +71,7 @@ export const addComment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const deleteComment = async (req, res) => {
   try {

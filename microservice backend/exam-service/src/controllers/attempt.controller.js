@@ -61,11 +61,15 @@ export const getMyAttempts = async (req, res) => {
 
     const enriched = attempts.map((att) => {
       const obj = att.toObject();
-      obj.exam = examMap.get(String(att.exam)) || { id: att.exam, title: "Exam" };
+      const examObj = examMap.get(String(att.exam)) || { id: att.exam, title: "Exam", questions: [] };
+      obj.exam = examObj;
+      // Add total so the frontend can calculate % scores (score / total * 100)
+      obj.total = Array.isArray(examObj.questions) ? examObj.questions.length : (examObj.questions?.length ?? 0);
       return obj;
     });
 
     res.json(enriched);
+
   } catch (err) {
     res.status(500).json({ message: "Error fetching attempts", error: err.message });
   }

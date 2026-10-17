@@ -93,17 +93,44 @@ export default function Dashboard() {
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
   const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
+  const currentUserId = user?._id || user?.id;
+
   const handleFollow = async (id) => {
-    await api.post(`/users/follow/${id}`);
-    setUsers((prev) => prev.map((u) => u._id === id ? { ...u, followers: [...(u.followers || []), user._id] } : u));
+    try {
+      await api.post(`/users/follow/${id}`);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === id || u.id === id
+            ? { ...u, followers: [...(u.followers || []), currentUserId] }
+            : u
+        )
+      );
+    } catch (err) {
+      console.error("Follow error:", err);
+    }
   };
+
   const handleUnfollow = async (id) => {
-    await api.post(`/users/unfollow/${id}`);
-    setUsers((prev) => prev.map((u) => u._id === id ? { ...u, followers: (u.followers || []).filter((f) => f !== user._id) } : u));
+    try {
+      await api.post(`/users/unfollow/${id}`);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === id || u.id === id
+            ? { ...u, followers: (u.followers || []).filter((f) => f !== currentUserId) }
+            : u
+        )
+      );
+    } catch (err) {
+      console.error("Unfollow error:", err);
+    }
   };
 
   const filteredUsers = users.filter(
-    (u) => (u.name || u.username).toLowerCase().includes(search.trim().toLowerCase()) && u._id !== user?._id
+    (u) => {
+      const uId = u._id || u.id;
+      const isSelf = uId === currentUserId || (user?.email && u.email?.toLowerCase() === user.email.toLowerCase());
+      return !isSelf && (u.name || u.username || "").toLowerCase().includes(search.trim().toLowerCase());
+    }
   );
 
   const renderPost = (post) => {
@@ -501,9 +528,10 @@ export default function Dashboard() {
             />
             {filteredUsers.length === 0 && <div className="text-muted text-center">No users found.</div>}
             {filteredUsers.map((person) => {
-              const isFollowing = (person.followers || []).includes(user?._id);
+              const personId = person._id || person.id;
+              const isFollowing = (person.followers || []).includes(currentUserId);
               return (
-                <div key={person._id} className="d-flex align-items-center mb-3" style={{
+                <div key={personId} className="d-flex align-items-center mb-3" style={{
                   background: C.white, borderRadius: "4px", padding: "10px 12px",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: `1px solid ${C.border}`,
                 }}>
@@ -513,14 +541,14 @@ export default function Dashboard() {
                     {person.name || person.username}
                   </span>
                   {isFollowing ? (
-                    <button onClick={() => handleUnfollow(person._id)} style={{
+                    <button onClick={() => handleUnfollow(personId)} style={{
                       background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
                       borderRadius: "0.5rem", padding: "4px 8px", cursor: "pointer",
                     }}>
                       <img src={UserMinus} alt="Unfollow" style={{ height: 14 }} />
                     </button>
                   ) : (
-                    <button onClick={() => handleFollow(person._id)} style={{
+                    <button onClick={() => handleFollow(personId)} style={{
                       background: C.primary,
                       border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer",
                     }}>

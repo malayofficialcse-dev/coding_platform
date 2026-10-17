@@ -8,12 +8,14 @@ const codeBlockSchema = new mongoose.Schema({
 
 const postSchema = new mongoose.Schema(
   {
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    // author is stored as a String (UUID) because user-service uses PostgreSQL with UUID PKs
+    author: { type: String, ref: "User", required: true },
     group: { type: String, default: "General Feed" },
     text: { type: String, default: "" },
     codeBlocks: [codeBlockSchema],
     images: [{ type: String }],
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    // likes also stored as String[] (UUIDs)
+    likes: [{ type: String, ref: "User" }],
     comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
     repostedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "Post" },
   },

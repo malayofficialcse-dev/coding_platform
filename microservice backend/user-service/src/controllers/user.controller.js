@@ -25,8 +25,27 @@ export const getAllUsers = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    const userList = users.map((u) => u.toObject());
-    await setCached(cacheKey, userList, 30);
+    const followersMap = {};
+    try {
+      const followResult = await runCypher(
+        `MATCH (f:User)-[:FOLLOWS]->(u:User) RETURN f.id AS followerId, u.id AS followedId`
+      );
+      if (followResult?.records) {
+        followResult.records.forEach((r) => {
+          const followed = r.get("followedId");
+          const follower = r.get("followerId");
+          if (!followersMap[followed]) followersMap[followed] = [];
+          followersMap[followed].push(follower);
+        });
+      }
+    } catch {}
+
+    const userList = users.map((u) => {
+      const obj = u.toObject();
+      obj.followers = followersMap[obj.id] || [];
+      return obj;
+    });
+    await setCached(cacheKey, userList, 15);
     res.json(userList);
   } catch (err) {
     res.status(500).json({ error: err.message });

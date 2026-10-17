@@ -1,7 +1,35 @@
 import Post from "../models/Post.js";
 import Comment from "../models/Comment.js";
+import User from "../models/User.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
 import { deleteCachedPrefix, getCached, setCached } from "../config/cache.js";
+
+/**
+ * Upsert a local User mirror in post-service's MongoDB.
+ * The user-service lives in PostgreSQL and uses UUID PKs, so we mirror
+ * the essential fields here so that Mongoose `.populate("author")` works.
+ */
+const upsertUserMirror = async (req) => {
+  const userId = req.user?._id || req.user?.id;
+  if (!userId) return;
+  try {
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        _id: userId,
+        name: req.user.name || req.user.username || "User",
+        username: req.user.username || "",
+        email: req.user.email || "",
+        role: req.user.role || "student",
+        profileImage: req.user.profileImage || "",
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } catch (err) {
+    // Non-fatal: log and continue — posts can still be created without populate
+    console.warn("[Post Service] User mirror upsert failed:", err.message);
+  }
+};
 
 const getPagination = (req) => {
   const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
@@ -23,6 +51,9 @@ export const createPost = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Ensure the user mirror exists in MongoDB so populate works
+    await upsertUserMirror(req);
 
     let codeBlocks = req.body.codeBlocks || [];
     if (typeof codeBlocks === "string" && codeBlocks.trim()) {
@@ -55,6 +86,7 @@ export const createPost = async (req, res) => {
     return res.status(500).json({ error: err.message || "Failed to create post" });
   }
 };
+
 
 export const getFeed = async (req, res) => {
   try {
