@@ -3,7 +3,7 @@ import { Sequelize } from "sequelize";
 const dbUrl =
   process.env.ENROLLMENT_DATABASE_URL ||
   process.env.DATABASE_URL ||
-  "postgres://cc_enrollment:cc_enrollment_pass@127.0.0.1:5434/enrollment_db";
+  "postgresql://postgres:malay21@127.0.0.1:5432/enrollment_db";
 
 export const sequelize = new Sequelize(dbUrl, {
   dialect: "postgres",

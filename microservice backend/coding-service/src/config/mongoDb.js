@@ -8,6 +8,7 @@ export const connectMongo = async () => {
 
   try {
     const conn = await mongoose.connect(uri, {
+      dbName: process.env.CODING_DB_NAME || "coding_problems_db",
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
     });

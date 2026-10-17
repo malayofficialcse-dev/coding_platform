@@ -7,6 +7,7 @@ export const connectDB = async () => {
     "mongodb://127.0.0.1:27017/post_db";
   try {
     const conn = await mongoose.connect(uri, {
+      dbName: process.env.POST_DB_NAME || "post_db",
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,

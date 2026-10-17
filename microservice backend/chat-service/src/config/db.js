@@ -7,6 +7,7 @@ export const connectDB = async () => {
     "mongodb://127.0.0.1:27017/chat_db";
   try {
     const conn = await mongoose.connect(uri, {
+      dbName: process.env.CHAT_DB_NAME || "chat_db",
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
