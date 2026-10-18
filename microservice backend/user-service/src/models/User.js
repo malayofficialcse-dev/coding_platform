@@ -72,11 +72,11 @@ User.init(
     },
     profileImage: {
       type: DataTypes.TEXT,
-      defaultValue: "",
+      defaultValue: "/default-avatar.svg",
     },
     bannerImage: {
       type: DataTypes.TEXT,
-      defaultValue: "",
+      defaultValue: "/default-banner.svg",
     },
     isActive: {
       type: DataTypes.BOOLEAN,
