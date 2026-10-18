@@ -1,0 +1,14 @@
+query UserProfilePage($id: ID!, $first: Int = 20) {
+  profilePage(id: $id, first: $first) {
+    ...ProfilePageCoreFields
+    learning {
+      canView
+      courses {
+        ...ProfileCourseFields
+      }
+      exams {
+        ...ProfileExamFields
+      }
+    }
+  }
+}

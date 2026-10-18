@@ -1,0 +1,17 @@
+query MyProfilePage($id: ID!, $first: Int = 20) {
+  myProfilePage(id: $id, first: $first) {
+    ...ProfilePageCoreFields
+    learning {
+      canView
+      enrollments {
+        ...ProfileEnrollmentFields
+      }
+      attempts {
+        ...ProfileAttemptFields
+      }
+      codingSubmissions {
+        ...ProfileCodingSubmissionFields
+      }
+    }
+  }
+}

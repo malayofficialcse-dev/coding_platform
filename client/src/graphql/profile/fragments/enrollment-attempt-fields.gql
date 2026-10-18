@@ -1,0 +1,27 @@
+fragment ProfileEnrollmentFields on ProfileEnrollment {
+  id
+  _id
+  course {
+    ...ProfileCourseFields
+  }
+  enrolledAt
+  expiresAt
+  progress
+  completedAt
+  certificateNumber
+  certificateIssuedAt
+  certificateRecipientName
+  certificateCeoName
+  updatedAt
+}
+
+fragment ProfileAttemptFields on ProfileAttempt {
+  id
+  _id
+  exam {
+    ...ProfileExamFields
+  }
+  score
+  total
+  createdAt
+}

@@ -1,0 +1,52 @@
+query HomeDashboard($first: Int = 20) {
+  homeDashboard(first: $first) {
+    posts {
+      id
+      _id
+      text
+      group
+      createdAt
+      images
+      codeBlocks
+      author
+      likes
+      likedByMe
+      repostedFrom
+      repostedPost
+      comments {
+        id
+        _id
+        text
+        createdAt
+        author {
+          id
+          _id
+          name
+          username
+          profileImage
+        }
+      }
+    }
+    feedHasMore
+    users {
+      id
+      _id
+      name
+      username
+      profileImage
+      followers
+      isFollowing
+    }
+    recommendations {
+      id
+      _id
+      name
+      username
+      profileImage
+      followers
+      isFollowing
+      degree
+      recommendationReason
+    }
+  }
+}

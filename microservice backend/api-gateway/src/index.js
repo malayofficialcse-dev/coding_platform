@@ -3,10 +3,12 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import Redis from "ioredis";
+import { getServices } from "./config/services.js";
+import { verifyJwtSafely } from "./security/jwt.js";
+import { mountGraphQL } from "./graphql/index.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -18,18 +20,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.API_GATEWAY_PORT || 5100;
 
-// Microservice Target URLs (Configurable via Environment)
-const SERVICES = {
-  auth: process.env.AUTH_SERVICE_URL || "http://localhost:5001",
-  user: process.env.USER_SERVICE_URL || "http://localhost:5002",
-  post: process.env.POST_SERVICE_URL || "http://localhost:5003",
-  exam: process.env.EXAM_SERVICE_URL || "http://localhost:5004",
-  course: process.env.COURSE_SERVICE_URL || "http://localhost:5005",
-  enrollment: process.env.ENROLLMENT_SERVICE_URL || "http://localhost:5006",
-  coding: process.env.CODING_SERVICE_URL || "http://localhost:5007",
-  notification: process.env.NOTIFICATION_SERVICE_URL || "http://localhost:5008",
-  chat: process.env.CHAT_SERVICE_URL || "http://localhost:5009",
-};
+const SERVICES = getServices();
 
 // ---- Redis Client (graceful: works without Redis too) ----
 let redis = null;
@@ -96,28 +87,11 @@ const limiter = rateLimit(limiterConfig);
 app.use(limiter);
 
 // 4. Token Decoder & Header Enrichment Middleware
-const getJwtSecrets = () => [
-  process.env.JWT_SECRET,
-  "replace-with-a-long-random-secret",
-  "kweu249hp72hf4fh48g7w9f4wpef74",
-  "default_jwt_secret",
-].filter(Boolean);
-
-const verifyTokenSafely = (token) => {
-  const secrets = getJwtSecrets();
-  for (const secret of secrets) {
-    try {
-      return jwt.verify(token, secret);
-    } catch {}
-  }
-  return null;
-};
-
 const enrichUserHeaders = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
-    const decoded = verifyTokenSafely(token);
+    const decoded = verifyJwtSafely(token);
     if (decoded) {
       req.headers["x-user-id"]          = decoded.userId || decoded.id || "";
       req.headers["x-user-role"]        = decoded.role || "user";
@@ -131,6 +105,7 @@ const enrichUserHeaders = (req, res, next) => {
 };
 
 app.use(enrichUserHeaders);
+await mountGraphQL(app);
 
 // 5. Health Check Endpoint
 app.get("/health", (req, res) => {

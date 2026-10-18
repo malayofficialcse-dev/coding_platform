@@ -5,6 +5,8 @@ import { Bar, Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from "chart.js";
 import { AuthContext } from "../contexts/AuthContext";
 import api from "../api/api";
+import { executeGraphQL } from "../graphql/client";
+import { MY_PROFILE_PAGE_QUERY } from "../graphql/profile/documents";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { formatDateTime } from "../utils/formatDateTime";
 import CourseCertificate from "../components/CourseCertificate";
@@ -56,31 +58,31 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
     const userId = user._id || user.id;
-    Promise.allSettled([
-      api.get("/enrollments/my"),
-      api.get("/attempts/my"),
-      api.get("/coding/submissions/my"),
-      api.get(`/posts/user/${userId}`, { params: { page: 1, limit: 20 } }),
-      api.get(`/users/${userId}`),
-      api.get(`/social/stats/${userId}`),
-    ]).then(([enrollmentResult, attemptResult, submissionsResult, postsResult, userResult, statsResult]) => {
-      if (enrollmentResult.status === "fulfilled") setEnrollments(enrollmentResult.value.data || []);
-      if (attemptResult.status === "fulfilled") setAttempts(attemptResult.value.data || []);
-      if (submissionsResult.status === "fulfilled") {
-        const submissions = submissionsResult.value.data || [];
+    let active = true;
+    executeGraphQL(MY_PROFILE_PAGE_QUERY, { id: String(userId), first: 20 }, "MyProfilePage")
+      .then(({ myProfilePage }) => {
+        if (!active || !myProfilePage) return;
+        const learning = myProfilePage.learning || {};
+        const submissions = learning.codingSubmissions || [];
+        setEnrollments(learning.enrollments || []);
+        setAttempts(learning.attempts || []);
         setCodingSubmissions(submissions);
-        const accepted = submissions.filter((submission) => submission.result === "Accepted").map((submission) => submission.problem);
+        const accepted = submissions
+          .filter((submission) => submission.result === "Accepted")
+          .map((submission) => submission.problem);
         setSolvedProblems([...new Set(accepted)]);
-      }
-      if (postsResult.status === "fulfilled") setPosts(postsResult.value.data || []);
-      if (userResult.status === "fulfilled") {
-        setFollowers(userResult.value.data?.followers || []);
-        setFollowing(userResult.value.data?.following || []);
-      }
-      if (statsResult.status === "fulfilled") {
-        setGraphStats(statsResult.value.data);
-      }
-    });
+        setPosts(myProfilePage.posts || []);
+        setFollowers(myProfilePage.profile?.followers || []);
+        setFollowing(myProfilePage.profile?.following || []);
+        setGraphStats(myProfilePage.social?.stats || null);
+      })
+      .catch((error) => {
+        if (active) console.error("Failed to load profile data:", error);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [user, refresh]);
 
   const examMetrics = useMemo(() => {

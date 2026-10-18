@@ -10,6 +10,8 @@ import UserPlus from "../assets/user-plus-regular-full.svg";
 import UserMinus from "../assets/user-minus-solid-full.svg";
 import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic } from "react-icons/fa";
 import { formatDateTime } from "../utils/formatDateTime";
+import { executeGraphQL, GraphQLOperationError } from "../graphql/client";
+import { HOME_DASHBOARD_QUERY } from "../graphql/dashboard/documents";
 
 /* ─────────────────────────────────────────────────────────────────────
    GLOBAL PALETTE  (4 colours, used everywhere)
@@ -53,27 +55,38 @@ export default function Dashboard() {
   const [postsPage, setPostsPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [dashboardError, setDashboardError] = useState("");
+  const [dashboardRefresh, setDashboardRefresh] = useState(0);
   const { user } = useContext(AuthContext);
   const activeGroup = "General Feed";
 
   useEffect(() => {
-    api.get("/users").then((res) => setUsers(res.data)).catch(() => {});
-    api.get("/social/recommendations").then((res) => setRecommendations(res.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     setLoadingPosts(true);
-    api.get("/posts", { params: { group: activeGroup, page: 1, limit: 20 } })
-      .then((res) => {
+    setDashboardError("");
+    executeGraphQL(HOME_DASHBOARD_QUERY, { first: 20 }, "HomeDashboard")
+      .then(({ homeDashboard }) => {
         if (cancelled) return;
-        setPosts(res.data || []);
+        setPosts(homeDashboard.posts);
+        setUsers(homeDashboard.users);
+        setRecommendations(homeDashboard.recommendations);
         setPostsPage(1);
-        setHasMorePosts(res.headers["x-has-more"] === "true");
+        setHasMorePosts(homeDashboard.feedHasMore);
       })
-      .finally(() => { if (!cancelled) setLoadingPosts(false); });
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Failed to load dashboard:", error);
+        setDashboardError(
+          error instanceof GraphQLOperationError
+            ? error.message
+            : "Dashboard data could not be loaded. Please try again."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPosts(false);
+      });
     return () => { cancelled = true; };
-  }, [activeGroup]);
+  }, [dashboardRefresh]);
 
   const handleNewPost = () => {
     api.get("/posts", { params: { group: activeGroup, page: 1, limit: 20 } }).then((r) => {
@@ -333,6 +346,18 @@ export default function Dashboard() {
 
           {/* ══════════════════════════ CENTER FEED ═══════════════════════════ */}
           <main style={{ minWidth: 0 }}>
+            {dashboardError && (
+              <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+                <span>{dashboardError}</span>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm ms-3"
+                  onClick={() => setDashboardRefresh((value) => value + 1)}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             {/* Composer bar */}
             <div style={{ ...card, padding: "1rem 1.25rem", marginBottom: "1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

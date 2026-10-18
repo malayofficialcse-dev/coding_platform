@@ -1,0 +1,9 @@
+fragment ProfileCodingSubmissionFields on ProfileCodingSubmission {
+  id
+  _id
+  result
+  problem
+  createdAt
+  submittedAt
+  updatedAt
+}

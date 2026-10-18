@@ -1,0 +1,95 @@
+fragment ProfileConnectionFields on ProfileConnection {
+  id
+  _id
+  name
+  username
+  profileImage
+  bannerImage
+  role
+  college
+}
+
+fragment ProfileUserFields on ProfileUser {
+  id
+  name
+  username
+  profileImage
+  bannerImage
+  role
+  college
+  degree
+  yearOfPassing
+  followersCount
+  followingCount
+  followers {
+    ...ProfileConnectionFields
+  }
+  following {
+    ...ProfileConnectionFields
+  }
+}
+
+fragment ProfilePostFields on ProfilePost {
+  id
+  _id
+  text
+  group
+  createdAt
+  images
+  codeBlocks
+  author
+  likes
+  likedByMe
+  comments {
+    id
+    _id
+    text
+    createdAt
+    author {
+      id
+      _id
+      name
+      username
+      profileImage
+    }
+  }
+}
+
+fragment ProfileSocialFields on ProfileSocial {
+  stats {
+    followersCount
+    followingCount
+    directConnections
+    secondDegreeReach
+    mutualCount
+    influenceScore
+  }
+  trail {
+    degree
+    distance
+    isDirectFollowing
+    isFollowedBy
+    mutualCount
+    trail {
+      ...ProfileConnectionFields
+    }
+  }
+  mutual {
+    count
+    users {
+      ...ProfileConnectionFields
+    }
+  }
+}
+
+fragment ProfilePageCoreFields on ProfilePage {
+  profile {
+    ...ProfileUserFields
+  }
+  posts {
+    ...ProfilePostFields
+  }
+  social {
+    ...ProfileSocialFields
+  }
+}

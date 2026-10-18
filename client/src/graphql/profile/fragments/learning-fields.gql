@@ -1,0 +1,16 @@
+fragment ProfileCourseFields on ProfileCourse {
+  id
+  _id
+  title
+  subtitle
+  progress
+}
+
+fragment ProfileExamFields on ProfileExam {
+  id
+  _id
+  title
+  questions
+}
+
+

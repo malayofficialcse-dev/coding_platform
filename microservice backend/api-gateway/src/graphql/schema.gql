@@ -1,0 +1,182 @@
+scalar JSON
+
+type Query {
+  "Public profile data plus viewer-authorized private fields."
+  profilePage(id: ID!, first: Int = 20): ProfilePage
+  "Private profile data for the signed-in profile owner."
+  myProfilePage(id: ID!, first: Int = 20): ProfilePage!
+  "Initial home feed and people data for the signed-in viewer."
+  homeDashboard(first: Int = 20): DashboardPage!
+}
+
+type DashboardPage {
+  posts: [ProfilePost!]!
+  feedHasMore: Boolean!
+  users: [DashboardPerson!]!
+  recommendations: [DashboardPerson!]!
+}
+
+type DashboardPerson {
+  id: ID!
+  _id: ID!
+  name: String
+  username: String
+  profileImage: String
+  followers: [ID!]!
+  isFollowing: Boolean!
+  degree: String
+  recommendationReason: String
+}
+
+type ProfilePage {
+  profile: ProfileUser
+  posts: [ProfilePost!]!
+  social: ProfileSocial!
+  learning: ProfileLearning!
+}
+
+type ProfileUser {
+  id: ID!
+  name: String
+  username: String
+  profileImage: String
+  bannerImage: String
+  role: String
+  college: String
+  degree: String
+  yearOfPassing: String
+  followers: [ProfileConnection!]!
+  following: [ProfileConnection!]!
+  followersCount: Int
+  followingCount: Int
+}
+
+type ProfileConnection {
+  id: ID
+  _id: ID
+  name: String
+  username: String
+  profileImage: String
+  bannerImage: String
+  role: String
+  college: String
+}
+
+type ProfilePost {
+  id: ID
+  _id: ID
+  text: String
+  group: String
+  createdAt: String
+  images: [String!]!
+  codeBlocks: [JSON!]!
+  author: JSON
+  likes: JSON
+  likedByMe: Boolean
+  repostedFrom: JSON
+  repostedPost: JSON
+  comments: [ProfileComment!]!
+}
+
+type ProfileComment {
+  id: ID
+  _id: ID
+  text: String
+  createdAt: String
+  author: ProfilePostAuthor
+}
+
+type ProfilePostAuthor {
+  id: ID
+  _id: ID
+  name: String
+  username: String
+  profileImage: String
+}
+
+type ProfileSocial {
+  stats: ProfileNetworkStats
+  trail: ProfileConnectionTrail
+  mutual: ProfileMutualConnections
+}
+
+type ProfileNetworkStats {
+  followersCount: Int!
+  followingCount: Int!
+  directConnections: Int!
+  secondDegreeReach: Int!
+  mutualCount: Int!
+  influenceScore: Int!
+}
+
+type ProfileConnectionTrail {
+  degree: String!
+  distance: Int
+  isDirectFollowing: Boolean!
+  isFollowedBy: Boolean!
+  trail: [ProfileConnection!]!
+  mutualCount: Int!
+}
+
+type ProfileMutualConnections {
+  count: Int!
+  users: [ProfileConnection!]!
+}
+
+type ProfileLearning {
+  canView: Boolean!
+  enrollments: [ProfileEnrollment!]!
+  attempts: [ProfileAttempt!]!
+  codingSubmissions: [ProfileCodingSubmission!]!
+  courses: [ProfileCourse!]!
+  exams: [ProfileExam!]!
+}
+
+type ProfileEnrollment {
+  id: ID
+  _id: ID
+  course: ProfileCourse
+  enrolledAt: String
+  expiresAt: String
+  progress: Float
+  completedAt: String
+  certificateNumber: String
+  certificateIssuedAt: String
+  certificateRecipientName: String
+  certificateCeoName: String
+  updatedAt: String
+}
+
+type ProfileCourse {
+  id: ID
+  _id: ID
+  title: String
+  subtitle: String
+  progress: Float
+}
+
+type ProfileAttempt {
+  id: ID
+  _id: ID
+  exam: ProfileExam
+  score: Float
+  total: Int
+  createdAt: String
+}
+
+type ProfileExam {
+  id: ID
+  _id: ID
+  title: String
+  questions: [JSON!]
+}
+
+type ProfileCodingSubmission {
+  id: ID
+  _id: ID
+  result: String
+  problem: JSON
+  createdAt: String
+  submittedAt: String
+  updatedAt: String
+}

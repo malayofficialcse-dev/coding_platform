@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
-import api from "../api/api";
+import { executeGraphQL } from "../graphql/client";
+import { USER_PROFILE_PAGE_QUERY } from "../graphql/profile/documents";
 import PostCard from "../components/PostCard";
 import FollowButton from "../components/FollowButton";
 import ConnectionBadge from "../components/ConnectionBadge";
@@ -30,55 +31,40 @@ export default function PostToProfile() {
   const [showMutualModal, setShowMutualModal] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const loadProfile = async () => {
       setLoading(true);
       try {
-        const [profileRes, postsRes] = await Promise.all([
-          api.get(`/users/${id}`),
-          api.get(`/posts/user/${id}`),
-        ]);
-        setProfile(profileRes.data);
-        setPosts(postsRes.data);
-
-        // Fetch Neo4j Graph Intelligence
-        const currentUserId = currentUser?._id || currentUser?.id;
-        if (currentUserId && String(currentUserId) !== String(id)) {
-          Promise.allSettled([
-            api.get(`/social/trail/${id}`),
-            api.get(`/social/stats/${id}`),
-            api.get(`/social/mutual/${id}`),
-          ]).then(([trailRes, statsRes, mutualRes]) => {
-            if (trailRes.status === "fulfilled") setTrailData(trailRes.value.data);
-            if (statsRes.status === "fulfilled") setNetworkStats(statsRes.value.data);
-            if (mutualRes.status === "fulfilled") setMutualData(mutualRes.value.data);
-          });
-        } else if (currentUserId && String(currentUserId) === String(id)) {
-          api.get(`/social/stats/${id}`).then((res) => setNetworkStats(res.data)).catch(() => {});
-        }
-
-        const isOwnProfile = (currentUser?._id || currentUser?.id) === id;
-        const canViewLearningData = isOwnProfile || currentUser?.role === "admin";
-        if (!canViewLearningData) {
-          setCourses([]);
-          setExams([]);
+        const { profilePage } = await executeGraphQL(
+          USER_PROFILE_PAGE_QUERY,
+          { id: String(id), first: 20 },
+          "UserProfilePage"
+        );
+        if (!active) return;
+        if (!profilePage?.profile) {
+          setProfile(null);
           return;
         }
 
-        const [enrollmentsRes, attemptsRes] = await Promise.all([
-          api.get(isOwnProfile ? "/enrollments/my" : `/enrollments/user/${id}`),
-          api.get(isOwnProfile ? "/attempts/my" : `/attempts/user/${id}`),
-        ]);
-        setCourses(enrollmentsRes.data.map((enrollment) => enrollment.course).filter(Boolean));
-        setExams(attemptsRes.data.map((attempt) => attempt.exam).filter(Boolean));
+        setProfile(profilePage.profile);
+        setPosts(profilePage.posts || []);
+        setNetworkStats(profilePage.social?.stats || null);
+        setTrailData(profilePage.social?.trail || null);
+        setMutualData(profilePage.social?.mutual || null);
+        setCourses(profilePage.learning?.courses || []);
+        setExams(profilePage.learning?.exams || []);
       } catch (error) {
         console.error("Failed to load profile data:", error);
-        setProfile(null);
+        if (active) setProfile(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadProfile();
+    return () => {
+      active = false;
+    };
   }, [id, currentUser]);
 
   const handleUpdatePost = (updatedPost) => {

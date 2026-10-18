@@ -12,7 +12,7 @@ const verifyTokenSafely = (token) => {
   for (const secret of secrets) {
     try {
       return jwt.verify(token, secret);
-    } catch {}
+    } catch { }
   }
   return null;
 };
@@ -33,12 +33,12 @@ export const protect = (req, res, next) => {
     }
 
     req.user = {
-      _id:         gatewayUserId,
-      id:          gatewayUserId,
-      role:        req.headers["x-user-role"] || "user",
-      email:       req.headers["x-user-email"] || "",
-      name:        req.headers["x-user-name"] || "",
-      username:    req.headers["x-user-username"] || "",
+      _id: gatewayUserId,
+      id: gatewayUserId,
+      role: req.headers["x-user-role"] || "user",
+      email: req.headers["x-user-email"] || "",
+      name: req.headers["x-user-name"] || "",
+      username: req.headers["x-user-username"] || "",
       permissions,
     };
     return next();
@@ -57,11 +57,11 @@ export const protect = (req, res, next) => {
   }
 
   req.user = {
-    _id:         decoded.userId || decoded.id,
-    id:          decoded.userId || decoded.id,
-    role:        decoded.role || "user",
-    email:       decoded.email || "",
-    name:        decoded.name || "",
+    _id: decoded.userId || decoded.id,
+    id: decoded.userId || decoded.id,
+    role: decoded.role || "user",
+    email: decoded.email || "",
+    name: decoded.name || "",
     permissions: decoded.permissions || {},
   };
   next();
