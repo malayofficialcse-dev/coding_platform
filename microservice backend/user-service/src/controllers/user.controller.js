@@ -1,7 +1,14 @@
 import User, { Op } from "../models/User.js";
 import { runCypher } from "../lib/neo4j.js";
 import { deleteCached, getCached, setCached } from "../config/cache.js";
-export { followUser, unfollowUser } from "./social.controller.js";
+export {
+  followUser,
+  unfollowUser,
+  getConnectionTrail,
+  getMutualConnections,
+  getRecommendations,
+  getUserNetworkStats,
+} from "./social.controller.js";
 
 export const getAllUsers = async (req, res) => {
   try {

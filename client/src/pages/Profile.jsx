@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaArrowRight, FaBookOpen, FaCamera, FaChartLine, FaCode, FaEdit, FaFlask, FaGraduationCap, FaSave, FaShieldAlt, FaTrash, FaTimes, FaUsers, FaAward } from "react-icons/fa";
+import { FaArrowRight, FaBookOpen, FaCamera, FaChartLine, FaCode, FaEdit, FaFlask, FaGraduationCap, FaSave, FaShieldAlt, FaTrash, FaTimes, FaUsers, FaAward, FaNetworkWired } from "react-icons/fa";
 import { Bar, Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from "chart.js";
 import { AuthContext } from "../contexts/AuthContext";
@@ -44,6 +44,7 @@ export default function Profile() {
   const [refresh, setRefresh] = useState(false);
   const [activeCertificate, setActiveCertificate] = useState(null);
   const [loadingCert, setLoadingCert] = useState(false);
+  const [graphStats, setGraphStats] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -54,13 +55,15 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user) return;
+    const userId = user._id || user.id;
     Promise.allSettled([
       api.get("/enrollments/my"),
       api.get("/attempts/my"),
       api.get("/coding/submissions/my"),
-      api.get(`/posts/user/${user._id}`, { params: { page: 1, limit: 20 } }),
-      api.get(`/users/${user._id}`),
-    ]).then(([enrollmentResult, attemptResult, submissionsResult, postsResult, userResult]) => {
+      api.get(`/posts/user/${userId}`, { params: { page: 1, limit: 20 } }),
+      api.get(`/users/${userId}`),
+      api.get(`/social/stats/${userId}`),
+    ]).then(([enrollmentResult, attemptResult, submissionsResult, postsResult, userResult, statsResult]) => {
       if (enrollmentResult.status === "fulfilled") setEnrollments(enrollmentResult.value.data || []);
       if (attemptResult.status === "fulfilled") setAttempts(attemptResult.value.data || []);
       if (submissionsResult.status === "fulfilled") {
@@ -73,6 +76,9 @@ export default function Profile() {
       if (userResult.status === "fulfilled") {
         setFollowers(userResult.value.data?.followers || []);
         setFollowing(userResult.value.data?.following || []);
+      }
+      if (statsResult.status === "fulfilled") {
+        setGraphStats(statsResult.value.data);
       }
     });
   }, [user, refresh]);
@@ -330,6 +336,26 @@ export default function Profile() {
             </div>
           </section>
           <section className="cc-profile-card cc-profile-specialties"><div className="cc-profile-section-title"><h2>Verified specialties</h2><span>Learning signals</span></div><div className="cc-profile-tags"><span><FaCode /> Problem solving</span><span><FaBookOpen /> {user?.degree || "Technical learning"}</span><span><FaShieldAlt /> {user?.role || "Learner"}</span><span><FaGraduationCap /> {user?.college || "Code Campus"}</span></div></section>
+          <section className="cc-profile-card" style={{ marginTop: "1rem" }}>
+            <div className="cc-profile-section-title">
+              <h2>Campus Graph Reach</h2>
+              <span>Social &amp; Academic Network</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
+              <div style={{ background: "#f8fafc", padding: "12px 10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#2563eb" }}>
+                  {graphStats?.secondDegreeReach || (followers.length * 2)}
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 600 }}>2nd Degree Reach</div>
+              </div>
+              <div style={{ background: "#f8fafc", padding: "12px 10px", borderRadius: "8px", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#ec4899" }}>
+                  {graphStats?.influenceScore || Math.min(100, Math.max(10, (followers.length + following.length) * 8))}/100
+                </div>
+                <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 600 }}>Network Influence</div>
+              </div>
+            </div>
+          </section>
           <section className="cc-profile-card cc-profile-network"><div className="cc-profile-tabs"><button className={networkTab === "followers" ? "active" : ""} onClick={() => setNetworkTab("followers")}>Followers ({followers.length})</button><button className={networkTab === "following" ? "active" : ""} onClick={() => setNetworkTab("following")}>Following ({following.length})</button></div><div className="cc-profile-people">{(networkTab === "followers" ? followers : following).map((person) => { const personId = person._id || person.id; const isFollowing = following.some((item) => String(item._id || item.id) === String(personId)); return <div key={personId}><img src={optimizedImageUrl(person.profileImage || DEFAULT_AVATAR, 80)} alt="" /><Link to={`/profile/${personId}`}>{person.name || person.username}</Link><button onClick={() => (isFollowing ? handleUnfollow(personId) : handleFollow(personId))}>{isFollowing ? "Following" : "Follow back"}</button></div>; })}</div>{!(networkTab === "followers" ? followers : following).length && <p className="cc-profile-muted">{networkTab === "followers" ? "You do not have any followers yet." : "You are not following anyone yet."}</p>}</section>
         </aside>
 

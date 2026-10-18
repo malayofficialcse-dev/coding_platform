@@ -6,11 +6,19 @@ import {
   followUser,
   unfollowUser,
   updateProfile,
+  getConnectionTrail,
+  getMutualConnections,
+  getRecommendations,
+  getUserNetworkStats,
 } from "../controllers/user.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+router.get("/recommendations", protect, getRecommendations);
+router.get("/trail/:id", protect, getConnectionTrail);
+router.get("/mutual/:id", protect, getMutualConnections);
+router.get("/stats/:id", protect, getUserNetworkStats);
 router.get("/search", searchUsers);
 router.get("/", getAllUsers);
 router.get("/:id", getUserById);
