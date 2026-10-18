@@ -1,4 +1,13 @@
 import neo4j from "neo4j-driver";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Load the same service environment before creating the driver. Static imports
+// are evaluated before index.js runs its dotenv.config() calls.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config();
 
 const uri = process.env.NEO4J_URI || "bolt://127.0.0.1:7687";
 const user = process.env.NEO4J_USER || "neo4j";

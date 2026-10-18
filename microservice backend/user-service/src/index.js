@@ -37,10 +37,10 @@ app.use(errorHandler);
 
 const startServer = async () => {
   await connectDB();
-  await verifyNeo4j();
+  const neo4jAvailable = await verifyNeo4j();
 
   // Sync any existing SQL follow relationships into Neo4j (in case of data drift)
-  try {
+  if (neo4jAvailable) try {
     const { default: UserFollow } = await import("./models/UserFollow.js");
     const { runCypher } = await import("./lib/neo4j.js");
     const follows = await UserFollow.findAll({ attributes: ["followerId", "followingId"] });
