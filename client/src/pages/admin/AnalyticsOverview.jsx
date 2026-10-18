@@ -164,7 +164,46 @@ export default function AnalyticsOverview() {
         const data = res.data || {};
 
         if (isMounted) {
-          setAnalyticsData(data);
+          setAnalyticsData({
+            globalStats: data.globalStats || {
+              totalExams: data.totalExams || 0,
+              totalQuestions: data.totalQuestions || 0,
+              totalAttempts: data.totalAttempts || 0,
+              passCount: data.passCount || 0,
+              failCount: data.failCount || 0,
+              overallPassRate: data.overallPassRate || 0,
+              averageScore: data.averageScore || 0,
+              highestScore: data.highestScore || 0,
+              uniqueCandidates: data.uniqueCandidates || 0,
+            },
+            exams: Array.isArray(data.exams) ? data.exams : [],
+            academicStats: {
+              colleges: Array.isArray(data.academicStats?.colleges)
+                ? data.academicStats.colleges
+                : [],
+              batches: Array.isArray(data.academicStats?.batches)
+                ? data.academicStats.batches
+                : [],
+              departments: Array.isArray(data.academicStats?.departments)
+                ? data.academicStats.departments
+                : [],
+            },
+            timeline: Array.isArray(data.timeline) ? data.timeline : [],
+            filterOptions: {
+              colleges: Array.isArray(data.filterOptions?.colleges)
+                ? data.filterOptions.colleges
+                : [],
+              departments: Array.isArray(data.filterOptions?.departments)
+                ? data.filterOptions.departments
+                : [],
+              batches: Array.isArray(data.filterOptions?.batches)
+                ? data.filterOptions.batches
+                : [],
+              exams: Array.isArray(data.filterOptions?.exams)
+                ? data.filterOptions.exams
+                : [],
+            },
+          });
           if (
             data.filterOptions &&
             (!cachedFilterOptions.colleges.length || (!selectedCollege && !selectedDepartment && !selectedBatch))

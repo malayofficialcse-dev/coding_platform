@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
+import { sql } from "@codemirror/lang-sql";
 import CodeMirror from "@uiw/react-codemirror";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { formatDateTime } from "../utils/formatDateTime";
@@ -31,7 +32,13 @@ import {
   FaEllipsisV,
 } from "react-icons/fa";
 
-const LANGUAGES = { javascript, python, java };
+const LANGUAGES = { javascript, python, java, sql };
+
+const getLanguageExtension = (language) => {
+  const normalizedLanguage = String(language || "").trim().toLowerCase();
+  const extension = LANGUAGES[normalizedLanguage] || javascript;
+  return extension();
+};
 
 const isLikedByUser = (likes, userId) =>
   Array.isArray(likes) &&
@@ -301,7 +308,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             value={data.codeBlocks[codeIndex].code}
             height="220px"
             extensions={[
-              LANGUAGES[data.codeBlocks[codeIndex].language]?.(),
+              getLanguageExtension(data.codeBlocks[codeIndex].language),
               EditorView.theme({
                 "&": {
                   fontSize: "14px",

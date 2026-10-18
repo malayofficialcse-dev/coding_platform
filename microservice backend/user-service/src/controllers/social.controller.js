@@ -1,5 +1,6 @@
 import { runCypher } from "../lib/neo4j.js";
 import User, { Op } from "../models/User.js";
+import UserFollow from "../models/UserFollow.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
 import { deleteCached } from "../config/cache.js";
 
@@ -75,7 +76,10 @@ export const followUser = async (req, res) => {
     await syncUserToGraph(currentUser);
     await syncUserToGraph(targetUser);
 
-    // Neo4j graph follow
+    // 1. Persist in SQL (primary, reliable source of truth)
+    await UserFollow.upsert({ followerId: String(currentUserId), followingId: String(targetUserId) });
+
+    // 2. Also sync to Neo4j graph for traversal/recommendation features
     try {
       await runCypher(
         `MERGE (a:User {id: $currentUserId})
@@ -119,6 +123,12 @@ export const unfollowUser = async (req, res) => {
       return res.status(400).json({ error: "Cannot unfollow yourself" });
     }
 
+    // 1. Remove from SQL
+    await UserFollow.destroy({
+      where: { followerId: String(currentUserId), followingId: String(targetUserId) },
+    });
+
+    // 2. Also remove from Neo4j
     try {
       await runCypher(
         `MATCH (a:User {id: $currentUserId})-[r:FOLLOWS]->(b:User {id: $targetUserId})
@@ -142,18 +152,12 @@ export const unfollowUser = async (req, res) => {
 export const getFollowers = async (req, res) => {
   try {
     const userId = req.params.id;
-    let followerIds = [];
-
-    try {
-      const result = await runCypher(
-        `MATCH (f:User)-[:FOLLOWS]->(u:User {id: $userId})
-         RETURN f.id AS id`,
-        { userId: String(userId) }
-      );
-      followerIds = result.records.map((r) => r.get("id"));
-    } catch (neoErr) {
-      console.warn("[Social Neo4j Warning]:", neoErr.message);
-    }
+    // Fetch followers from SQL (reliable)
+    const followRows = await UserFollow.findAll({
+      where: { followingId: String(userId) },
+      attributes: ["followerId"],
+    });
+    const followerIds = followRows.map((r) => r.followerId);
 
     const followers = followerIds.length
       ? await User.findAll({
@@ -174,18 +178,12 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
   try {
     const userId = req.params.id;
-    let followingIds = [];
-
-    try {
-      const result = await runCypher(
-        `MATCH (u:User {id: $userId})-[:FOLLOWS]->(f:User)
-         RETURN f.id AS id`,
-        { userId: String(userId) }
-      );
-      followingIds = result.records.map((r) => r.get("id"));
-    } catch (neoErr) {
-      console.warn("[Social Neo4j Warning]:", neoErr.message);
-    }
+    // Fetch following from SQL (reliable)
+    const followRows = await UserFollow.findAll({
+      where: { followerId: String(userId) },
+      attributes: ["followingId"],
+    });
+    const followingIds = followRows.map((r) => r.followingId);
 
     const following = followingIds.length
       ? await User.findAll({
@@ -425,21 +423,29 @@ export const getRecommendations = async (req, res) => {
     const currentUser = await User.findByPk(currentUserId);
     if (currentUser) await syncUserToGraph(currentUser);
 
-    // Collect who current user already follows so they are NEVER recommended
+    // Collect who current user already follows from SQL (reliable source of truth)
     let alreadyFollowingIds = new Set();
     try {
-      const followingResult = await runCypher(
-        `MATCH (me:User {id: $currentUserId})-[:FOLLOWS]->(target:User)
-         RETURN target.id AS id`,
-        { currentUserId: String(currentUserId) }
-      );
-      if (followingResult?.records) {
-        followingResult.records.forEach((r) => {
-          alreadyFollowingIds.add(String(r.get("id")));
-        });
+      const followRows = await UserFollow.findAll({
+        where: { followerId: String(currentUserId) },
+        attributes: ["followingId"],
+      });
+      followRows.forEach((r) => alreadyFollowingIds.add(String(r.followingId)));
+    } catch (sqlErr) {
+      console.warn("[Social SQL followingIds Warning]:", sqlErr.message);
+      // Fallback to Neo4j
+      try {
+        const followingResult = await runCypher(
+          `MATCH (me:User {id: $currentUserId})-[:FOLLOWS]->(target:User)
+           RETURN target.id AS id`,
+          { currentUserId: String(currentUserId) }
+        );
+        if (followingResult?.records) {
+          followingResult.records.forEach((r) => alreadyFollowingIds.add(String(r.get("id"))));
+        }
+      } catch (neoErr) {
+        console.warn("[Social Neo4j followingIds Warning]:", neoErr.message);
       }
-    } catch (neoErr) {
-      console.warn("[Social Neo4j followingIds Warning]:", neoErr.message);
     }
 
     let candidates = new Map(); // id -> { mutualCount, sameCollege, commonFriendIds }
@@ -562,24 +568,38 @@ export const getRecommendations = async (req, res) => {
         console.warn("[Social Neo4j Degree Calculation Warning]:", pathErr.message);
       }
 
-      // 2. Fetch followers for each recommended user so follow state is always accurate
+      // 2. Fetch followers for each recommended user from SQL
       try {
-        const followResult = await runCypher(
-          `MATCH (f:User)-[:FOLLOWS]->(u:User)
-           WHERE u.id IN $targetIds
-           RETURN f.id AS followerId, u.id AS followedId`,
-          { targetIds: targetUserIds }
-        );
-        if (followResult?.records) {
-          followResult.records.forEach((r) => {
-            const followed = r.get("followedId");
-            const follower = r.get("followerId");
-            if (!followersMap[followed]) followersMap[followed] = [];
-            followersMap[followed].push(follower);
-          });
-        }
+        const followRows = await UserFollow.findAll({
+          where: { followingId: { [Op.in]: targetUserIds } },
+          attributes: ["followerId", "followingId"],
+        });
+        followRows.forEach((r) => {
+          const followed = String(r.followingId);
+          const follower = String(r.followerId);
+          if (!followersMap[followed]) followersMap[followed] = [];
+          followersMap[followed].push(follower);
+        });
       } catch (fErr) {
-        console.warn("[Social Neo4j followers Warning]:", fErr.message);
+        // Fallback to Neo4j
+        try {
+          const followResult = await runCypher(
+            `MATCH (f:User)-[:FOLLOWS]->(u:User)
+             WHERE u.id IN $targetIds
+             RETURN f.id AS followerId, u.id AS followedId`,
+            { targetIds: targetUserIds }
+          );
+          if (followResult?.records) {
+            followResult.records.forEach((r) => {
+              const followed = r.get("followedId");
+              const follower = r.get("followerId");
+              if (!followersMap[followed]) followersMap[followed] = [];
+              followersMap[followed].push(follower);
+            });
+          }
+        } catch (neoErr) {
+          console.warn("[Social Neo4j followers Warning]:", neoErr.message);
+        }
       }
     }
 

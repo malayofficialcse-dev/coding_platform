@@ -38,6 +38,25 @@ app.use(errorHandler);
 const startServer = async () => {
   await connectDB();
   await verifyNeo4j();
+
+  // Sync any existing SQL follow relationships into Neo4j (in case of data drift)
+  try {
+    const { default: UserFollow } = await import("./models/UserFollow.js");
+    const { runCypher } = await import("./lib/neo4j.js");
+    const follows = await UserFollow.findAll({ attributes: ["followerId", "followingId"] });
+    if (follows.length > 0) {
+      for (const f of follows) {
+        await runCypher(
+          `MERGE (a:User {id: $fId}) MERGE (b:User {id: $tId}) MERGE (a)-[:FOLLOWS]->(b)`,
+          { fId: String(f.followerId), tId: String(f.followingId) }
+        ).catch(() => {});
+      }
+      console.log(`[User Service] Synced ${follows.length} SQL follow relationships to Neo4j`);
+    }
+  } catch (syncErr) {
+    console.warn("[User Service] Follow sync to Neo4j warning:", syncErr.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`[User Service] Running on port ${PORT}`);
   });

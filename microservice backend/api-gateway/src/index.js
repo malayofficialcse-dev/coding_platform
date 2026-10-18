@@ -123,6 +123,7 @@ const enrichUserHeaders = (req, res, next) => {
       req.headers["x-user-role"]        = decoded.role || "user";
       req.headers["x-user-email"]       = decoded.email || "";
       req.headers["x-user-name"]        = decoded.name  || "";
+      req.headers["x-user-username"]    = decoded.username || "";
       req.headers["x-user-permissions"] = JSON.stringify(decoded.permissions || {});
     }
   }
@@ -160,6 +161,9 @@ const createServiceProxy = (target) => {
         }
         if (req.headers["x-user-name"]) {
           proxyReq.setHeader("x-user-name", req.headers["x-user-name"]);
+        }
+        if (req.headers["x-user-username"]) {
+          proxyReq.setHeader("x-user-username", req.headers["x-user-username"]);
         }
         if (req.headers["x-user-permissions"]) {
           proxyReq.setHeader("x-user-permissions", req.headers["x-user-permissions"]);

@@ -106,6 +106,45 @@ const STUDENTS = [
   },
 ];
 
+const additionalFirstNames = [
+  "Aditi", "Ishaan", "Meera", "Kabir", "Nisha", "Dev", "Tara", "Neil",
+  "Rhea", "Aditya", "Maya", "Karan", "Sana", "Yash", "Diya", "Om",
+  "Avni", "Reyansh",
+];
+const additionalLastNames = ["Gupta", "Banerjee", "Rao", "Kapoor", "Chatterjee"];
+const colleges = [
+  "Northstar Institute",
+  "Riverside Technical College",
+  "Summit University",
+  "Lakeside School of Computing",
+  "Pioneer Institute of Technology",
+];
+const degrees = [
+  "B.Tech Computer Science",
+  "B.Tech Information Technology",
+  "B.Sc Computer Science",
+  "BCA",
+];
+
+STUDENTS.push(
+  ...Array.from({ length: 90 }, (_, index) => {
+    const studentNumber = index + 11;
+    const name = `${additionalFirstNames[index % additionalFirstNames.length]} ${
+      additionalLastNames[Math.floor(index / additionalFirstNames.length)]
+    }`;
+
+    return {
+      name,
+      username: `student${String(studentNumber).padStart(3, "0")}`,
+      email: `student${String(studentNumber).padStart(3, "0")}@campus.edu`,
+      college: colleges[index % colleges.length],
+      degree: degrees[index % degrees.length],
+      yearOfPassing: String(2025 + (index % 4)),
+      proficiency: 0.5 + ((index * 7) % 46) / 100,
+    };
+  }),
+);
+
 async function seedToUri(targetUri, label) {
   console.log(`\n========================================`);
   console.log(`Seeding Students & Attempts to: ${label}`);

@@ -52,6 +52,8 @@ export default function TakeExam() {
   const lastWarningTimeRef = useRef(0);
 
   const sessionKey = `cc_exam_session_${examId}_${user?._id || user?.id || "guest"}`;
+  // JSONB questions may not have Mongo-style IDs; fall back to position to isolate answers.
+  const getQuestionKey = (question, index) => String(question?._id ?? question?.id ?? index);
 
   // 1. Load Exam
   useEffect(() => {
@@ -65,7 +67,10 @@ export default function TakeExam() {
           const saved = localStorage.getItem(sessionKey);
           if (saved) {
             const parsed = JSON.parse(saved);
-            if (parsed.selected) setSelected(parsed.selected);
+            if (parsed.selected && Array.isArray(res.data.questions)) {
+              const validKeys = new Set(res.data.questions.map((question, index) => String(question?._id ?? question?.id ?? index)));
+              setSelected(Object.fromEntries(Object.entries(parsed.selected).filter(([key, value]) => validKeys.has(key) && Number.isInteger(value))));
+            }
             if (parsed.flagged) setFlagged(parsed.flagged);
             if (typeof parsed.activeQuestion === "number") setActiveQuestion(parsed.activeQuestion);
             if (typeof parsed.timeLeft === "number" && parsed.timeLeft > 0) {
@@ -137,8 +142,8 @@ export default function TakeExam() {
       if (!exam || submittingRef.current) return;
       submittingRef.current = true;
 
-      const answers = exam.questions.map((question) => {
-        const selectedIndex = selected[question._id];
+      const answers = exam.questions.map((question, index) => {
+        const selectedIndex = selected[getQuestionKey(question, index)];
         return typeof selectedIndex === "number" ? question.options[selectedIndex] : "";
       });
 
@@ -384,18 +389,20 @@ export default function TakeExam() {
   }
 
   const question = exam.questions[activeQuestion];
+  const questionKey = getQuestionKey(question, activeQuestion);
   const questionCount = exam.questions.length;
-  const answeredCount = Object.keys(selected).length;
+  const answeredCount = exam.questions.reduce((count, item, index) => count + (selected[getQuestionKey(item, index)] !== undefined ? 1 : 0), 0);
   const flaggedCount = Object.values(flagged).filter(Boolean).length;
   const unansweredCount = questionCount - answeredCount;
-  const currentChoice = selected[question?._id];
+  const currentChoice = selected[questionKey];
   const progress = questionCount ? Math.round((answeredCount / questionCount) * 100) : 0;
 
   // Filter matrix items
-  const filteredQuestions = exam.questions.map((item, idx) => ({ ...item, originalIndex: idx })).filter((item) => {
-    if (matrixFilter === "answered") return selected[item._id] !== undefined;
-    if (matrixFilter === "flagged") return !!flagged[item._id];
-    if (matrixFilter === "unanswered") return selected[item._id] === undefined;
+  const filteredQuestions = exam.questions.map((item, idx) => ({ ...item, originalIndex: idx })).filter((item, idx) => {
+    const key = getQuestionKey(item, idx);
+    if (matrixFilter === "answered") return selected[key] !== undefined;
+    if (matrixFilter === "flagged") return !!flagged[key];
+    if (matrixFilter === "unanswered") return selected[key] === undefined;
     return true;
   });
 
@@ -520,15 +527,15 @@ export default function TakeExam() {
           </div>
           <button
             type="button"
-            className={`cc-exam-header-button ${flagged[question._id] ? "is-flagged" : ""}`}
+            className={`cc-exam-header-button ${flagged[questionKey] ? "is-flagged" : ""}`}
             onClick={() =>
               setFlagged((prev) => ({
                 ...prev,
-                [question._id]: !prev[question._id],
+                [questionKey]: !prev[questionKey],
               }))
             }
           >
-            <FaFlag /> {flagged[question._id] ? "Flagged" : "Flag Question"}
+            <FaFlag /> {flagged[questionKey] ? "Flagged" : "Flag Question"}
           </button>
           <button
             type="button"
@@ -555,7 +562,7 @@ export default function TakeExam() {
 
           <div className="cc-exam-question-title-row">
             <h1>{question.question}</h1>
-            {flagged[question._id] && (
+            {flagged[questionKey] && (
               <span className="cc-exam-flagged">
                 <FaFlag /> Flagged for review
               </span>
@@ -571,7 +578,7 @@ export default function TakeExam() {
                   type="button"
                   key={option}
                   className={`cc-exam-option${isSelected ? " is-selected" : ""}`}
-                  onClick={() => chooseOption(question._id, optionIndex)}
+                  onClick={() => chooseOption(questionKey, optionIndex)}
                 >
                   <span className="cc-exam-option-radio">
                     {isSelected ? "✓" : String.fromCharCode(65 + optionIndex)}
@@ -598,7 +605,7 @@ export default function TakeExam() {
               onClick={() =>
                 setSelected((prev) => {
                   const next = { ...prev };
-                  delete next[question._id];
+                  delete next[questionKey];
                   return next;
                 })
               }
@@ -735,17 +742,17 @@ export default function TakeExam() {
               {filteredQuestions.map((item) => (
                 <button
                   type="button"
-                  key={item._id}
+                  key={getQuestionKey(item, item.originalIndex)}
                   className={`${
                     item.originalIndex === activeQuestion ? "is-current " : ""
-                  }${selected[item._id] !== undefined ? "is-answered " : ""}${
-                    flagged[item._id] ? "is-flagged" : ""
+                  }${selected[getQuestionKey(item, item.originalIndex)] !== undefined ? "is-answered " : ""}${
+                    flagged[getQuestionKey(item, item.originalIndex)] ? "is-flagged" : ""
                   }`}
                   onClick={() => setActiveQuestion(item.originalIndex)}
                   aria-label={`Go to question ${item.originalIndex + 1}`}
                 >
                   {String(item.originalIndex + 1).padStart(2, "0")}
-                  {flagged[item._id] && <i />}
+                  {flagged[getQuestionKey(item, item.originalIndex)] && <i />}
                 </button>
               ))}
             </div>

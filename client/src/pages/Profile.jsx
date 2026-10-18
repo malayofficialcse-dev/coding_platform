@@ -362,6 +362,59 @@ export default function Profile() {
         <main className="cc-profile-main">
           <section className="cc-profile-card cc-profile-metrics"><div className="cc-profile-section-title"><div><h2>Engineering performance &amp; learning metrics</h2><span>Updated from your Code Campus activity</span></div><span className="cc-live-status"><i /> Live profile</span></div><div className="cc-profile-stat-grid">{profileStats.map((stat) => { const StatIcon = stat.icon; return <div className={`cc-profile-stat ${stat.tone}`} key={stat.label}><StatIcon /><small>{stat.label}</small><strong>{stat.value}</strong><span>{stat.label === "Exam attempts" ? `${examMetrics.passRate}% pass rate` : stat.label === "Problems solved" ? "Accepted solutions" : "Active records"}</span></div>; })}</div><div className="cc-profile-quality"><div><span>Assessment quality</span><strong>{examMetrics.average ? `${examMetrics.average}% average score` : "Build your first score"}</strong></div><div className="cc-profile-quality-track"><i style={{ width: `${examMetrics.average}%` }} /></div></div></section>
 
+          <section className="cc-profile-card cc-profile-exams">
+            <div className="cc-profile-section-title">
+              <div><h2>Exam results</h2><span>Your submitted exams, scores, and percentages</span></div>
+              <Link to="/my-attempts">View all <FaArrowRight /></Link>
+            </div>
+            {attempts.length === 0 ? (
+              <div className="cc-profile-empty"><FaFlask /><span>No exam results yet. Completed exams will appear here.</span><Link to="/exams">Browse exams</Link></div>
+            ) : (
+              <div className="cc-profile-exam-list">
+                {attempts.slice(0, 8).map((attempt, index) => {
+                  const total = Number(attempt.total) || (Array.isArray(attempt.exam?.questions) ? attempt.exam.questions.length : 0);
+                  const score = Number(attempt.score) || 0;
+                  const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+                  return (
+                    <div className="cc-profile-exam-row" key={attempt._id || attempt.id || index}>
+                      <div className="cc-profile-exam-info">
+                        <strong>{attempt.exam?.title || "Exam"}</strong>
+                        <span>{attempt.createdAt ? formatDateTime(attempt.createdAt) : "Submitted exam"}</span>
+                      </div>
+                      <div className="cc-profile-exam-score"><strong>{score}{total > 0 ? ` / ${total}` : " pts"}</strong><span>{percentage}%</span></div>
+                      <div className="cc-profile-exam-bar" aria-label={`${percentage}% score`}><i style={{ width: `${Math.min(100, percentage)}%` }} /></div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="cc-profile-exam-note">Scores show points earned and the percentage of available points on each submitted exam.</p>
+          </section>
+
+          <section className="cc-profile-card cc-profile-certificates">
+            <div className="cc-profile-section-title">
+              <div><h2>Certificates</h2><span>Your course completion certificates</span></div>
+            </div>
+            {enrollments.filter((enrollment) => enrollment.certificateNumber || courseProgress(enrollment) === 100).length === 0 ? (
+              <div className="cc-profile-empty"><FaAward /><span>Complete a course to earn a certificate and see it here.</span><Link to="/courses">Explore courses</Link></div>
+            ) : (
+              <div className="cc-profile-certificate-grid">
+                {enrollments.filter((enrollment) => enrollment.certificateNumber || courseProgress(enrollment) === 100).map((enrollment) => (
+                  <button type="button" className="cc-profile-certificate" key={enrollment._id} onClick={() => openCertificate(enrollment)} disabled={loadingCert}>
+                    <span className="cc-profile-certificate-preview" aria-hidden="true">
+                      <FaAward />
+                      <small>COURSE COMPLETION</small>
+                      <strong>{enrollment.course?.title || "Completed course"}</strong>
+                      <i />
+                    </span>
+                    <span className="cc-profile-certificate-title">{enrollment.course?.title || "Completed course"}</span>
+                    <span className="cc-profile-certificate-action">View certificate <FaArrowRight /></span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course progress and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) > 0).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
 
           <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><div style={{ display: "flex", alignItems: "center", gap: "8px" }}>{progress === 100 && <button type="button" onClick={() => openCertificate(enrollment)} disabled={loadingCert} style={{ display: "inline-flex", alignItems: "center", gap: "4px", border: "1px solid #16a34a", background: "rgba(22, 163, 74, 0.12)", color: "#16a34a", borderRadius: "4px", padding: "3px 8px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}><FaAward /> Certificate</button>}<Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div></div>; })}</div>}</section>

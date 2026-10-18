@@ -1,4 +1,5 @@
 import User, { Op } from "../models/User.js";
+import UserFollow from "../models/UserFollow.js";
 import { runCypher } from "../lib/neo4j.js";
 import { deleteCached, getCached, setCached } from "../config/cache.js";
 export {
@@ -32,20 +33,31 @@ export const getAllUsers = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
+    // Build followers map from SQL (reliable, always up to date)
     const followersMap = {};
     try {
-      const followResult = await runCypher(
-        `MATCH (f:User)-[:FOLLOWS]->(u:User) RETURN f.id AS followerId, u.id AS followedId`
-      );
-      if (followResult?.records) {
-        followResult.records.forEach((r) => {
-          const followed = r.get("followedId");
-          const follower = r.get("followerId");
-          if (!followersMap[followed]) followersMap[followed] = [];
-          followersMap[followed].push(follower);
-        });
-      }
-    } catch {}
+      const allFollows = await UserFollow.findAll({ attributes: ["followerId", "followingId"] });
+      allFollows.forEach((r) => {
+        const fId = String(r.followingId);
+        if (!followersMap[fId]) followersMap[fId] = [];
+        followersMap[fId].push(String(r.followerId));
+      });
+    } catch (sqlErr) {
+      // Fallback to Neo4j if SQL fails
+      try {
+        const followResult = await runCypher(
+          `MATCH (f:User)-[:FOLLOWS]->(u:User) RETURN f.id AS followerId, u.id AS followedId`
+        );
+        if (followResult?.records) {
+          followResult.records.forEach((r) => {
+            const followed = r.get("followedId");
+            const follower = r.get("followerId");
+            if (!followersMap[followed]) followersMap[followed] = [];
+            followersMap[followed].push(follower);
+          });
+        }
+      } catch {}
+    }
 
     const userList = users.map((u) => {
       const obj = u.toObject();
@@ -94,38 +106,23 @@ export const getUserById = async (req, res) => {
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Fetch followers and following from Neo4j
-    let followerIds = [];
-    let followingIds = [];
-    try {
-      const followersResult = await runCypher(
-        `MATCH (f:User)-[:FOLLOWS]->(u:User {id: $userId}) RETURN f.id AS id`,
-        { userId: String(userId) }
-      );
-      followerIds = followersResult.records.map((r) => r.get("id"));
+    // Fetch followers and following from SQL (reliable)
+    const [followerRows, followingRows] = await Promise.all([
+      UserFollow.findAll({ where: { followingId: String(userId) }, attributes: ["followerId"] }),
+      UserFollow.findAll({ where: { followerId: String(userId) }, attributes: ["followingId"] }),
+    ]);
 
-      const followingResult = await runCypher(
-        `MATCH (u:User {id: $userId})-[:FOLLOWS]->(f:User) RETURN f.id AS id`,
-        { userId: String(userId) }
-      );
-      followingIds = followingResult.records.map((r) => r.get("id"));
-    } catch (neoErr) {
-      console.warn("[Social Graph Query Warning]:", neoErr.message);
-    }
+    const followerIds = followerRows.map((r) => r.followerId);
+    const followingIds = followingRows.map((r) => r.followingId);
 
-    const followers = followerIds.length
-      ? await User.findAll({
-          where: { id: { [Op.in]: followerIds } },
-          attributes: ["id", "name", "username", "profileImage", "bannerImage"],
-        })
-      : [];
-
-    const following = followingIds.length
-      ? await User.findAll({
-          where: { id: { [Op.in]: followingIds } },
-          attributes: ["id", "name", "username", "profileImage", "bannerImage"],
-        })
-      : [];
+    const [followers, following] = await Promise.all([
+      followerIds.length
+        ? User.findAll({ where: { id: { [Op.in]: followerIds } }, attributes: ["id", "name", "username", "profileImage", "bannerImage"] })
+        : [],
+      followingIds.length
+        ? User.findAll({ where: { id: { [Op.in]: followingIds } }, attributes: ["id", "name", "username", "profileImage", "bannerImage"] })
+        : [],
+    ]);
 
     const userData = user.toObject();
     userData.followers = followers;
