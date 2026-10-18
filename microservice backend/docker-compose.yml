@@ -429,9 +429,11 @@ services:
       - PORT=5009
       - CHAT_MONGO_URI=mongodb://mongo-chat:27020/chat_db
       - NOTIFICATION_SERVICE_URL=http://notification-service:5008
+      - USER_SERVICE_URL=http://user-service:5002
       - REDIS_URL=redis://redis:6379
     depends_on:
       - mongo-chat
       - redis
+      - user-service
     networks:
       - code-campus-net

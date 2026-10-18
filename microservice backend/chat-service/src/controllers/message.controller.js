@@ -1,19 +1,67 @@
-import User from "../models/User.js";
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import { v2 as cloudinary } from "cloudinary";
 import { getSocket } from "../lib/socket.js";
-import { dispatchNotification } from "../utils/serviceClient.js";
+import { callService, dispatchNotification } from "../utils/serviceClient.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user?._id || req.user?.id;
-    const loggedInUser = await User.findById(loggedInUserId).select("following");
-    const followings = loggedInUser?.following || [];
+    if (!loggedInUserId) {
+      return res.status(401).json({ error: "Authentication is required." });
+    }
 
-    const users = await User.find({ _id: { $in: followings } }).select(
-      "_id name email username profileImage lastSeen"
-    );
+    let mutualUsers;
+    try {
+      const userService = {
+        baseURL: process.env.USER_SERVICE_URL || "http://localhost:5002",
+        headers: { "x-user-id": String(loggedInUserId) },
+      };
+      // Only mutual follows are allowed to start a chat.
+      const [following, followers] = await Promise.all([
+        callService({
+          ...userService,
+          path: `/api/social/${encodeURIComponent(loggedInUserId)}/following`,
+        }),
+        callService({
+          ...userService,
+          path: `/api/social/${encodeURIComponent(loggedInUserId)}/followers`,
+        }),
+      ]);
+      if (!Array.isArray(following) || !Array.isArray(followers)) {
+        throw new Error("The user service returned an invalid contacts response.");
+      }
+      const followerIds = new Set(
+        followers
+          .map((user) => user?._id || user?.id)
+          .filter(Boolean)
+          .map(String)
+      );
+      mutualUsers = following.filter((user) => {
+        const id = user?._id || user?.id;
+        return id && followerIds.has(String(id));
+      });
+    } catch (err) {
+      console.error("getUsersForSidebar user service error:", err.message);
+      return res.status(503).json({
+        error: "Unable to load chat contacts. Please try again later.",
+      });
+    }
+
+    if (!Array.isArray(mutualUsers)) {
+      console.error("getUsersForSidebar received an invalid mutual contacts list");
+      return res.status(502).json({
+        error: "The user service returned an invalid contacts response.",
+      });
+    }
+
+    const usersById = new Map();
+    for (const user of mutualUsers) {
+      const id = user?._id || user?.id;
+      if (!id || String(id) === String(loggedInUserId)) continue;
+      usersById.set(String(id), { ...user, _id: String(id) });
+    }
+    const users = Array.from(usersById.values());
 
     const followingIds = users.map((user) => user._id);
     const recentMessages = followingIds.length
@@ -42,7 +90,7 @@ export const getUsersForSidebar = async (req, res) => {
         .map((user) => {
           const lastMessage = latestByUser.get(String(user._id)) || null;
           return {
-            ...user.toObject(),
+            ...user,
             lastMessage,
             lastChat: lastMessage?.createdAt || null,
           };

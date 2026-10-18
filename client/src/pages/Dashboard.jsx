@@ -29,8 +29,9 @@ const C = {
   primaryMid: "var(--cc-primary-dark, #b7d9f2)",
   secondaryLight: "#e8f6f8",
   inkMuted: "var(--cc-muted, #5f6b7a)",
-  inkSoft: "#7a8694",
+  inkSoft: "var(--cc-text-soft, #7a8694)",
   white: "var(--cc-surface, #ffffff)",
+  surfaceMuted: "var(--cc-surface-muted, #f5f7fa)",
   border: "var(--cc-border, #d6dbe1)",
 };
 
@@ -417,7 +418,7 @@ export default function Dashboard() {
                 padding: "0.6rem 0.8rem 0.4rem",
                 borderBottom: `1px solid ${C.border}`,
                 display: "flex", gap: "6px",
-                background: "#f8fafc",
+                background: C.surfaceMuted,
               }}>
                 <button
                   type="button"
@@ -489,8 +490,8 @@ export default function Dashboard() {
                           style={{
                             display: "flex", alignItems: "center", justifyContent: "space-between",
                             padding: "0.5rem 0.4rem", borderRadius: "8px", marginBottom: 6,
-                            transition: "background 0.15s", background: "#f8fafc",
-                            border: "1px solid #f1f5f9",
+                            transition: "background 0.15s", background: C.surfaceMuted,
+                            border: `1px solid ${C.border}`,
                           }}
                         >
                           <Link
@@ -517,7 +518,7 @@ export default function Dashboard() {
                                   <ConnectionBadge degree={person.degree} size="xs" />
                                 )}
                               </div>
-                              <div style={{ color: "#2563eb", fontSize: "0.69rem", fontWeight: 600 }}>
+                              <div style={{ color: C.primary, fontSize: "0.69rem", fontWeight: 600 }}>
                                 {person.recommendationReason || `@${person.username}`}
                               </div>
                             </div>
@@ -675,7 +676,7 @@ export default function Dashboard() {
                         {person.name || person.username}
                         {person.degree && <ConnectionBadge degree={person.degree} size="xs" />}
                       </div>
-                      <div style={{ fontSize: "0.72rem", color: "#2563eb", fontWeight: 600 }}>
+                      <div style={{ fontSize: "0.72rem", color: C.primary, fontWeight: 600 }}>
                         {person.recommendationReason || `@${person.username}`}
                       </div>
                     </div>

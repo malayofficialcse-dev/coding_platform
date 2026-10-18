@@ -114,9 +114,9 @@ export default function ChatPanel({ user }) {
      - Store socket in socketRef so cleanup always references it
   --------------------------------*/
   useEffect(() => {
-    if (!user) return; // nothing to do
+    if (!currentUserId) return; // nothing to do
 
-    const uid = user._id || user.id;
+    const uid = currentUserId;
     // initSocket is expected to return a connected socket.io client
     const s = initSocket(uid);
     socketRef.current = s;
@@ -243,8 +243,8 @@ export default function ChatPanel({ user }) {
       }
       socketRef.current = null;
     };
-    // NOTE: we intentionally depend on `user` only so this effect runs when user changes
-  }, [user, updateConversationFromMessage]);
+    // Keep the socket lifecycle tied to the stable user ID, not the auth object identity.
+  }, [currentUserId, updateConversationFromMessage]);
 
   /* -------------------------------
      OPEN CHAT

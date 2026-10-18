@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
-import User from "../models/User.js";
 
 dotenv.config();
 
@@ -52,12 +51,9 @@ export function initSocket(server) {
         if (!sockets?.size) {
           userSockets.delete(normalizedUserId);
           const lastSeen = new Date();
-          try {
-            await User.findByIdAndUpdate(normalizedUserId, { lastSeen });
-            io.emit("userLastSeen", { userId: normalizedUserId, lastSeen });
-          } catch (error) {
-            console.error("Failed to update user last seen:", error);
-          }
+          // Application user IDs are UUID strings owned by the user service;
+          // they are not Mongo ObjectIds in the chat service.
+          io.emit("userLastSeen", { userId: normalizedUserId, lastSeen });
         }
       }
       io.emit("getOnlineUsers", Array.from(userSockets.keys()));
