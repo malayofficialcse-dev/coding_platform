@@ -2,6 +2,7 @@ import Comment from "../models/Comment.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
+import { fetchUsersBatch } from "../utils/userHydration.js";
 
 const upsertUserMirror = async (req) => {
   const userId = req.user?._id || req.user?.id;
@@ -47,10 +48,18 @@ export const addComment = async (req, res) => {
     });
 
     await comment.save();
-    await comment.populate("author", "name username profileImage");
 
     post.comments.push(comment._id);
     await post.save();
+
+    const userMap = await fetchUsersBatch([userId]);
+    const authorData = userMap.get(String(userId)) || {
+      _id: userId,
+      name: req.user?.name || req.user?.username || "Code Campus Member",
+      username: req.user?.username || "",
+      profileImage: req.user?.profileImage || "",
+      role: req.user?.role || "student",
+    };
 
     // Notify author if commenter is someone else
     if (post.author?._id && post.author._id.toString() !== userId.toString()) {
@@ -60,13 +69,15 @@ export const addComment = async (req, res) => {
         type: "comment",
         post: postId,
         comment: comment._id,
-        title: `${req.user?.name || req.user?.username || "A user"} commented on your post`,
+        title: `${authorData.name || "A user"} commented on your post`,
         description: text.substring(0, 100),
         actionUrl: `/posts/${postId}`,
       });
     }
 
-    res.status(201).json(comment);
+    const commentObj = comment.toObject();
+    commentObj.author = authorData;
+    res.status(201).json(commentObj);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -99,8 +110,21 @@ export const getCommentsByPost = async (req, res) => {
     const { postId } = req.params;
     const comments = await Comment.find({ post: postId })
       .populate("author", "name username profileImage")
-      .sort({ createdAt: 1 });
-    res.json(comments);
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const authorIds = comments.map((c) => (typeof c.author === "string" ? c.author : c.author?._id || c.author?.id)).filter(Boolean);
+    const userMap = await fetchUsersBatch(authorIds);
+
+    const enriched = comments.map((c) => {
+      const aId = String(typeof c.author === "string" ? c.author : c.author?._id || c.author?.id || "");
+      if (userMap.has(aId)) {
+        c.author = userMap.get(aId);
+      }
+      return c;
+    });
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

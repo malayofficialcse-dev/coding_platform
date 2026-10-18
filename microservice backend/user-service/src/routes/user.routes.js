@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getAllUsers,
+  getUsersBatch,
   getUserById,
   searchUsers,
   followUser,
@@ -15,6 +16,7 @@ import { protect } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+router.post("/batch", getUsersBatch);
 router.get("/recommendations", protect, getRecommendations);
 router.get("/trail/:id", protect, getConnectionTrail);
 router.get("/mutual/:id", protect, getMutualConnections);

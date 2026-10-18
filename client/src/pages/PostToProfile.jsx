@@ -226,7 +226,20 @@ export default function PostToProfile() {
 
             {!isOwnProfile && (
               <div style={{ marginTop: "14px" }}>
-                <FollowButton userId={profile._id || profile.id} />
+                <FollowButton
+                  userId={profile._id || profile.id}
+                  isFollowing={
+                    trailData?.degree === "1st" ||
+                    (profile.followers || []).some((f) => String(f.id || f._id || f) === String(currentUserId))
+                  }
+                  onToggle={(nowFollowing) => {
+                    setTrailData((prev) => prev ? { ...prev, degree: nowFollowing ? "1st" : "2nd" } : prev);
+                    setNetworkStats((prev) => prev ? {
+                      ...prev,
+                      followersCount: Math.max(0, (prev.followersCount || 0) + (nowFollowing ? 1 : -1))
+                    } : prev);
+                  }}
+                />
               </div>
             )}
           </div>

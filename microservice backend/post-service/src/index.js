@@ -27,7 +27,10 @@ app.use("/api/admin/posts", postRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+import { syncAllUsersFromUserService } from "./utils/userHydration.js";
+
 connectDB().then(() => {
+  syncAllUsersFromUserService().catch(() => {});
   app.listen(PORT, () => {
     console.log(`[Post Service] Running on port ${PORT}`);
   });

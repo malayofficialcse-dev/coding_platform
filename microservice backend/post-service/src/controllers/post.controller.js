@@ -3,6 +3,7 @@ import Comment from "../models/Comment.js";
 import User from "../models/User.js";
 import { dispatchNotification } from "../utils/serviceClient.js";
 import { deleteCachedPrefix, getCached, setCached } from "../config/cache.js";
+import { hydratePostsWithUsers } from "../utils/userHydration.js";
 
 /**
  * Upsert a local User mirror in post-service's MongoDB.
@@ -77,10 +78,10 @@ export const createPost = async (req, res) => {
     });
 
     await post.save();
-    await post.populate("author", "name username profileImage");
     await deleteCachedPrefix("posts:");
 
-    return res.status(201).json(post);
+    const hydrated = await hydratePostsWithUsers(post);
+    return res.status(201).json(hydrated);
   } catch (err) {
     console.error("[Post Service Create Error]:", err);
     return res.status(500).json({ error: err.message || "Failed to create post" });
@@ -114,8 +115,10 @@ export const getFeed = async (req, res) => {
       .limit(limit),
       Post.countDocuments(),
     ]);
-    await setCached(key, { posts, total }, 20);
-    sendPaginated(res, posts, total, page, limit);
+
+    const hydratedPosts = await hydratePostsWithUsers(posts);
+    await setCached(key, { posts: hydratedPosts, total }, 20);
+    sendPaginated(res, hydratedPosts, total, page, limit);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -154,8 +157,9 @@ export const getAllPosts = async (req, res) => {
       Post.countDocuments(filter),
     ]);
 
-    await setCached(key, { posts, total }, 20);
-    sendPaginated(res, posts, total, page, limit);
+    const hydratedPosts = await hydratePostsWithUsers(posts);
+    await setCached(key, { posts: hydratedPosts, total }, 20);
+    sendPaginated(res, hydratedPosts, total, page, limit);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -192,8 +196,9 @@ export const getPostsByUser = async (req, res) => {
       Post.countDocuments(filter),
     ]);
 
-    await setCached(key, { posts, total }, 20);
-    sendPaginated(res, posts, total, page, limit);
+    const hydratedPosts = await hydratePostsWithUsers(posts);
+    await setCached(key, { posts: hydratedPosts, total }, 20);
+    sendPaginated(res, hydratedPosts, total, page, limit);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -338,10 +343,10 @@ export const updatePost = async (req, res) => {
     }
 
     await post.save();
-    await post.populate("author", "name username profileImage");
     await deleteCachedPrefix("posts:");
 
-    res.json(post);
+    const hydrated = await hydratePostsWithUsers(post);
+    res.json(hydrated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

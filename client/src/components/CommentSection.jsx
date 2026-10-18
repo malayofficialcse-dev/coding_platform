@@ -6,7 +6,7 @@ export default function CommentSection({ comments, onComment }) {
     <div className="mt-2">
       {comments.map((c) => (
         <div key={c._id} className="border-bottom py-1">
-          <b>{c.author.name || c.author.username}</b>: {c.text}
+          <b>{c.author?.name || c.author?.username || "Code Campus Member"}</b>: {c.text}
         </div>
       ))}
       <form

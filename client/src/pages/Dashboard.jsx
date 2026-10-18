@@ -104,18 +104,20 @@ export default function Dashboard() {
     try {
       await api.post(`/users/follow/${id}`);
       setUsers((prev) =>
-        prev.map((u) =>
-          u._id === id || u.id === id
-            ? { ...u, followers: [...(u.followers || []), currentUserId] }
-            : u
-        )
+        prev.map((u) => {
+          const uid = u._id || u.id;
+          return String(uid) === String(id)
+            ? { ...u, followers: [...(u.followers || []), currentUserId], isFollowing: true }
+            : u;
+        })
       );
       setRecommendations((prev) =>
-        prev.map((u) =>
-          u._id === id || u.id === id
-            ? { ...u, followers: [...(u.followers || []), currentUserId] }
-            : u
-        )
+        prev.map((u) => {
+          const uid = u._id || u.id;
+          return String(uid) === String(id)
+            ? { ...u, followers: [...(u.followers || []), currentUserId], isFollowing: true }
+            : u;
+        })
       );
     } catch (err) {
       console.error("Follow error:", err);
@@ -126,18 +128,20 @@ export default function Dashboard() {
     try {
       await api.post(`/users/unfollow/${id}`);
       setUsers((prev) =>
-        prev.map((u) =>
-          u._id === id || u.id === id
-            ? { ...u, followers: (u.followers || []).filter((f) => f !== currentUserId) }
-            : u
-        )
+        prev.map((u) => {
+          const uid = u._id || u.id;
+          return String(uid) === String(id)
+            ? { ...u, followers: (u.followers || []).filter((f) => String(f) !== String(currentUserId)), isFollowing: false }
+            : u;
+        })
       );
       setRecommendations((prev) =>
-        prev.map((u) =>
-          u._id === id || u.id === id
-            ? { ...u, followers: (u.followers || []).filter((f) => f !== currentUserId) }
-            : u
-        )
+        prev.map((u) => {
+          const uid = u._id || u.id;
+          return String(uid) === String(id)
+            ? { ...u, followers: (u.followers || []).filter((f) => String(f) !== String(currentUserId)), isFollowing: false }
+            : u;
+        })
       );
     } catch (err) {
       console.error("Unfollow error:", err);
@@ -477,7 +481,7 @@ export default function Dashboard() {
                   ) : (
                     recommendations.map((person) => {
                       const personId = person._id || person.id;
-                      const isFollowing = (person.followers || []).includes(currentUserId);
+                      const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
                       return (
                         <div
                           key={personId}
@@ -557,7 +561,7 @@ export default function Dashboard() {
                   ) : (
                     filteredUsers.map((person) => {
                       const personId = person._id || person.id;
-                      const isFollowing = (person.followers || []).includes(currentUserId);
+                      const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
                       return (
                         <div
                           key={personId}

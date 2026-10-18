@@ -59,6 +59,32 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+export const getUsersBatch = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.json({ users: [] });
+    }
+    const users = await User.findAll({
+      where: { id: { [Op.in]: ids } },
+      attributes: [
+        "id",
+        "name",
+        "username",
+        "email",
+        "profileImage",
+        "bannerImage",
+        "role",
+        "college",
+        "degree",
+      ],
+    });
+    res.json({ users: users.map((u) => u.toObject()) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const getUserById = async (req, res) => {
   try {
     const userId = req.params.id;

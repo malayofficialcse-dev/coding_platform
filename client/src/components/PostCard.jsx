@@ -57,10 +57,25 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
 
   // IMAGE MODAL
   const [previewImage, setPreviewImage] = useState(null);
-  const isOwner =
-    user?._id &&
-    post.author?._id &&
-    user._id.toString() === post.author._id.toString();
+  const authorId = typeof post.author === "string" ? post.author : post.author?._id || post.author?.id;
+  const isOwner = Boolean(
+    currentUserId &&
+    authorId &&
+    currentUserId.toString() === authorId.toString()
+  );
+
+  const authorName =
+    post.author?.name ||
+    post.author?.username ||
+    (isOwner ? user?.name || user?.username : "") ||
+    "Code Campus Member";
+
+  const authorImage =
+    post.author?.profileImage ||
+    (isOwner ? user?.profileImage : "") ||
+    "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
+
+  const authorProfileLink = `/profile/${authorId || ""}`;
 
   useEffect(() => {
     setLiked(
@@ -470,10 +485,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
           <div className="d-flex align-items-start justify-content-between mb-2 gap-2">
             <div className="d-flex align-items-center">
               <img
-                src={
-                  post.author?.profileImage ||
-                  "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
-                }
+                src={authorImage}
                 alt="Profile"
                 className=" border me-2"
                 style={{ width: 36, height: 36, objectFit: "cover" ,borderRadius:"50%"}}
@@ -481,10 +493,10 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
 
               <div className="d-flex flex-column">
                 <Link
-                  to={`/profile/${post.author?._id || post.author?.id || post.author || ""}`}
+                  to={authorProfileLink}
                   className="fw-bold text-dark text-decoration-none"
                 >
-                  {post.author?.name || post.author?.username || "Code Campus Member"}
+                  {authorName}
                 </Link>
                 <time
                   className="small text-muted"

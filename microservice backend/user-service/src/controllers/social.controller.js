@@ -425,6 +425,23 @@ export const getRecommendations = async (req, res) => {
     const currentUser = await User.findByPk(currentUserId);
     if (currentUser) await syncUserToGraph(currentUser);
 
+    // Collect who current user already follows so they are NEVER recommended
+    let alreadyFollowingIds = new Set();
+    try {
+      const followingResult = await runCypher(
+        `MATCH (me:User {id: $currentUserId})-[:FOLLOWS]->(target:User)
+         RETURN target.id AS id`,
+        { currentUserId: String(currentUserId) }
+      );
+      if (followingResult?.records) {
+        followingResult.records.forEach((r) => {
+          alreadyFollowingIds.add(String(r.get("id")));
+        });
+      }
+    } catch (neoErr) {
+      console.warn("[Social Neo4j followingIds Warning]:", neoErr.message);
+    }
+
     let candidates = new Map(); // id -> { mutualCount, sameCollege, commonFriendIds }
 
     try {
@@ -439,7 +456,8 @@ export const getRecommendations = async (req, res) => {
       );
 
       fofResult.records.forEach((r) => {
-        const id = r.get("id");
+        const id = String(r.get("id"));
+        if (alreadyFollowingIds.has(id) || id === String(currentUserId)) return;
         const count = r.get("commonCount").low ?? Number(r.get("commonCount")) ?? 0;
         const friends = r.get("commonFriends") || [];
         candidates.set(id, {
@@ -459,7 +477,8 @@ export const getRecommendations = async (req, res) => {
         );
 
         collegeResult.records.forEach((r) => {
-          const id = r.get("id");
+          const id = String(r.get("id"));
+          if (alreadyFollowingIds.has(id) || id === String(currentUserId)) return;
           const existing = candidates.get(id) || { mutualCount: 0, sameCollege: false, commonFriendIds: [] };
           existing.sameCollege = true;
           candidates.set(id, existing);
@@ -480,17 +499,21 @@ export const getRecommendations = async (req, res) => {
       });
     }
 
-    // Fallback: If network is small, suggest other active users
+    // Fallback: If network is small, suggest other active users (excluding already-followed users!)
     if (users.length < 5) {
-      const existingIds = [currentUserId, ...candidateIds];
+      const excludedIds = Array.from(new Set([
+        String(currentUserId),
+        ...Array.from(alreadyFollowingIds),
+        ...candidateIds.map(String),
+      ]));
       const fallbackUsers = await User.findAll({
-        where: { id: { [Op.notIn]: existingIds } },
+        where: { id: { [Op.notIn]: excludedIds } },
         limit: 8 - users.length,
         attributes: ["id", "name", "username", "profileImage", "role", "college", "degree"],
         order: [["createdAt", "DESC"]],
       });
       fallbackUsers.forEach((fu) => {
-        candidates.set(fu.id, { mutualCount: 0, sameCollege: false, commonFriendIds: [] });
+        candidates.set(String(fu.id), { mutualCount: 0, sameCollege: false, commonFriendIds: [] });
       });
       users = [...users, ...fallbackUsers];
     }
@@ -510,10 +533,60 @@ export const getRecommendations = async (req, res) => {
       previewFriends.forEach((pf) => friendMap.set(pf.id, pf.toObject()));
     }
 
-    // Format final recommendations with reason tag & degree
+    const targetUserIds = users.map((u) => String(u.id));
+    const degreeMap = new Map();
+    const followersMap = {};
+
+    if (targetUserIds.length > 0) {
+      // 1. Calculate true shortest path hop count for degree consistency
+      try {
+        const pathResult = await runCypher(
+          `MATCH (me:User {id: $currentUserId})
+           UNWIND $targetIds AS tid
+           OPTIONAL MATCH p = shortestPath((me)-[:FOLLOWS*1..4]->(target:User {id: tid}))
+           RETURN tid, length(p) AS hopCount`,
+          { currentUserId: String(currentUserId), targetIds: targetUserIds }
+        );
+        if (pathResult?.records) {
+          pathResult.records.forEach((r) => {
+            const tid = r.get("tid");
+            const hop = r.get("hopCount");
+            const hopNum = hop?.low ?? (hop != null ? Number(hop) : null);
+            if (hopNum === 1) degreeMap.set(tid, "1st");
+            else if (hopNum === 2) degreeMap.set(tid, "2nd");
+            else if (hopNum && hopNum >= 3) degreeMap.set(tid, "3rd+");
+            else degreeMap.set(tid, "3rd+");
+          });
+        }
+      } catch (pathErr) {
+        console.warn("[Social Neo4j Degree Calculation Warning]:", pathErr.message);
+      }
+
+      // 2. Fetch followers for each recommended user so follow state is always accurate
+      try {
+        const followResult = await runCypher(
+          `MATCH (f:User)-[:FOLLOWS]->(u:User)
+           WHERE u.id IN $targetIds
+           RETURN f.id AS followerId, u.id AS followedId`,
+          { targetIds: targetUserIds }
+        );
+        if (followResult?.records) {
+          followResult.records.forEach((r) => {
+            const followed = r.get("followedId");
+            const follower = r.get("followerId");
+            if (!followersMap[followed]) followersMap[followed] = [];
+            followersMap[followed].push(follower);
+          });
+        }
+      } catch (fErr) {
+        console.warn("[Social Neo4j followers Warning]:", fErr.message);
+      }
+    }
+
+    // Format final recommendations with reason tag, degree, and followers
     const recommendations = users.map((u) => {
       const obj = u.toObject();
-      const meta = candidates.get(obj.id) || { mutualCount: 0, sameCollege: false, commonFriendIds: [] };
+      const meta = candidates.get(String(obj.id)) || { mutualCount: 0, sameCollege: false, commonFriendIds: [] };
       const mutualFriends = (meta.commonFriendIds || []).map((fid) => friendMap.get(fid)).filter(Boolean);
 
       let reason = "Active on Campus";
@@ -525,9 +598,15 @@ export const getRecommendations = async (req, res) => {
         reason = `${obj.role.replace("_", " ").toUpperCase()}`;
       }
 
+      const degree = degreeMap.get(String(obj.id)) || (meta.mutualCount > 0 ? "2nd" : "3rd+");
+      const userFollowers = followersMap[String(obj.id)] || [];
+      const isFollowing = alreadyFollowingIds.has(String(obj.id)) || userFollowers.includes(String(currentUserId));
+
       return {
         ...obj,
-        degree: meta.mutualCount > 0 ? "2nd" : "3rd+",
+        degree,
+        followers: userFollowers,
+        isFollowing,
         mutualCount: meta.mutualCount,
         mutualFriends,
         recommendationReason: reason,
