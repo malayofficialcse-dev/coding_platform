@@ -67,6 +67,8 @@ export const addComment = async (req, res) => {
         recipientId: post.author._id,
         senderId: userId,
         type: "comment",
+        senderName: authorData.name || "A user",
+        senderAvatar: authorData.profileImage || "",
         post: postId,
         comment: comment._id,
         title: `${authorData.name || "A user"} commented on your post`,

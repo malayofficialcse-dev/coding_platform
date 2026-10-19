@@ -36,14 +36,8 @@ export default function NotificationBell() {
           fetchRecentNotifications();
         });
 
-        socket.on("newMessage", () => {
-          setUnreadCount((prev) => prev + 1);
-          fetchRecentNotifications();
-        });
-
         return () => {
           socket.off("newNotification");
-          socket.off("newMessage");
         };
       }
     }
@@ -117,9 +111,10 @@ export default function NotificationBell() {
   };
 
   const getNotificationLink = (notification) => {
+    if (notification.actionUrl) return notification.actionUrl;
     if (notification.type === "message") return "/messages";
-    if (notification.post) return `/posts/${notification.post._id}`;
-    return `/profile/${notification.sender._id}`;
+    if (notification.post) return `/posts/${notification.post._id || notification.post}`;
+    return `/profile/${notification.sender?._id || notification.sender || ""}`;
   };
 
   return (
@@ -172,7 +167,7 @@ export default function NotificationBell() {
                 >
                   <img
                     src={
-                      notification.sender?.profileImage ||
+                      notification.sender?.profileImage || notification.senderAvatar ||
                       "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
                     }
                     alt="User"

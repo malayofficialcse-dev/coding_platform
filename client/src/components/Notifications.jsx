@@ -115,9 +115,10 @@ export default function Notifications() {
   };
 
   const getNotificationLink = (notification) => {
-    if (notification.post) return `/posts/${notification.post._id}`;
+    if (notification.actionUrl) return notification.actionUrl;
+    if (notification.post) return `/posts/${notification.post._id || notification.post}`;
     if (notification.message) return "/messages";
-    return `/profile/${notification.sender._id}`;
+    return `/profile/${notification.sender?._id || notification.sender || ""}`;
   };
 
   if (!user) {
@@ -184,10 +185,10 @@ export default function Notifications() {
                 <div className="notification-avatar">
                   <img
                     src={
-                      notification.sender?.profileImage ||
+                      notification.sender?.profileImage || notification.senderAvatar ||
                       "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
                     }
-                    alt={notification.sender?.name}
+                    alt={notification.sender?.name || notification.senderName}
                     className="avatar-img"
                   />
                   <span className="notification-type-badge">
@@ -197,7 +198,6 @@ export default function Notifications() {
 
                 <div className="notification-details">
                   <p className="notification-message">
-                    <strong>{notification.sender?.name || notification.sender?.username}</strong>{" "}
                     {notification.title}
                   </p>
                   {notification.description && (

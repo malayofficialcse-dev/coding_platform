@@ -77,7 +77,10 @@ export const followUser = async (req, res) => {
     await syncUserToGraph(targetUser);
 
     // 1. Persist in SQL (primary, reliable source of truth)
-    await UserFollow.upsert({ followerId: String(currentUserId), followingId: String(targetUserId) });
+    const [, created] = await UserFollow.upsert(
+      { followerId: String(currentUserId), followingId: String(targetUserId) },
+      { returning: true }
+    );
 
     // 2. Also sync to Neo4j graph for traversal/recommendation features
     try {
@@ -95,10 +98,12 @@ export const followUser = async (req, res) => {
     await deleteCached("users:directory");
 
     // Send notification
-    await dispatchNotification({
+    if (created) await dispatchNotification({
       recipientId: targetUserId,
       senderId: currentUserId,
       type: "follow",
+      senderName: currentUser.name || currentUser.username || "A user",
+      senderAvatar: currentUser.profileImage || "",
       title: `${currentUser.name || currentUser.username} started following you`,
       description: "",
       actionUrl: `/profile/${currentUserId}`,

@@ -208,6 +208,8 @@ export const sendMessage = async (req, res) => {
       recipientId: receiverId,
       senderId,
       type: "message",
+      senderName: req.user?.name || req.user?.username || "Someone",
+      senderAvatar: req.user?.profileImage || "",
       message: newMessage._id,
       title: `${req.user?.name || req.user?.username || "Someone"} sent you a message`,
       description: text ? text.substring(0, 80) : "Sent an attachment",

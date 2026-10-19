@@ -276,7 +276,7 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=cc_neo4j_pass
       - REDIS_URL=redis://redis:6379
-      - NOTIFICATION_SERVICE_URL=http://notification-service:5008
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
     depends_on:
       - postgres-user
       - neo4j
@@ -298,7 +298,7 @@ services:
     environment:
       - PORT=5003
       - POST_MONGO_URI=mongodb://mongo-post:27017/post_db
-      - NOTIFICATION_SERVICE_URL=http://notification-service:5008
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
       - REDIS_URL=redis://redis:6379
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
@@ -409,8 +409,12 @@ services:
     environment:
       - PORT=5008
       - NOTIFICATION_MONGO_URI=mongodb://mongo-notification:27021/notification_db
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
+      - CHAT_SERVICE_URL=http://chat-service:5009
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change-this-internal-token}
     depends_on:
       - mongo-notification
+      - chat-service
     networks:
       - code-campus-net
 
@@ -431,6 +435,8 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:5008
       - USER_SERVICE_URL=http://user-service:5002
       - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change-this-internal-token}
     depends_on:
       - mongo-chat
       - redis

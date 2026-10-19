@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import notificationRoutes from "./routes/notification.routes.js";
 import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
+import { startNotificationConsumer } from "./lib/rabbitmq.js";
 
 dotenv.config();
 
@@ -25,7 +26,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  await startNotificationConsumer();
   app.listen(PORT, () => {
     console.log(`[Notification Service] Running on port ${PORT}`);
   });

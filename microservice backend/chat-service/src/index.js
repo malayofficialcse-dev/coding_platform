@@ -27,6 +27,17 @@ app.get("/health", (req, res) => {
   res.json({ service: "Chat & Real-time Messaging Service", status: "UP", port: PORT });
 });
 
+app.post("/internal/notification-event", (req, res) => {
+  const token = process.env.INTERNAL_SERVICE_TOKEN;
+  if (!token || req.headers["x-internal-token"] !== token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const notification = req.body?.notification;
+  if (!notification?.recipient) return res.status(400).json({ error: "Notification is required" });
+  getSocket().to(String(notification.recipient)).emit("newNotification", { notification });
+  return res.sendStatus(204);
+});
+
 app.use("/api/messages", messageRoutes);
 
 app.use(notFound);

@@ -62,6 +62,8 @@ Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This 
 ### 2. Environment Setup
 The environment file `.env` is already configured in `microservice backend/.env` based on your project settings.
 
+RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
+
 ### 3. Local Development (All Services in 1 Command)
 From the root folder:
 ```bash

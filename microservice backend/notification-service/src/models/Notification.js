@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema(
   {
     recipient:    { type: String, required: true },   // UUID string (PostgreSQL user_db)
+    eventId:      { type: String },
     sender:       { type: String, required: true },   // UUID string (PostgreSQL user_db)
     senderName:   { type: String, default: "" },
     senderAvatar: { type: String, default: "" },
@@ -29,5 +30,6 @@ const notificationSchema = new mongoose.Schema(
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, read: 1 });
+notificationSchema.index({ eventId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Notification || mongoose.model("Notification", notificationSchema);

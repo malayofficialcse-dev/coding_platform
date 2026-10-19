@@ -1,4 +1,6 @@
 import axios from "axios";
+import { randomUUID } from "node:crypto";
+import { publishNotification } from "./rabbitmq.js";
 
 /**
  * Inter-service HTTP communication client.
@@ -30,9 +32,10 @@ export const callService = async ({ baseURL, path, method = "GET", data = null, 
  * Dispatch internal notification to Notification Service asynchronously
  */
 export const dispatchNotification = async ({
-  notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL || "http://localhost:5008",
   recipientId,
   senderId,
+  senderName = "",
+  senderAvatar = "",
   type,
   post = null,
   comment = null,
@@ -42,11 +45,12 @@ export const dispatchNotification = async ({
   actionUrl = "",
 }) => {
   try {
-    await axios.post(
-      `${notificationServiceUrl}/api/notifications/internal`,
-      {
+    await publishNotification({
+        eventId: randomUUID(),
         recipient: recipientId,
         sender: senderId,
+        senderName,
+        senderAvatar,
         type,
         post,
         comment,
@@ -54,12 +58,10 @@ export const dispatchNotification = async ({
         title,
         description,
         actionUrl,
-      },
-      { timeout: 5000 }
-    );
+      });
   } catch (err) {
     // Non-blocking: log warning so notification failure does not break primary user action
-    console.warn(`[Notification Dispatch Warning] Failed to send notification: ${err.message}`);
+    console.warn(`[Notification Queue Warning] Failed to enqueue notification: ${err.message}`);
   }
 };
 

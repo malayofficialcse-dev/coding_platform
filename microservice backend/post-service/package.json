@@ -9,6 +9,7 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "amqplib": "^2.2.0",
     "axios": "^1.7.9",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
