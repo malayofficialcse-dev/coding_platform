@@ -14,6 +14,7 @@ import {
   FaUserShield,
   FaSun,
   FaMoon,
+  FaChalkboardTeacher,
 } from "react-icons/fa";
 import api from "../api/api";
 import { AuthContext } from "../contexts/AuthContext";
@@ -53,6 +54,7 @@ export default function Header() {
         { to: "/coding", label: "Coding Problems", icon: FaCode },
         { to: "/about", label: "About", icon: FaInfoCircle },
         { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
+        { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
       ];
     }
 
@@ -65,6 +67,7 @@ export default function Header() {
         { to: "/coding", label: "Coding Problems", icon: FaCode },
         { to: "/about", label: "About", icon: FaInfoCircle },
         { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
+        { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
       ];
     }
 
@@ -74,6 +77,7 @@ export default function Header() {
     // They CANNOT see other module options on the header UNLESS explicit permission is granted!
     const items = [
       { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+      { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
     ];
 
     // Courses module: Visible for course_coordinator OR if courses.view is granted

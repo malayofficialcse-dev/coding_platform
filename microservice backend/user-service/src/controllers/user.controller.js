@@ -15,7 +15,9 @@ export const getAllUsers = async (req, res) => {
   try {
     const cacheKey = "users:directory";
     const cached = await getCached(cacheKey);
-    if (cached) return res.json(cached);
+    if (Array.isArray(cached)) return res.json(cached);
+    // If cache had a bad value, clear it so it gets rebuilt
+    if (cached !== null) await deleteCached(cacheKey);
 
     const users = await User.findAll({
       attributes: [

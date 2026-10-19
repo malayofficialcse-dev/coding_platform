@@ -23,14 +23,22 @@ export const getCached = async (key) => {
   const redis = await getRedis();
   if (redis) {
     const value = await redis.get(key);
-    return value ? JSON.parse(value) : null;
+    if (!value) return null;
+    try {
+      const parsed = JSON.parse(value);
+      // Treat a cached null as a miss — it means something went wrong previously
+      return parsed !== null ? parsed : null;
+    } catch {
+      return null;
+    }
   }
   const entry = memoryCache.get(key);
   if (!entry || entry.expiresAt < Date.now()) {
     memoryCache.delete(key);
     return null;
   }
-  return entry.value;
+  // Also guard in-memory cache against null values
+  return entry.value !== null ? entry.value : null;
 };
 
 export const setCached = async (key, value, ttlSeconds = 30) => {

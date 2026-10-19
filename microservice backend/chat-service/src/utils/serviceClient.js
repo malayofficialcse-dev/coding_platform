@@ -9,21 +9,25 @@ import { publishNotification } from "./rabbitmq.js";
 export const callService = async ({ baseURL, path, method = "GET", data = null, params = null, headers = {} }) => {
   try {
     const url = `${baseURL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+    // Only set Content-Type for requests that have a body (POST/PUT/PATCH)
+    const hasBody = data !== null && ["POST", "PUT", "PATCH"].includes(method.toUpperCase());
     const response = await axios({
       url,
       method,
       data,
       params,
       headers: {
-        "Content-Type": "application/json",
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...headers,
       },
-      timeout: 8000,
+      timeout: 15000,
     });
-    return response.data;
+    // Return null-safe response data
+    return response.data ?? null;
   } catch (err) {
+    const status = err.response?.status;
     const message = err.response?.data?.error || err.response?.data?.message || err.message;
-    console.error(`[Service Communication Error] ${method} to ${baseURL}${path}: ${message}`);
+    console.error(`[Service Communication Error] ${method} to ${baseURL}${path}${status ? ` (${status})` : ""}: ${message}`);
     throw new Error(message);
   }
 };

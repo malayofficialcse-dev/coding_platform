@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema(
     senderAvatar: { type: String, default: "" },
     type: {
       type: String,
-      enum: ["like", "comment", "follow", "repost", "message", "system", "exam"],
+      enum: ["like", "comment", "follow", "repost", "message", "mentorship", "system", "exam"],
       required: true,
     },
     // Reference IDs stored as strings (cross-service UUIDs or MongoDB ObjectId strings)

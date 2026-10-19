@@ -3,8 +3,11 @@ import io from "socket.io-client";
 let socket;
 
 export const initSocket = (userId) => {
+  const normalizedUserId = String(userId || "");
   if (socket) {
-    if (socket.connected && socket.auth?.userId === userId) {
+    // Reuse an in-progress connection as well. AuthContext and ChatPanel both
+    // initialize the socket; replacing it before the handshake caused a loop.
+    if (String(socket.auth?.userId || "") === normalizedUserId) {
       return socket;
     }
     socket.disconnect();
@@ -17,7 +20,7 @@ export const initSocket = (userId) => {
     (configuredApiUrl ? configuredApiUrl.replace(/\/api$/, "") : window.location.origin);
 
   socket = io(BACKEND_URL, {
-    auth: { userId },
+    auth: { userId: normalizedUserId },
     path: "/socket.io",
     transports: ["websocket", "polling"],
     withCredentials: true,

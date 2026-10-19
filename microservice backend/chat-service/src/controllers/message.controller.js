@@ -11,50 +11,128 @@ export const getUsersForSidebar = async (req, res) => {
       return res.status(401).json({ error: "Authentication is required." });
     }
 
-    let mutualUsers;
+    const USER_SERVICE = process.env.USER_SERVICE_URL || "http://localhost:5002";
+    const authHeaders = { "x-user-id": String(loggedInUserId) };
+
+    let mutualUsers = [];
+
+    // --- PRIMARY: fetch mutual follows, following, and followers ---
     try {
-      const userService = {
-        baseURL: process.env.USER_SERVICE_URL || "http://localhost:5002",
-        headers: { "x-user-id": String(loggedInUserId) },
-      };
-      // Only mutual follows are allowed to start a chat.
-      const [following, followers] = await Promise.all([
+      const [mutualRes, followingRes, followersRes] = await Promise.allSettled([
         callService({
-          ...userService,
-          path: `/api/social/${encodeURIComponent(loggedInUserId)}/following`,
+          baseURL: USER_SERVICE,
+          path: `/api/social/${encodeURIComponent(loggedInUserId)}/mutual-follows`,
+          headers: authHeaders,
         }),
         callService({
-          ...userService,
+          baseURL: USER_SERVICE,
+          path: `/api/social/${encodeURIComponent(loggedInUserId)}/following`,
+          headers: authHeaders,
+        }),
+        callService({
+          baseURL: USER_SERVICE,
           path: `/api/social/${encodeURIComponent(loggedInUserId)}/followers`,
+          headers: authHeaders,
         }),
       ]);
-      if (!Array.isArray(following) || !Array.isArray(followers)) {
-        throw new Error("The user service returned an invalid contacts response.");
+
+      const mutualList = mutualRes.status === "fulfilled" && Array.isArray(mutualRes.value) ? mutualRes.value : [];
+      const followingList = followingRes.status === "fulfilled" && Array.isArray(followingRes.value) ? followingRes.value : [];
+      const followersList = followersRes.status === "fulfilled" && Array.isArray(followersRes.value) ? followersRes.value : [];
+
+      // Combine with priority: mutuals first, then following, then followers
+      const allConnected = [...mutualList, ...followingList, ...followersList];
+      const map = new Map();
+      for (const u of allConnected) {
+        const id = String(u?.id || u?._id || "");
+        if (id && id !== String(loggedInUserId) && !map.has(id)) {
+          map.set(id, {
+            id,
+            _id: id,
+            name: u.name || u.username || "User",
+            username: u.username || "",
+            profileImage: u.profileImage || "",
+            bannerImage: u.bannerImage || "",
+            role: u.role || "student",
+            college: u.college || "",
+          });
+        }
       }
-      const followerIds = new Set(
-        followers
-          .map((user) => user?._id || user?.id)
-          .filter(Boolean)
-          .map(String)
-      );
-      mutualUsers = following.filter((user) => {
-        const id = user?._id || user?.id;
-        return id && followerIds.has(String(id));
-      });
-    } catch (err) {
-      console.error("getUsersForSidebar user service error:", err.message);
-      return res.status(503).json({
-        error: "Unable to load chat contacts. Please try again later.",
-      });
+      mutualUsers = Array.from(map.values());
+    } catch (lookupErr) {
+      console.warn("[Chat] contacts lookup error:", lookupErr.message);
     }
 
-    if (!Array.isArray(mutualUsers)) {
-      console.error("getUsersForSidebar received an invalid mutual contacts list");
-      return res.status(502).json({
-        error: "The user service returned an invalid contacts response.",
-      });
+    // --- FALLBACK B: load from existing conversation history ---
+    if (!mutualUsers || mutualUsers.length === 0) {
+      console.warn("[Chat] user-service unavailable; using conversation history");
+      try {
+        const conversations = await Conversation.find({
+          participants: String(loggedInUserId),
+          isGroup: false,
+        }).lean();
+
+        const otherIds = [
+          ...new Set(
+            conversations.flatMap((c) =>
+              (c.participants || []).filter((p) => String(p) !== String(loggedInUserId))
+            )
+          ),
+        ];
+
+        if (otherIds.length) {
+          try {
+            const batch = await callService({
+              baseURL: USER_SERVICE,
+              path: "/api/users/batch",
+              method: "POST",
+              headers: authHeaders,
+              data: { ids: otherIds },
+            });
+            if (batch?.users && Array.isArray(batch.users)) {
+              mutualUsers = batch.users.map((u) => ({
+                id: u.id || u._id,
+                _id: u.id || u._id,
+                name: u.name || u.username || "User",
+                username: u.username || "",
+                profileImage: u.profileImage || "",
+                bannerImage: u.bannerImage || "",
+                role: u.role || "student",
+              }));
+            }
+          } catch {
+            mutualUsers = otherIds.map((id) => ({
+              id,
+              _id: id,
+              name: "User",
+              username: "",
+              profileImage: "",
+              bannerImage: "",
+              role: "student",
+            }));
+          }
+        } else {
+          mutualUsers = [];
+        }
+      } catch (convErr) {
+        console.error("[Chat] conversation history fallback failed:", convErr.message);
+        mutualUsers = [];
+      }
     }
 
+    // Accepted mentorship pairs are allowed to chat even when they do not
+    // follow each other, so include those users in the contacts list.
+    const mentorshipContacts = await callService({
+      baseURL: USER_SERVICE,
+      path: `/api/mentorship/contacts/${encodeURIComponent(loggedInUserId)}`,
+      headers: authHeaders,
+    }).catch((error) => {
+      console.warn("[Chat] mentorship contact lookup failed:", error.message);
+      return [];
+    });
+    if (Array.isArray(mentorshipContacts)) mutualUsers.push(...mentorshipContacts);
+
+    // Deduplicate by id, exclude self
     const usersById = new Map();
     for (const user of mutualUsers) {
       const id = user?._id || user?.id;
@@ -63,7 +141,8 @@ export const getUsersForSidebar = async (req, res) => {
     }
     const users = Array.from(usersById.values());
 
-    const followingIds = users.map((user) => user._id);
+    // Attach last message info from MongoDB
+    const followingIds = users.map((u) => u._id);
     const recentMessages = followingIds.length
       ? await Message.find({
           $or: [
@@ -77,28 +156,21 @@ export const getUsersForSidebar = async (req, res) => {
       : [];
 
     const latestByUser = new Map();
-    for (const message of recentMessages) {
-      const otherUserId =
-        String(message.senderId) === String(loggedInUserId)
-          ? String(message.receiverId)
-          : String(message.senderId);
-      if (!latestByUser.has(otherUserId)) latestByUser.set(otherUserId, message);
+    for (const msg of recentMessages) {
+      const otherId =
+        String(msg.senderId) === String(loggedInUserId)
+          ? String(msg.receiverId)
+          : String(msg.senderId);
+      if (!latestByUser.has(otherId)) latestByUser.set(otherId, msg);
     }
 
     res.status(200).json(
       users
         .map((user) => {
           const lastMessage = latestByUser.get(String(user._id)) || null;
-          return {
-            ...user,
-            lastMessage,
-            lastChat: lastMessage?.createdAt || null,
-          };
+          return { ...user, lastMessage, lastChat: lastMessage?.createdAt || null };
         })
-        .sort(
-          (first, second) =>
-            new Date(second.lastChat || 0) - new Date(first.lastChat || 0)
-        )
+        .sort((a, b) => new Date(b.lastChat || 0) - new Date(a.lastChat || 0))
     );
   } catch (err) {
     console.error("getUsersForSidebar error:", err);

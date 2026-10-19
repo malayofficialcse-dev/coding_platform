@@ -154,6 +154,46 @@ export const unfollowUser = async (req, res) => {
 /**
  * GET /api/social/:id/followers
  */
+
+/**
+ * GET /api/social/:id/mutual-follows
+ * Returns users who mutually follow each other with the given user.
+ * Used by the chat service to populate the sidebar contact list.
+ */
+export const getMutualFollows = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Find all users that userId follows AND who also follow userId back
+    const [followingRows, followerRows] = await Promise.all([
+      UserFollow.findAll({ where: { followerId: String(userId) }, attributes: ["followingId"] }),
+      UserFollow.findAll({ where: { followingId: String(userId) }, attributes: ["followerId"] }),
+    ]);
+
+    const followingIds = new Set(followingRows.map((r) => String(r.followingId)));
+    const followerIds = new Set(followerRows.map((r) => String(r.followerId)));
+
+    // Intersection: mutual follows
+    const mutualIds = [...followingIds].filter((id) => followerIds.has(id));
+
+    if (mutualIds.length === 0) {
+      return res.json([]);
+    }
+
+    const users = await User.findAll({
+      where: { id: { [Op.in]: mutualIds } },
+      attributes: ["id", "name", "username", "profileImage", "bannerImage", "role", "college"],
+    });
+
+    res.json(users.map((u) => u.toObject ? u.toObject() : u.toJSON()));
+  } catch (err) {
+    console.error("[getMutualFollows error]:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+/**
+ * GET /api/social/:id/followers
+ */
 export const getFollowers = async (req, res) => {
   try {
     const userId = req.params.id;

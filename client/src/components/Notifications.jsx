@@ -9,6 +9,7 @@ import {
   FaHeart,
   FaTimes,
   FaUserPlus,
+  FaUserFriends,
 } from "react-icons/fa";
 import { FaRetweet } from "react-icons/fa6";
 import { toast } from "react-toastify";
@@ -109,6 +110,8 @@ export default function Notifications() {
         return <FaEnvelope />;
       case "follow":
         return <FaUserPlus />;
+      case "mentorship":
+        return <FaUserFriends />;
       default:
         return <FaBullhorn />;
     }

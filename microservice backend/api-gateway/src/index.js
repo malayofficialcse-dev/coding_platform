@@ -162,6 +162,7 @@ const createServiceProxy = (target) => {
 app.use("/api/auth",       createServiceProxy(SERVICES.auth));
 app.use("/api/users",      createServiceProxy(SERVICES.user));
 app.use("/api/social",     createServiceProxy(SERVICES.user));
+app.use("/api/mentorship", createServiceProxy(SERVICES.user));
 app.use("/api/admin/rbac", createServiceProxy(SERVICES.user)); // RBAC admin endpoints
 app.use("/api/posts",      createServiceProxy(SERVICES.post));
 app.use("/api/admin/posts",createServiceProxy(SERVICES.post));

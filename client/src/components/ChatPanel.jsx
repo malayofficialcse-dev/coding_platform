@@ -39,6 +39,7 @@ export default function ChatPanel({ user }) {
   const [onlineIds, setOnlineIds] = useState([]); // stored as strings
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingChat, setLoadingChat] = useState(false);
 
   const fileInputRef = useRef(null);
   const selectedRef = useRef(null);
@@ -251,27 +252,32 @@ export default function ChatPanel({ user }) {
   --------------------------------*/
   const openChatWith = async (otherUser) => {
     setSelected(otherUser);
+    setMessages([]);
+    setLoadingChat(true);
+
+    const targetId = String(otherUser?._id || otherUser?.id || "");
+    if (!targetId) {
+      setLoadingChat(false);
+      return;
+    }
+
     try {
-      const id = otherUser._id || otherUser.id;
-      const res = await api.get(`/messages/${id}`);
+      const res = await api.get(`/messages/${targetId}`);
       const msgs = res?.data?.messages || res?.data || [];
-      setMessages((currentMessages) => {
-        const merged = new Map();
-        [...(Array.isArray(msgs) ? msgs : []), ...currentMessages].forEach(
-          (message) => {
-            if (message?._id) merged.set(String(message._id), message);
-          }
-        );
-        return Array.from(merged.values()).sort(
-          (first, second) =>
-            new Date(first.createdAt || 0) - new Date(second.createdAt || 0)
-        );
-      });
-      // scroll after short delay to ensure DOM updated
-      setTimeout(() => scrollToBottom(false), 150);
+      // Only commit if user didn't switch away during fetch
+      if (String(selectedRef.current?._id || selectedRef.current?.id) === targetId) {
+        setMessages(Array.isArray(msgs) ? msgs : []);
+        setTimeout(() => scrollToBottom(false), 50);
+      }
     } catch (err) {
       console.error("Failed to load chat history:", err);
-      setMessages([]);
+      if (String(selectedRef.current?._id || selectedRef.current?.id) === targetId) {
+        setMessages([]);
+      }
+    } finally {
+      if (String(selectedRef.current?._id || selectedRef.current?.id) === targetId) {
+        setLoadingChat(false);
+      }
     }
   };
 
@@ -426,6 +432,19 @@ export default function ChatPanel({ user }) {
           </div>
 
           {/* USERS */}
+          {filteredUsers.length === 0 && (
+            <div
+              style={{
+                padding: "24px 16px",
+                textAlign: "center",
+                color: "var(--cc-muted)",
+                fontSize: "0.875rem",
+              }}
+            >
+              {searchQuery ? "No matching contacts found" : "No chat contacts yet"}
+            </div>
+          )}
+
           {filteredUsers.map((u) => {
             const id = u._id || u.id;
             const online = onlineIds.includes(String(id));
@@ -558,7 +577,39 @@ export default function ChatPanel({ user }) {
               backgroundColor: "var(--cc-surface-muted)",
             }}
           >
-            {messages.map((m) => {
+            {loadingChat && (
+              <div
+                style={{
+                  margin: "auto",
+                  textAlign: "center",
+                  color: "var(--cc-muted)",
+                  padding: 24,
+                  fontSize: "0.875rem",
+                }}
+              >
+                Loading messages...
+              </div>
+            )}
+
+            {!loadingChat && selected && messages.length === 0 && (
+              <div
+                style={{
+                  margin: "auto",
+                  textAlign: "center",
+                  color: "var(--cc-muted)",
+                  padding: 24,
+                }}
+              >
+                <div style={{ fontSize: "1rem", fontWeight: 600, marginBottom: 4 }}>
+                  No messages yet
+                </div>
+                <div style={{ fontSize: "0.85rem" }}>
+                  Say hello to {selected.name || selected.username || "this user"}!
+                </div>
+              </div>
+            )}
+
+            {!loadingChat && messages.map((m) => {
               const fromMe =
                 String(m.senderId?._id || m.senderId) ===
                 String(user._id || user.id);
