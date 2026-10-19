@@ -45,7 +45,8 @@ export const initSocket = (userId) => {
   return socket;
 };
 
-export const getSocket = () => {
+export const getSocket = (userId) => {
+  if (!socket && userId) return initSocket(userId);
   if (!socket) console.warn("Socket not initialized. Call initSocket first.");
   return socket;
 };

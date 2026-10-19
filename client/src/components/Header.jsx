@@ -54,7 +54,7 @@ export default function Header() {
         { to: "/coding", label: "Coding Problems", icon: FaCode },
         { to: "/about", label: "About", icon: FaInfoCircle },
         { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
-        { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
+        { to: "/mentorship", label: "Mentor sessions", icon: FaChalkboardTeacher },
       ];
     }
 
@@ -67,7 +67,19 @@ export default function Header() {
         { to: "/coding", label: "Coding Problems", icon: FaCode },
         { to: "/about", label: "About", icon: FaInfoCircle },
         { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
-        { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
+        { to: "/mentorship", label: "Mentor sessions", icon: FaChalkboardTeacher },
+      ];
+    }
+
+    if (role === "mentor") {
+      return [
+        { to: "/", label: "Home", icon: FaHome, iconOnly: true },
+        { to: "/courses", label: "Courses", icon: FaBookOpen },
+        { to: "/exams", label: "Exams", icon: FaFlask },
+        { to: "/coding", label: "Coding Problems", icon: FaCode },
+        { to: "/about", label: "About", icon: FaInfoCircle },
+        { to: "/messages", label: "Messages", icon: FaComments, iconOnly: true },
+        { to: "/mentorship", label: "Mentor sessions", icon: FaChalkboardTeacher },
       ];
     }
 
@@ -77,7 +89,7 @@ export default function Header() {
     // They CANNOT see other module options on the header UNLESS explicit permission is granted!
     const items = [
       { to: "/", label: "Home", icon: FaHome, iconOnly: true },
-      { to: "/mentorship", label: "Mentorship", icon: FaChalkboardTeacher },
+      { to: "/mentorship", label: "Mentor sessions", icon: FaChalkboardTeacher },
     ];
 
     // Courses module: Visible for course_coordinator OR if courses.view is granted

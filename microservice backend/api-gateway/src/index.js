@@ -162,7 +162,7 @@ const createServiceProxy = (target) => {
 app.use("/api/auth",       createServiceProxy(SERVICES.auth));
 app.use("/api/users",      createServiceProxy(SERVICES.user));
 app.use("/api/social",     createServiceProxy(SERVICES.user));
-app.use("/api/mentorship", createServiceProxy(SERVICES.user));
+app.use("/api/mentor", createServiceProxy(SERVICES.mentor));
 app.use("/api/admin/rbac", createServiceProxy(SERVICES.user)); // RBAC admin endpoints
 app.use("/api/posts",      createServiceProxy(SERVICES.post));
 app.use("/api/admin/posts",createServiceProxy(SERVICES.post));
@@ -183,6 +183,14 @@ const wsProxy = createProxyMiddleware({
 });
 app.use("/socket.io", wsProxy);
 
+const mentorWsProxy = createProxyMiddleware({
+  target: SERVICES.mentor,
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: (_path, req) => req.originalUrl,
+});
+app.use("/mentor-socket.io", mentorWsProxy);
+
 // 8. 404 Handler for Unmapped Gateway Routes
 app.use((req, res) => {
   res.status(404).json({ error: `API route ${req.originalUrl} not found on Gateway.` });
@@ -191,9 +199,13 @@ app.use((req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`=================================================`);
   console.log(` 🚀 Code Campus API Gateway running on port ${PORT}`);
-  console.log(` 🌐 Forwarding requests to 9 microservices`);
+  console.log(` 🌐 Forwarding requests to 10 microservices`);
   console.log(`=================================================`);
 });
 
 // Support WebSocket Upgrade on HTTP Server
-server.on("upgrade", wsProxy.upgrade);
+server.on("upgrade", (req, socket, head) => {
+  if (req.url?.startsWith("/mentor-socket.io")) return mentorWsProxy.upgrade(req, socket, head);
+  if (req.url?.startsWith("/socket.io")) return wsProxy.upgrade(req, socket, head);
+  socket.destroy();
+});

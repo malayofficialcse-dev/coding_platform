@@ -53,6 +53,7 @@ const CodingAnalytics = lazy(() => import("./pages/code/CodingAnalytics"));
 const PostToProfile = lazy(() => import("./pages/PostToProfile"));
 const ChatPage      = lazy(() => import("./pages/ChatPage"));
 const Mentorship    = lazy(() => import("./pages/Mentorship"));
+const MentorRoom    = lazy(() => import("./pages/MentorRoom"));
 const AboutPage     = lazy(() => import("./components/AboutPage"));
 const Notifications = lazy(() => import("./components/Notifications"));
 
@@ -85,6 +86,7 @@ function App() {
               <Route path="/my-attempts"   element={<PrivateRoute><MyAttempts /></PrivateRoute>} />
               <Route path="/messages"      element={<PrivateRoute><ChatPage /></PrivateRoute>} />
               <Route path="/mentorship"    element={<PrivateRoute><Mentorship /></PrivateRoute>} />
+              <Route path="/mentorship/room/:id" element={<PrivateRoute><MentorRoom /></PrivateRoute>} />
               <Route path="/courses"       element={<PrivateRoute moduleAccess="courses"><CourseList /></PrivateRoute>} />
               <Route path="/courses/:id"   element={<PrivateRoute moduleAccess="courses"><CourseDetail /></PrivateRoute>} />
               <Route path="/enroll/:id"    element={<PrivateRoute moduleAccess="courses"><EnrollCourse /></PrivateRoute>} />

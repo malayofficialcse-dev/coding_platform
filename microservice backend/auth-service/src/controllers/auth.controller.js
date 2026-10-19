@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { timingSafeEqual } from "node:crypto";
 import User from "../models/User.js";
 
 const generateToken = (user) => {
@@ -80,7 +81,7 @@ const DEFAULT_PERMISSIONS = {
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role, college, degree, yearOfPassing, username } = req.body;
+    const { name, email, password, college, degree, yearOfPassing, username } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required." });
@@ -94,7 +95,9 @@ export const register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    const assignedRole = role || "student";
+    // Public signup must never grant privileged roles from client input.
+    // Mentor access is granted only after an administrator approves an application.
+    const assignedRole = "student";
     const assignedPerms = DEFAULT_PERMISSIONS[assignedRole] || DEFAULT_PERMISSIONS.student;
 
     const user = await User.create({
@@ -130,6 +133,30 @@ export const register = async (req, res) => {
   } catch (err) {
     console.error("[Auth Service Register Error]:", err);
     res.status(500).json({ message: "Server error during registration", error: err.message });
+  }
+};
+
+// Private mentor-service integration: only promote or revoke the mentor role.
+// This endpoint is not a public role-management API.
+export const setApprovedMentorRole = async (req, res) => {
+  const configured = process.env.INTERNAL_SERVICE_TOKEN || "";
+  const supplied = req.headers["x-internal-service-token"] || "";
+  const expected = Buffer.from(configured);
+  const actual = Buffer.from(String(supplied));
+  if (!configured || expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    return res.status(403).json({ message: "Internal service authorization failed." });
+  }
+  if (!["mentor", "student"].includes(req.body.role)) {
+    return res.status(400).json({ message: "Only mentor access may be granted or revoked here." });
+  }
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user || user.role === "super_admin") return res.status(404).json({ message: "Account not found." });
+    user.role = req.body.role;
+    await user.save();
+    res.json({ id: user.id, role: user.role });
+  } catch (error) {
+    res.status(500).json({ message: "Could not update mentor access." });
   }
 };
 

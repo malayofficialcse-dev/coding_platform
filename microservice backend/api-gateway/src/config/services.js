@@ -8,6 +8,7 @@ const SERVICE_CONFIG = Object.freeze({
   coding: ["CODING_SERVICE_URL", "http://localhost:5007"],
   notification: ["NOTIFICATION_SERVICE_URL", "http://localhost:5008"],
   chat: ["CHAT_SERVICE_URL", "http://localhost:5009"],
+  mentor: ["MENTOR_SERVICE_URL", "http://localhost:5010"],
 });
 
 export const getServiceUrl = (name) => {

@@ -14,7 +14,7 @@ export const useNotifications = () => {
       fetchNotifications();
       fetchUnreadCount();
 
-      const socket = getSocket();
+      const socket = getSocket(user._id);
       if (socket) {
         socket.on("newNotification", (data) => {
           setNotifications((prev) => [data.notification, ...prev]);

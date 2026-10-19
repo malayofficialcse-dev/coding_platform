@@ -13,7 +13,8 @@ $services = @(
   @{ Name = "Enroll-Service"; Dir = "enrollment-service";   Port = 5006; Tag = "[ENROLL] " },
   @{ Name = "Code-Service";   Dir = "coding-service";       Port = 5007; Tag = "[CODE]   " },
   @{ Name = "Notif-Service";  Dir = "notification-service"; Port = 5008; Tag = "[NOTIF]  " },
-  @{ Name = "Chat-Service";   Dir = "chat-service";         Port = 5009; Tag = "[CHAT]   " }
+  @{ Name = "Chat-Service";   Dir = "chat-service";         Port = 5009; Tag = "[CHAT]   " },
+  @{ Name = "Mentor-Service"; Dir = "mentor-service";       Port = 5010; Tag = "[MENTOR] " }
 )
 
 # ── Helpers ──────────────────────────────────────────────

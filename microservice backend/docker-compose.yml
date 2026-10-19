@@ -6,6 +6,7 @@ networks:
 
 volumes:
   auth-pg-data:
+  mentor-pg-data:
   user-pg-data:
   enrollment-pg-data:
   exam-pg-data:
@@ -37,6 +38,21 @@ services:
       - "5431:5432"
     volumes:
       - auth-pg-data:/var/lib/postgresql/data
+    networks:
+      - code-campus-net
+
+  postgres-mentor:
+    image: postgres:16-alpine
+    container_name: cc-postgres-mentor
+    restart: always
+    environment:
+      POSTGRES_DB: mentor_db
+      POSTGRES_USER: cc_mentor
+      POSTGRES_PASSWORD: cc_mentor_pass
+    ports:
+      - "5440:5432"
+    volumes:
+      - mentor-pg-data:/var/lib/postgresql/data
     networks:
       - code-campus-net
 
@@ -220,9 +236,11 @@ services:
       - CODING_SERVICE_URL=http://coding-service:5007
       - NOTIFICATION_SERVICE_URL=http://notification-service:5008
       - CHAT_SERVICE_URL=http://chat-service:5009
+      - MENTOR_SERVICE_URL=http://mentor-service:5010
     depends_on:
       - redis
       - auth-service
+      - mentor-service
       - user-service
       - post-service
       - exam-service
@@ -250,6 +268,7 @@ services:
       - AUTH_DATABASE_URL=postgres://cc_auth:cc_auth_pass@postgres-auth:5432/auth_db
       - JWT_SECRET=kweu249hp72hf4fh48g7w9f4wpef74
       - JWT_EXPIRES_IN=7d
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
@@ -441,5 +460,31 @@ services:
       - mongo-chat
       - redis
       - user-service
+    networks:
+      - code-campus-net
+
+  # ========================================================
+  # MENTOR SERVICE — mentor approval, sessions, chat, polls
+  # ========================================================
+  mentor-service:
+    build:
+      context: ./mentor-service
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - PORT=5010
+      - MENTOR_DATABASE_URL=postgres://cc_mentor:cc_mentor_pass@postgres-mentor:5432/mentor_db
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - JWT_SECRET=kweu249hp72hf4fh48g7w9f4wpef74
+      - REDIS_URL=redis://redis:6379
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
+      - CLIENT_ORIGINS=${CLIENT_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - LIVEKIT_URL=${LIVEKIT_URL:-}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-}
+    depends_on:
+      - postgres-mentor
+      - auth-service
+      - redis
     networks:
       - code-campus-net

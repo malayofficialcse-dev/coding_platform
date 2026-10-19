@@ -120,18 +120,6 @@ export const getUsersForSidebar = async (req, res) => {
       }
     }
 
-    // Accepted mentorship pairs are allowed to chat even when they do not
-    // follow each other, so include those users in the contacts list.
-    const mentorshipContacts = await callService({
-      baseURL: USER_SERVICE,
-      path: `/api/mentorship/contacts/${encodeURIComponent(loggedInUserId)}`,
-      headers: authHeaders,
-    }).catch((error) => {
-      console.warn("[Chat] mentorship contact lookup failed:", error.message);
-      return [];
-    });
-    if (Array.isArray(mentorshipContacts)) mutualUsers.push(...mentorshipContacts);
-
     // Deduplicate by id, exclude self
     const usersById = new Map();
     for (const user of mutualUsers) {

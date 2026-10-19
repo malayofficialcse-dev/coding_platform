@@ -1,6 +1,6 @@
 # Code-Campus Microservices Architecture
 
-Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This project decomposes the monolithic application into 9 domain-isolated, independently deployable services organized behind an **API Gateway**.
+Welcome to the **Microservices Backend** for Code-Campus. It contains 10 domain-isolated services behind an **API Gateway**, including a dedicated mentor application and live session service.
 
 ---
 
@@ -49,6 +49,7 @@ Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This 
 | **Coding Service** | `5007` | Code Execution & Plagiarism | `/api/coding/problems`, `/api/coding/submit/:id` |
 | **Notification Service** | `5008` | Notifications & Event Alerts | `/api/notifications`, `/api/notifications/unread-count` |
 | **Chat Service** | `5009` | Direct Messaging & Socket.IO | `/api/messages`, `/api/messages/users`, `/socket.io` |
+| **Mentor Service** | `5010` | Mentor approval, sessions, LiveKit tokens, room chat and polls | `/api/mentor/*`, `/mentor-socket.io` |
 
 ---
 
@@ -60,7 +61,7 @@ Welcome to the enterprise-grade **Microservices Backend** for Code-Campus. This 
 - **Docker & Docker Compose** (Optional, for containerized deployment)
 
 ### 2. Environment Setup
-The environment file `.env` is already configured in `microservice backend/.env` based on your project settings.
+The environment file `.env` is already configured in `microservice backend/.env` based on your project settings. Merge `INTERNAL_SERVICE_TOKEN` from [.env.example](./.env.example) into it; use a long random secret shared by the Auth and Mentor services. Add LiveKit Cloud `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` there to enable real video. Never put the LiveKit API secret in the frontend environment.
 
 RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
 
@@ -72,6 +73,8 @@ npm run install:all
 npm run dev
 ```
 This runs `concurrently` across all 10 services with colored terminal outputs.
+
+The new Mentor Service creates its PostgreSQL schema on startup. For local development, it uses the same PostgreSQL server as the other services at `127.0.0.1:5432`; create a separate `mentor_db` database or set `MENTOR_DATABASE_URL` in `.env`. Docker Compose overrides this URL to use its private PostgreSQL container. Redis is used for multi-instance Socket.IO delivery. Without LiveKit credentials, mentor applications and schedules work, but joining a video room returns a setup message.
 
 ### Load local demo content
 

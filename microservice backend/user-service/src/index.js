@@ -12,9 +12,6 @@ dotenv.config();
 import userRoutes from "./routes/user.routes.js";
 import rbacRoutes from "./routes/rbac.routes.js";
 import socialRoutes from "./routes/social.routes.js";
-import mentorshipRoutes from "./routes/mentorship.routes.js";
-import "./models/MentorshipProfile.js";
-import "./models/MentorshipRequest.js";
 import { connectDB } from "./config/db.js";
 import { verifyNeo4j } from "./lib/neo4j.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
@@ -33,7 +30,6 @@ app.get("/health", (req, res) => {
 
 app.use("/api/users", userRoutes);
 app.use("/api/social", socialRoutes);
-app.use("/api/mentorship", mentorshipRoutes);
 app.use("/api/admin/rbac", rbacRoutes);
 
 app.use(notFound);
