@@ -27,10 +27,16 @@ app.use(notFound);
 app.use(errorHandler);
 
 connectDB().then(async () => {
-  await startNotificationConsumer();
+  try {
+    await startNotificationConsumer();
+  } catch (err) {
+    console.warn("[Notification Service] RabbitMQ consumer offline (continuing HTTP API):", err.message);
+  }
   app.listen(PORT, () => {
     console.log(`[Notification Service] Running on port ${PORT}`);
   });
+}).catch((err) => {
+  console.error("[Notification Service] DB connection failed:", err.message);
 });
 
 

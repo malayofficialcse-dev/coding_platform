@@ -134,6 +134,14 @@ CodingSubmission.init(
       type: DataTypes.JSONB,
       defaultValue: [],
     },
+    logicScore: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    logicDetails: {
+      type: DataTypes.JSONB,
+      defaultValue: {},
+    },
   },
   {
     sequelize,

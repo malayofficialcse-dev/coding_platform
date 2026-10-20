@@ -26,6 +26,8 @@ import {
   FaTerminal,
   FaChevronDown,
   FaChevronRight,
+  FaBrain,
+  FaShieldAlt,
 } from "react-icons/fa";
 import "./SolveProblem.css";
 
@@ -106,6 +108,7 @@ const VERDICT_CONFIG = {
   "Compilation Error": { color: "#f97316", bg: "rgba(249,115,22,0.12)",   icon: "⚠",  label: "Compilation Error" },
   "Runtime Error":     { color: "#a855f7", bg: "rgba(168,85,247,0.12)",   icon: "⚡", label: "Runtime Error" },
   "Time Limit Exceeded":{ color: "#eab308", bg: "rgba(234,179,8,0.12)",   icon: "⏱", label: "Time Limit Exceeded" },
+  "Hardcoding Detected":{ color: "#f43f5e", bg: "rgba(244,63,94,0.12)",  icon: "⚠", label: "Hardcoding Detected" },
   "Skipped":           { color: "#6b7280", bg: "rgba(107,114,128,0.12)",  icon: "—",  label: "Skipped" },
   Executed:            { color: "#3b82f6", bg: "rgba(59,130,246,0.12)",   icon: "▶",  label: "Executed" },
 };
@@ -694,6 +697,7 @@ export function SolveProblem() {
               width="100%"
               height="min(52vh, 540px)"
               setOptions={{
+                useWorker: false,
                 enableBasicAutocompletion: true,
                 enableLiveAutocompletion: true,
                 showPrintMargin: false,
@@ -728,6 +732,25 @@ export function SolveProblem() {
                 {currentActiveResult && (
                   <span className="sp-count-badge">
                     {currentActiveResult.passedCount}/{currentActiveResult.totalCount}
+                  </span>
+                )}
+              </button>
+              <button
+                className={outputTab === "logic" ? "active" : ""}
+                onClick={() => setOutputTab("logic")}
+              >
+                <FaBrain /> Logic & Complexity
+                {currentActiveResult?.logicScore !== undefined && (
+                  <span
+                    className={`sp-count-badge ${
+                      currentActiveResult.logicScore >= 80
+                        ? "sp-badge-green"
+                        : currentActiveResult.logicScore >= 50
+                        ? "sp-badge-amber"
+                        : "sp-badge-red"
+                    }`}
+                  >
+                    {currentActiveResult.logicScore}/100
                   </span>
                 )}
               </button>
@@ -833,6 +856,156 @@ export function SolveProblem() {
                       </div>
                     )}
                   </>
+                )}
+              </div>
+            )}
+
+            {/* ── Logic & Complexity Tab ── */}
+            {outputTab === "logic" && (
+              <div className="sp-output-body">
+                {running && runMode !== "custom" ? (
+                  <div className="sp-running-state">
+                    <div className="sp-spinner" />
+                    <p>Evaluating algorithmic logic & complexity...</p>
+                  </div>
+                ) : !currentActiveResult ? (
+                  <div className="sp-empty-state">
+                    <FaBrain style={{ fontSize: 32, opacity: 0.2, marginBottom: 8 }} />
+                    <p>Run or Submit your solution to analyze its <strong>algorithmic logic, complexity, and authenticity</strong>.</p>
+                  </div>
+                ) : (
+                  <div className="sp-logic-panel">
+                    {/* Score Card Header */}
+                    <div className="sp-logic-score-card">
+                      <div className="sp-logic-score-circle">
+                        <span className="sp-logic-num">{currentActiveResult.logicScore ?? "—"}</span>
+                        <span className="sp-logic-denom">/ 100</span>
+                      </div>
+                      <div className="sp-logic-score-info">
+                        <div className="sp-logic-rating-title">
+                          {(currentActiveResult.logicScore ?? 0) >= 85
+                            ? "✨ Optimal & Authentic Algorithmic Solution"
+                            : (currentActiveResult.logicScore ?? 0) >= 60
+                            ? "⚡ Functional Solution — Optimization Possible"
+                            : "⚠ Suboptimal or Incomplete Algorithmic Logic"}
+                        </div>
+                        <div className="sp-logic-feedback-text">
+                          {currentActiveResult.logicAnalysis?.feedback ||
+                            "Solution analyzed for algorithmic structures, loop depth, and anti-hardcoding integrity."}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Score Breakdown Grid */}
+                    {currentActiveResult.logicAnalysis?.breakdown && (
+                      <div className="sp-breakdown-grid">
+                        <div className="sp-breakdown-item">
+                          <span className="sp-breakdown-label">Correctness</span>
+                          <span className="sp-breakdown-val">
+                            {currentActiveResult.logicAnalysis.breakdown.correctness} / 50
+                          </span>
+                        </div>
+                        <div className="sp-breakdown-item">
+                          <span className="sp-breakdown-label">Authenticity</span>
+                          <span className="sp-breakdown-val">
+                            {currentActiveResult.logicAnalysis.breakdown.authenticity} / 20
+                          </span>
+                        </div>
+                        <div className="sp-breakdown-item">
+                          <span className="sp-breakdown-label">Complexity</span>
+                          <span className="sp-breakdown-val">
+                            {currentActiveResult.logicAnalysis.breakdown.complexity} / 20
+                          </span>
+                        </div>
+                        <div className="sp-breakdown-item">
+                          <span className="sp-breakdown-label">Code Quality</span>
+                          <span className="sp-breakdown-val">
+                            {currentActiveResult.logicAnalysis.breakdown.codeQuality} / 10
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Anti-Hardcoding & Authenticity Status */}
+                    {currentActiveResult.logicAnalysis?.isHardcoded ? (
+                      <div className="sp-hardcode-alert">
+                        <FaShieldAlt style={{ fontSize: 20, flexShrink: 0 }} />
+                        <div>
+                          <strong>Hardcoding Attempt Detected</strong>
+                          <p style={{ margin: "4px 0 0", fontSize: 13 }}>
+                            {currentActiveResult.logicAnalysis.hardcodeReason ||
+                              "The judge detected static input-to-output test case lookups. A general algorithmic procedure is required."}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sp-authentic-badge">
+                        <FaShieldAlt style={{ color: "#22c55e", fontSize: 16 }} />
+                        <span>Pure Algorithmic Logic Verified · No testcase hardcoding bypasses detected</span>
+                      </div>
+                    )}
+
+                    {/* Complexity & Metrics Card */}
+                    <div className="sp-complexity-card">
+                      <div className="sp-complexity-grid">
+                        <div className="sp-complexity-col">
+                          <div className="sp-col-title">Time Complexity</div>
+                          <div className="sp-col-val">
+                            {currentActiveResult.logicAnalysis?.complexity?.time || "O(N)"}
+                            <span className="sp-complexity-chip">
+                              {currentActiveResult.logicAnalysis?.complexity?.complexityRating || "Optimal"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="sp-complexity-col">
+                          <div className="sp-col-title">Space Complexity</div>
+                          <div className="sp-col-val">
+                            {currentActiveResult.logicAnalysis?.complexity?.space || "O(1)"}
+                          </div>
+                        </div>
+                        <div className="sp-complexity-col">
+                          <div className="sp-col-title">Max Loop Depth</div>
+                          <div className="sp-col-val">
+                            {currentActiveResult.logicAnalysis?.loopDepth !== undefined
+                              ? `Depth ${currentActiveResult.logicAnalysis.loopDepth}`
+                              : "Linear"}
+                          </div>
+                        </div>
+                        <div className="sp-complexity-col">
+                          <div className="sp-col-title">Edge-Case Resilience</div>
+                          <div className="sp-col-val">
+                            {currentActiveResult.logicAnalysis?.edgeCaseResilience || "High"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detected DSA Patterns */}
+                    {currentActiveResult.logicAnalysis?.patterns?.length > 0 && (
+                      <div className="sp-patterns-section">
+                        <div className="sp-section-subtitle">Detected DSA Patterns & Techniques:</div>
+                        <div className="sp-pattern-tags">
+                          {currentActiveResult.logicAnalysis.patterns.map((p, idx) => (
+                            <span key={idx} className="sp-pattern-tag">
+                              ✓ {p}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Diagnostics Alert (if any testcase failed) */}
+                    {currentActiveResult.logicAnalysis?.diagnostics && (
+                      <div className="sp-diagnostic-box">
+                        <div className="sp-diag-title">
+                          <FaExclamationTriangle /> Diagnostic: {currentActiveResult.logicAnalysis.diagnostics.type}
+                        </div>
+                        <div className="sp-diag-msg">
+                          {currentActiveResult.logicAnalysis.diagnostics.message}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

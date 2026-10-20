@@ -1,5 +1,5 @@
 import axios from "axios";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile, unlink, mkdir, rm } from "fs/promises";
 import { spawn } from "child_process";
 import os from "os";
 import path from "path";
@@ -7,6 +7,7 @@ import CodingSubmission from "../models/CodingSubmission.js";
 import CodingProblem from "../models/CodingProblem.js";
 import User from "../models/User.js";
 import { checkPlagiarism } from "../utils/plagiarism.js";
+import { evaluateCodeLogic } from "../utils/logicJudge.js";
 
 const PISTON_URL = process.env.PISTON_URL || "https://emkc.org/api/v2/piston/execute";
 const ENABLE_LOCAL_EXEC = process.env.ENABLE_LOCAL_EXEC === "true";
@@ -85,15 +86,101 @@ async function runWithPiston(langKey, codeStr, stdin, timeoutMs = 10000) {
   return { stdout, stderr, exitCode, verdict: null, compileError: null };
 }
 
-// ------------ Local execution (JS/Python fallback) ------------
-async function runLocal(codeStr, langKey, stdin, timeoutMs = 5000) {
+// ------------ Local execution (Java runner) ------------
+async function runJavaLocal(codeStr, stdin, timeoutMs = 8000) {
+  const tmpDir = path.join(os.tmpdir(), `java-run-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+  await mkdir(tmpDir, { recursive: true });
+
+  const classMatch = codeStr.match(/public\s+class\s+([a-zA-Z0-9_$]+)/);
+  const className = classMatch ? classMatch[1] : "Main";
+  const javaFile = path.join(tmpDir, `${className}.java`);
+
+  await writeFile(javaFile, codeStr, "utf8");
+
+  // Compile
+  const compileResult = await new Promise((resolve) => {
+    const compileChild = spawn("javac", [javaFile]);
+    let err = "";
+    compileChild.stderr.on("data", (d) => (err += d.toString()));
+    compileChild.on("close", (code) => {
+      resolve({ exitCode: code, stderr: err.trim() });
+    });
+    compileChild.on("error", (e) => {
+      resolve({ exitCode: -1, stderr: e.message });
+    });
+  });
+
+  if (compileResult.exitCode !== 0) {
+    try { await rm(tmpDir, { recursive: true, force: true }); } catch (_) {}
+    return {
+      stdout: "",
+      stderr: compileResult.stderr || "Compilation failed",
+      exitCode: compileResult.exitCode,
+      verdict: "Compilation Error",
+      compileError: compileResult.stderr || "Compilation failed",
+    };
+  }
+
+  // Run
+  const runResult = await new Promise((resolve) => {
+    const runChild = spawn("java", ["-cp", tmpDir, className], { stdio: ["pipe", "pipe", "pipe"] });
+    let out = "", err = "", finished = false;
+
+    const killTimer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        try { runChild.kill("SIGKILL"); } catch (_) {}
+        resolve({ stdout: "", stderr: "Time Limit Exceeded", exitCode: -1, verdict: "Time Limit Exceeded" });
+      }
+    }, timeoutMs);
+
+    runChild.stdout.on("data", (d) => (out += d.toString()));
+    runChild.stderr.on("data", (d) => (err += d.toString()));
+    runChild.on("error", (e) => {
+      clearTimeout(killTimer);
+      if (!finished) {
+        finished = true;
+        resolve({ stdout: "", stderr: e.message, exitCode: -1, verdict: "Runtime Error" });
+      }
+    });
+    runChild.on("close", (code) => {
+      clearTimeout(killTimer);
+      if (!finished) {
+        finished = true;
+        resolve({
+          stdout: out.trim(),
+          stderr: err.trim(),
+          exitCode: code,
+          verdict: code !== 0 ? "Runtime Error" : null,
+        });
+      }
+    });
+
+    if (stdin) runChild.stdin.write(stdin);
+    runChild.stdin.end();
+  }).finally(async () => {
+    try { await rm(tmpDir, { recursive: true, force: true }); } catch (_) {}
+  });
+
+  return runResult;
+}
+
+// ------------ Local execution (JS/Python/Java) ------------
+async function runLocal(codeStr, langKey, stdin, timeoutMs = 8000) {
+  if (langKey === "java") {
+    return await runJavaLocal(codeStr, stdin, timeoutMs);
+  }
+
   const ext =
     langKey.startsWith("py") || langKey === "python3"
       ? "py"
       : langKey === "javascript"
       ? "js"
       : null;
-  if (!ext) throw new Error("Local exec unsupported for language");
+
+  if (!ext) {
+    throw new Error(`Local compiler for '${langKey}' is not available on this server environment.`);
+  }
 
   const tmpFile = path.join(
     os.tmpdir(),
@@ -114,9 +201,9 @@ async function runLocal(codeStr, langKey, stdin, timeoutMs = 5000) {
 
     const killTimer = setTimeout(() => {
       if (!finished) {
-        child.kill("SIGKILL");
+        try { child.kill("SIGKILL"); } catch (_) {}
         finished = true;
-        resolve({ stdout: "", stderr: "Time Limit Exceeded", exitCode: -1 });
+        resolve({ stdout: "", stderr: "Time Limit Exceeded", exitCode: -1, verdict: "Time Limit Exceeded" });
       }
     }, timeoutMs);
 
@@ -130,7 +217,12 @@ async function runLocal(codeStr, langKey, stdin, timeoutMs = 5000) {
       clearTimeout(killTimer);
       if (finished) return;
       finished = true;
-      resolve({ stdout: out.trim(), stderr: err.trim(), exitCode: code });
+      resolve({
+        stdout: out.trim(),
+        stderr: err.trim(),
+        exitCode: code,
+        verdict: code !== 0 ? "Runtime Error" : null,
+      });
     });
 
     if (stdin) child.stdin.write(stdin);
@@ -143,32 +235,41 @@ async function runLocal(codeStr, langKey, stdin, timeoutMs = 5000) {
 // ------------ Execute one test case ------------
 async function executeOneTestCase(langKey, code, input, expectedOutput, timeoutMs = 8000) {
   let result;
-  try {
-    result = await runWithPiston(langKey, code, input, timeoutMs);
-  } catch (pistonErr) {
-    // Fallback to local execution for JS/Python
-    if (ENABLE_LOCAL_EXEC && (langKey === "javascript" || langKey.startsWith("py"))) {
+
+  // Direct local runner for Java, JavaScript, Python
+  const isLocalSupported = langKey === "javascript" || langKey.startsWith("py") || langKey === "python3" || langKey === "java";
+
+  if (isLocalSupported) {
+    try {
+      result = await runLocal(code, langKey, input, timeoutMs);
+    } catch (localErr) {
+      return {
+        stdout: "",
+        stderr: localErr.message,
+        exitCode: -1,
+        verdict: "Runtime Error",
+        compileError: null,
+      };
+    }
+  } else {
+    // For other languages like C++, attempt Piston with graceful fallback
+    try {
+      result = await runWithPiston(langKey, code, input, timeoutMs);
+    } catch (pistonErr) {
       try {
         result = await runLocal(code, langKey, input, timeoutMs);
       } catch (localErr) {
+        const is401 = pistonErr?.response?.status === 401 || (pistonErr?.message && pistonErr.message.includes("401"));
         return {
           stdout: "",
-          stderr: localErr.message,
+          stderr: is401
+            ? "C++ online compiler is restricted. Please select Java, Python, or JavaScript."
+            : localErr.message || pistonErr.message,
           exitCode: -1,
           verdict: "Runtime Error",
           compileError: null,
         };
       }
-    } else {
-      // Check if Piston is unreachable
-      const isNetwork = pistonErr.code === "ECONNREFUSED" || pistonErr.code === "ENOTFOUND" || pistonErr.message.includes("timeout");
-      return {
-        stdout: "",
-        stderr: isNetwork ? "Judge server unavailable. Please try again." : pistonErr.message,
-        exitCode: -1,
-        verdict: "Runtime Error",
-        compileError: null,
-      };
     }
   }
 
@@ -300,13 +401,28 @@ export const runCode = async (req, res) => {
       results.find(r => r.verdict === "Runtime Error") ? "Runtime Error" :
       "Wrong Answer";
 
+    // Logic-based semantic & anti-hardcoding evaluation
+    const logicAnalysis = evaluateCodeLogic({
+      code,
+      language: langKey,
+      problem,
+      testCases: runCases,
+      executionResults: results,
+      compileError,
+      overallVerdict,
+    });
+
+    const finalVerdict = logicAnalysis.isHardcoded ? "Hardcoding Detected" : overallVerdict;
+
     return res.json({
       mode: "run",
       passedCount,
       totalCount: runCases.length,
-      overallVerdict,
+      overallVerdict: finalVerdict,
       compileError: compileError || null,
       results,
+      logicScore: logicAnalysis.logicScore,
+      logicAnalysis,
     });
   } catch (err) {
     console.error("[Run Code Error]:", err);
@@ -432,6 +548,21 @@ export const submitCode = async (req, res) => {
       else overallVerdict = "Wrong Answer";
     }
 
+    // Logic-based semantic & anti-hardcoding evaluation
+    const logicAnalysis = evaluateCodeLogic({
+      code,
+      language: langKey,
+      problem,
+      testCases: allTestCases,
+      executionResults: results,
+      compileError,
+      overallVerdict,
+    });
+
+    if (logicAnalysis.isHardcoded) {
+      overallVerdict = "Hardcoding Detected";
+    }
+
     // Plagiarism check
     const prevSubs = await CodingSubmission.find({ problem: id }).limit(50);
     let maxPlagiarism = 0;
@@ -451,6 +582,8 @@ export const submitCode = async (req, res) => {
       passedCount,
       totalCount: allTestCases.length,
       plagiarism: maxPlagiarism,
+      logicScore: logicAnalysis.logicScore,
+      logicDetails: logicAnalysis,
       details: results.map(r => ({
         index: r.index,
         input: r.input,
@@ -473,6 +606,8 @@ export const submitCode = async (req, res) => {
       results,
       submissionId: savedSubmission._id,
       language: langKey,
+      logicScore: logicAnalysis.logicScore,
+      logicAnalysis,
     });
   } catch (err) {
     console.error("[Submit Code Error]:", err);
