@@ -1,50 +1,27 @@
 import jwt from "jsonwebtoken";
 
-const getJwtSecrets = () => [
-  process.env.JWT_SECRET,
-  "replace-with-a-long-random-secret",
-  "kweu249hp72hf4fh48g7w9f4wpef74",
-  "default_jwt_secret",
-].filter(Boolean);
-
 const verifyJwt = (token) => {
-  const secrets = getJwtSecrets();
-  for (const secret of secrets) {
-    try {
-      return jwt.verify(token, secret);
-    } catch {}
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 64) {
+    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
   }
-  throw new Error("Invalid or expired token.");
+  return jwt.verify(token, secret);
 };
 
 export const protect = (req, res, next) => {
-  const gatewayUserId = req.headers["x-user-id"];
-  if (gatewayUserId) {
-    req.user = {
-      _id:         gatewayUserId,
-      id:          gatewayUserId,
-      role:        req.headers["x-user-role"]     || "user",
-      email:       req.headers["x-user-email"]    || "",
-      name:        req.headers["x-user-name"]     || "",
-      username:    req.headers["x-user-username"] || "",
-      permissions: (() => {
-        try { return JSON.parse(req.headers["x-user-permissions"] || "{}"); } catch { return {}; }
-      })(),
-    };
-    return next();
-  }
-
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  const match = authHeader?.match(/^Bearer\s+(\S+)$/i);
+  if (!match) {
     return res.status(401).json({ error: "Access denied. No token provided." });
   }
 
-  const token = authHeader.split(" ")[1];
   try {
-    const decoded = verifyJwt(token);
+    const decoded = verifyJwt(match[1]);
+    const userId = decoded.userId || decoded.id || decoded._id;
+    if (!userId) return res.status(401).json({ error: "Invalid or expired token." });
     req.user = {
-      _id:         decoded.userId || decoded.id,
-      id:          decoded.userId || decoded.id,
+      _id:         userId,
+      id:          userId,
       role:        decoded.role        || "user",
       email:       decoded.email       || "",
       name:        decoded.name        || "",

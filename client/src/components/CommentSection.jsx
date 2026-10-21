@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
-export default function CommentSection({ comments, onComment }) {
+export default function CommentSection({ comments, onComment, user }) {
   const [text, setText] = useState("");
   return (
     <div className="mt-2">
@@ -9,7 +10,7 @@ export default function CommentSection({ comments, onComment }) {
           <b>{c.author?.name || c.author?.username || "Code Campus Member"}</b>: {c.text}
         </div>
       ))}
-      <form
+      {user ? <form
         onSubmit={(e) => {
           e.preventDefault();
           if (text.trim()) {
@@ -24,7 +25,11 @@ export default function CommentSection({ comments, onComment }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-      </form>
+      </form> : (
+        <p className="small text-muted mt-2 mb-0">
+          <Link to="/login">Sign in</Link> to add a comment.
+        </p>
+      )}
     </div>
   );
 }

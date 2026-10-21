@@ -61,7 +61,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-user-role", "x-user-name", "x-user-email", "x-user-permissions"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -88,6 +88,17 @@ app.use(limiter);
 
 // 4. Token Decoder & Header Enrichment Middleware
 const enrichUserHeaders = (req, res, next) => {
+  for (const header of [
+    "x-user-id",
+    "x-user-role",
+    "x-user-email",
+    "x-user-name",
+    "x-user-username",
+    "x-user-permissions",
+  ]) {
+    delete req.headers[header];
+  }
+
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];

@@ -49,7 +49,7 @@ export default function Dashboard() {
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
-  const [sidebarTab, setSidebarTab] = useState("recommended");
+  const [sidebarTab, setSidebarTab] = useState("all");
   const [showPostModal, setShowPostModal] = useState(false);
   const [search, setSearch] = useState("");
   const [postsPage, setPostsPage] = useState(1);
@@ -115,6 +115,7 @@ export default function Dashboard() {
   const currentUserId = user?._id || user?.id;
 
   const handleFollow = async (id) => {
+    if (!user) return;
     try {
       await api.post(`/users/follow/${id}`);
       setUsers((prev) =>
@@ -139,6 +140,7 @@ export default function Dashboard() {
   };
 
   const handleUnfollow = async (id) => {
+    if (!user) return;
     try {
       await api.post(`/users/unfollow/${id}`);
       setUsers((prev) =>
@@ -263,85 +265,84 @@ export default function Dashboard() {
 
           {/* ══════════════════════════ LEFT SIDEBAR ══════════════════════════ */}
           <aside className="cc-left-aside" style={{ position: "sticky", top: 90 }}>
-            {/* Profile card */}
-            <div style={{ ...card, overflow: "hidden", marginBottom: "1rem" }}>
-              {/* Cover gradient */}
-              <div style={{
-                height: 110,
-                background: user?.bannerImage
-                  ? `url(${user.bannerImage}) center / cover no-repeat`
-                  : `linear-gradient(110deg, ${C.primary} 0%, #50e6ff 100%)`,
-              }} />
-              <div style={{ padding: "0 1.25rem 1.25rem", textAlign: "center" }}>
-                <img
-                  src={user?.profileImage || DEFAULT_AVA}
-                  alt="profile"
-                  style={{
-                    width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
-                    border: `3px solid ${C.white}`, marginTop: -40,
-                    boxShadow: "0 4px 16px rgba(79,70,229,0.2)",
-                  }}
-                />
-                <div style={{ fontWeight: 800, color: C.ink, fontSize: "1rem", marginTop: 8 }}>
-                  {user?.name || user?.username}
+            {user ? (
+              <>
+                <div style={{ ...card, overflow: "hidden", marginBottom: "1rem" }}>
+                  <div style={{
+                    height: 110,
+                    background: user.bannerImage
+                      ? `url(${user.bannerImage}) center / cover no-repeat`
+                      : `linear-gradient(110deg, ${C.primary} 0%, #50e6ff 100%)`,
+                  }} />
+                  <div style={{ padding: "0 1.25rem 1.25rem", textAlign: "center" }}>
+                    <img
+                      src={user.profileImage || DEFAULT_AVA}
+                      alt="profile"
+                      style={{
+                        width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
+                        border: `3px solid ${C.white}`, marginTop: -40,
+                        boxShadow: "0 4px 16px rgba(79,70,229,0.2)",
+                      }}
+                    />
+                    <div style={{ fontWeight: 800, color: C.ink, fontSize: "1rem", marginTop: 8 }}>
+                      {user.name || user.username}
+                    </div>
+                    <div style={{ color: C.inkMuted, fontSize: "0.8rem" }}>@{user.username}</div>
+                    <div style={{ color: C.inkSoft, fontSize: "0.75rem", marginTop: 2 }}>{user.email}</div>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 8, margin: "12px 0" }}>
+                      <span style={{
+                        background: C.primaryLight, color: C.primary,
+                        borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
+                      }}>{user.role || "User"}</span>
+                      <span style={{
+                        background: C.secondaryLight, color: C.secondary,
+                        borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
+                      }}>{(user.followers || []).length} Followers</span>
+                    </div>
+                    <Link
+                      to="/profile"
+                      style={{
+                        display: "block", width: "100%", background: C.primary, color: C.white,
+                        borderRadius: "4px", padding: "0.55rem 0", fontWeight: 700,
+                        fontSize: "0.85rem", textDecoration: "none",
+                        boxShadow: "0 3px 8px rgba(0,120,212,0.22)",
+                      }}
+                    >
+                      View Profile
+                    </Link>
+                  </div>
                 </div>
-                <div style={{ color: C.inkMuted, fontSize: "0.8rem" }}>@{user?.username}</div>
-                <div style={{ color: C.inkSoft, fontSize: "0.75rem", marginTop: 2 }}>{user?.email}</div>
-
-                <div style={{ display: "flex", justifyContent: "center", gap: 8, margin: "12px 0" }}>
-                  <span style={{
-                    background: C.primaryLight, color: C.primary,
-                    borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
-                  }}>{user?.role || "User"}</span>
-                  <span style={{
-                    background: C.secondaryLight, color: C.secondary,
-                    borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
-                  }}>{(user?.followers || []).length} Followers</span>
+                <div style={{ ...card, padding: "1rem 1.25rem" }}>
+                  <div style={{ fontWeight: 700, color: C.ink, fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.65rem" }}>
+                    Quick Links
+                  </div>
+                  {[
+                    { label: "Courses", href: "/courses" },
+                    { label: "Exams", href: "/exams" },
+                    { label: "Coding Problems", href: "/coding" },
+                    { label: "My Profile", href: "/profile" },
+                  ].map(({ label, href }) => (
+                    <Link key={label} to={href} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "0.55rem 0.6rem", borderRadius: "4px",
+                      textDecoration: "none", color: C.inkMuted, fontSize: "0.875rem", fontWeight: 500,
+                      marginBottom: 2,
+                    }}>
+                      <span>{label}</span>
+                    </Link>
+                  ))}
                 </div>
-
-                <a
-                  href={`/profile/${user?._id}`}
-                  style={{
-                    display: "block", width: "100%",
-                    background: C.primary,
-                    color: C.white, borderRadius: "4px", padding: "0.55rem 0",
-                    fontWeight: 700, fontSize: "0.85rem", textDecoration: "none",
-                    boxShadow: "0 3px 8px rgba(0,120,212,0.22)",
-                    transition: "opacity 0.2s",
-                  }}
-                >
-                  View Profile
-                </a>
+              </>
+            ) : (
+              <div style={{ ...card, padding: "1.25rem", textAlign: "center" }}>
+                <div style={{ fontWeight: 800, color: C.ink, fontSize: "1rem" }}>Welcome to Code Campus</div>
+                <p style={{ color: C.inkMuted, fontSize: "0.85rem", margin: "0.5rem 0 1rem" }}>
+                  Sign in or create an account to join the conversation and connect with learners.
+                </p>
+                <Link to="/login" className="btn btn-primary btn-sm me-2">Login</Link>
+                <Link to="/signup" className="btn btn-outline-primary btn-sm">Sign up</Link>
               </div>
-            </div>
-
-            {/* Quick links */}
-            <div style={{ ...card, padding: "1rem 1.25rem" }}>
-              <div style={{ fontWeight: 700, color: C.ink, fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.65rem" }}>
-                Quick Links
-              </div>
-              {[
-                { emoji: "📚", label: "Courses", href: "/courses" },
-                { emoji: "📝", label: "Exams", href: "/exams" },
-                { emoji: "💻", label: "Coding Problems", href: "/code" },
-                { emoji: "👤", label: "My Profile", href: `/profile/${user?._id}` },
-              ].map(({ label, href }) => (
-                <a key={label} href={href} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "0.55rem 0.6rem", borderRadius: "4px",
-                  textDecoration: "none", color: C.inkMuted, fontSize: "0.875rem", fontWeight: 500,
-                  transition: "all 0.15s",
-                  marginBottom: 2,
-                }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = C.primaryLight; e.currentTarget.style.color = C.primary; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.inkMuted; }}
-                >
-                  {/* <span>{emoji}</span> */}
-                  <span>{label}</span>
-                </a>
-              ))}
-            </div>
-
+            )}
           </aside>
 
           {/* ══════════════════════════ CENTER FEED ═══════════════════════════ */}
@@ -367,44 +368,52 @@ export default function Dashboard() {
                   style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.primaryMid}`, flexShrink: 0 }}
                 />
                 <div
-                  onClick={() => setShowPostModal(true)}
+                  onClick={() => user && setShowPostModal(true)}
+                  role={user ? "button" : undefined}
+                  tabIndex={user ? 0 : undefined}
                   style={{
                     flex: 1, borderRadius: "4px", padding: "11px 18px",
                     background: C.surface, border: `1.5px solid ${C.border}`,
-                    cursor: "pointer", color: C.inkSoft, fontSize: "0.9rem",
+                    cursor: user ? "pointer" : "default", color: C.inkSoft, fontSize: "0.9rem",
                     transition: "border-color 0.2s",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.primary)}
+                  onMouseEnter={(e) => user && (e.currentTarget.style.borderColor = C.primary)}
                   onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
                 >
-                  Share something with the community…
+                  {user ? "Share something with the community…" : "Sign in to share a post"}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                {[
-                  { icon: "⌨️", label: "Code" },
-                  { icon: "🖼️", label: "Image" },
-                  { icon: "📝", label: "Text" },
-                ].map(({ label }) => (
-                  <button
-                    key={label}
-                    className="cc-composer-btn"
-                    onClick={() => setShowPostModal(true)}
-                    style={{
-                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      border: `1px solid ${C.border}`, borderRadius: "4px", padding: "0.5rem 0",
-                      background: C.white, color: C.inkMuted, fontSize: "0.82rem", fontWeight: 600,
-                      cursor: "pointer", transition: "all 0.15s",
-                    }}
-                  >
-                    {label === "Code" && <FaCode size={13} />}
-                    {label === "Image" && <FaImage size={13} />}
-                    {label === "Text" && <FaAlignLeft size={13} />}
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
+              {user ? (
+                <div style={{ display: "flex", gap: 8, marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                  {[
+                    { label: "Code" },
+                    { label: "Image" },
+                    { label: "Text" },
+                  ].map(({ label }) => (
+                    <button
+                      key={label}
+                      className="cc-composer-btn"
+                      onClick={() => setShowPostModal(true)}
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        border: `1px solid ${C.border}`, borderRadius: "4px", padding: "0.5rem 0",
+                        background: C.white, color: C.inkMuted, fontSize: "0.82rem", fontWeight: 600,
+                        cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      {label === "Code" && <FaCode size={13} />}
+                      {label === "Image" && <FaImage size={13} />}
+                      {label === "Text" && <FaAlignLeft size={13} />}
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 small">
+                  <Link to="/login">Sign in</Link> or <Link to="/signup">sign up</Link> to post.
+                </div>
+              )}
             </div>
 
             {/* Feed */}
@@ -445,7 +454,7 @@ export default function Dashboard() {
                 display: "flex", gap: "6px",
                 background: C.surfaceMuted,
               }}>
-                <button
+                {user && <button
                   type="button"
                   onClick={() => setSidebarTab("recommended")}
                   style={{
@@ -458,7 +467,7 @@ export default function Dashboard() {
                   }}
                 >
                   <FaMagic size={11} /> Suggested
-                </button>
+                </button>}
                 <button
                   type="button"
                   onClick={() => setSidebarTab("all")}
@@ -549,7 +558,7 @@ export default function Dashboard() {
                             </div>
                           </Link>
 
-                          {isFollowing ? (
+                          {user && (isFollowing ? (
                             <button
                               onClick={() => handleUnfollow(personId)}
                               title="Unfollow"
@@ -574,7 +583,7 @@ export default function Dashboard() {
                             >
                               <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
                             </button>
-                          )}
+                          ))}
                         </div>
                       );
                     })
@@ -621,7 +630,7 @@ export default function Dashboard() {
                             </div>
                           </Link>
 
-                          {isFollowing ? (
+                          {user && (isFollowing ? (
                             <button
                               onClick={() => handleUnfollow(personId)}
                               title="Unfollow"
@@ -646,7 +655,7 @@ export default function Dashboard() {
                             >
                               <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
                             </button>
-                          )}
+                          ))}
                         </div>
                       );
                     })
@@ -706,7 +715,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </Link>
-                  {isFollowing ? (
+                  {user && (isFollowing ? (
                     <button onClick={() => handleUnfollow(personId)} style={{
                       background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
                       borderRadius: "0.5rem", padding: "4px 8px", cursor: "pointer",
@@ -720,7 +729,7 @@ export default function Dashboard() {
                     }}>
                       <img src={UserPlus} alt="Follow" style={{ height: 14, filter: "brightness(10)" }} />
                     </button>
-                  )}
+                  ))}
                 </div>
               );
             })}

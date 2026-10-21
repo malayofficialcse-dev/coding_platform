@@ -6,15 +6,8 @@ export const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [loading, setLoading] = useState(() => !localStorage.getItem("token"));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -43,14 +36,12 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         console.error("Auth check failed:", err);
-        // Only clear token if server responded with 401
+        if (localStorage.getItem("token") !== token) return;
         if (err.response?.status === 401) {
-          if (localStorage.getItem("token") === token) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            setUser(null);
-          }
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
         }
+        setUser(null);
       } finally {
         setLoading(false);
       }

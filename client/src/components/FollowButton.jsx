@@ -32,7 +32,7 @@ export default function FollowButton({ userId, isFollowing: initialFollowing, on
   }, [userId, currentUserId, initialFollowing]);
 
   const handleFollow = async () => {
-    if (loading) return;
+    if (loading || !user || !userId || String(userId) === String(currentUserId)) return;
     setLoading(true);
     try {
       await api.post(`/users/follow/${userId}`);
@@ -46,7 +46,7 @@ export default function FollowButton({ userId, isFollowing: initialFollowing, on
   };
 
   const handleUnfollow = async () => {
-    if (loading) return;
+    if (loading || !user || !userId || String(userId) === String(currentUserId)) return;
     setLoading(true);
     try {
       await api.post(`/users/unfollow/${userId}`);
@@ -58,6 +58,8 @@ export default function FollowButton({ userId, isFollowing: initialFollowing, on
       setLoading(false);
     }
   };
+
+  if (!user || !userId || String(userId) === String(currentUserId)) return null;
 
   if (following) {
     return (

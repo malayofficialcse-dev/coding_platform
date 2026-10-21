@@ -124,7 +124,7 @@ npm install
 ### 2. Create `.env`:
 ```
 MONGO_URL=your-mongodb-url
-JWT_SECRET=your-secret-key
+JWT_SECRET=<at-least-64-random-characters>
 
 CLOUDINARY_CLOUD_NAME=xxxx
 CLOUDINARY_API_KEY=xxxx

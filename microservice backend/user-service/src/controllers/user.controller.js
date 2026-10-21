@@ -15,7 +15,21 @@ export const getAllUsers = async (req, res) => {
   try {
     const cacheKey = "users:directory";
     const cached = await getCached(cacheKey);
-    if (Array.isArray(cached)) return res.json(cached);
+    if (Array.isArray(cached)) {
+      return res.json(cached.map(({ id, _id, name, username, profileImage, bannerImage, role, college, degree, yearOfPassing, followers }) => ({
+        id,
+        _id: _id || id,
+        name,
+        username,
+        profileImage,
+        bannerImage,
+        role,
+        college,
+        degree,
+        yearOfPassing,
+        followers: Array.isArray(followers) ? followers : [],
+      })));
+    }
     // If cache had a bad value, clear it so it gets rebuilt
     if (cached !== null) await deleteCached(cacheKey);
 
@@ -24,7 +38,6 @@ export const getAllUsers = async (req, res) => {
         "id",
         "name",
         "username",
-        "email",
         "profileImage",
         "bannerImage",
         "role",
@@ -85,7 +98,6 @@ export const getUsersBatch = async (req, res) => {
         "id",
         "name",
         "username",
-        "email",
         "profileImage",
         "bannerImage",
         "role",
@@ -103,7 +115,17 @@ export const getUserById = async (req, res) => {
   try {
     const userId = req.params.id;
     const user = await User.findByPk(userId, {
-      attributes: { exclude: ["password"] },
+      attributes: [
+        "id",
+        "name",
+        "username",
+        "profileImage",
+        "bannerImage",
+        "role",
+        "college",
+        "degree",
+        "yearOfPassing",
+      ],
     });
 
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -149,7 +171,6 @@ export const searchUsers = async (req, res) => {
         [Op.or]: [
           { name: { [Op.iLike]: searchPattern } },
           { username: { [Op.iLike]: searchPattern } },
-          { email: { [Op.iLike]: searchPattern } },
         ],
       },
       attributes: ["id", "name", "username", "profileImage", "bannerImage", "role"],

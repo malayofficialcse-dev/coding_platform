@@ -4,7 +4,7 @@ import { requireViewer } from "../context.js";
 import { optionalProfileService, requireProfileService } from "./profile.api.js";
 
 const userPath = (id) => `/api/users/${encodeURIComponent(id)}`;
-const isAdmin = (viewer) => viewer.role === "admin";
+const isAdmin = (viewer) => ["admin", "super_admin"].includes(viewer.role);
 const canViewLearning = (viewer, profileId) =>
   Boolean(viewer && (viewer.id === String(profileId) || isAdmin(viewer)));
 
@@ -87,6 +87,7 @@ export const profileResolvers = {
   JSON: JSONScalar,
   Query: {
     profilePage: (_root, { id, first }, context) => {
+      requireViewer(context);
       if (!id || String(id).length > 128) {
         throw new GraphQLError("A valid profile ID is required.", {
           extensions: { code: "BAD_USER_INPUT" },

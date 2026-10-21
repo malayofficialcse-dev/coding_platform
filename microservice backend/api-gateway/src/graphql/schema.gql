@@ -5,7 +5,7 @@ type Query {
   profilePage(id: ID!, first: Int = 20): ProfilePage
   "Private profile data for the signed-in profile owner."
   myProfilePage(id: ID!, first: Int = 20): ProfilePage!
-  "Initial home feed and people data for the signed-in viewer."
+  "Public home feed and directory, with personalized recommendations when signed in."
   homeDashboard(first: Int = 20): DashboardPage!
 }
 

@@ -77,12 +77,12 @@ function App() {
               <Route path="/about"   element={<AboutPage />} />
               <Route path="/login"   element={<Login />} />
               <Route path="/signup"  element={<Signup />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/unauthorized" element={<PrivateRoute><Unauthorized /></PrivateRoute>} />
 
               {/* ── Authenticated ── */}
               <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
               <Route path="/profile"       element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/profile/:id"   element={<PostToProfile />} />
+              <Route path="/profile/:id"   element={<PrivateRoute><PostToProfile /></PrivateRoute>} />
               <Route path="/my-attempts"   element={<PrivateRoute><MyAttempts /></PrivateRoute>} />
               <Route path="/messages"      element={<PrivateRoute><ChatPage /></PrivateRoute>} />
               <Route path="/mentorship"    element={<PrivateRoute><Mentorship /></PrivateRoute>} />

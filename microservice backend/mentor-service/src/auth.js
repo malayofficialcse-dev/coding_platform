@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const secrets = () => [process.env.JWT_SECRET, "kweu249hp72hf4fh48g7w9f4wpef74"].filter(Boolean);
+const secrets = () => [process.env.JWT_SECRET].filter((secret) => secret && secret.length >= 64);
 export function decodeToken(token) {
   for (const secret of secrets()) {
     try { return jwt.verify(token, secret); } catch {}

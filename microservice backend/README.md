@@ -61,7 +61,7 @@ Welcome to the **Microservices Backend** for Code-Campus. It contains 10 domain-
 - **Docker & Docker Compose** (Optional, for containerized deployment)
 
 ### 2. Environment Setup
-The environment file `.env` is already configured in `microservice backend/.env` based on your project settings. Merge `INTERNAL_SERVICE_TOKEN` from [.env.example](./.env.example) into it; use a long random secret shared by the Auth and Mentor services. Add LiveKit Cloud `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` there to enable real video. Never put the LiveKit API secret in the frontend environment.
+Set `JWT_SECRET` to the same cryptographically random value of at least 64 characters in the gateway and every service environment. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` and rotate any previously configured value; authentication rejects missing or shorter secrets. Merge `INTERNAL_SERVICE_TOKEN` from [.env.example](./.env.example) into the environment; use a long random secret shared by the Auth and Mentor services. Add LiveKit Cloud `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` there to enable real video. Never put the LiveKit API secret in the frontend environment.
 
 RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
 

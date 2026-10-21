@@ -3,6 +3,14 @@ import jwt from "jsonwebtoken";
 import { timingSafeEqual } from "node:crypto";
 import User from "../models/User.js";
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 64) {
+    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
+  }
+  return secret;
+};
+
 const generateToken = (user) => {
   const userId = user.id || user._id;
   return jwt.sign(
@@ -15,7 +23,7 @@ const generateToken = (user) => {
       username: user.username,
       permissions: user.permissions || {},
     },
-    process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74",
+    getJwtSecret(),
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 };
@@ -302,7 +310,7 @@ export const verifyToken = async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1] || req.body?.token;
     if (!token) return res.status(400).json({ valid: false, message: "No token provided" });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "kweu249hp72hf4fh48g7w9f4wpef74");
+    const decoded = jwt.verify(token, getJwtSecret());
     const user = await User.findByPk(decoded.userId || decoded.id, {
       attributes: { exclude: ["password"] },
     });

@@ -225,7 +225,7 @@ services:
       - "5000:5000"
     environment:
       - API_GATEWAY_PORT=5000
-      - JWT_SECRET=kweu249hp72hf4fh48g7w9f4wpef74
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth-service:5001
       - USER_SERVICE_URL=http://user-service:5002
@@ -266,7 +266,7 @@ services:
     environment:
       - PORT=5001
       - AUTH_DATABASE_URL=postgres://cc_auth:cc_auth_pass@postgres-auth:5432/auth_db
-      - JWT_SECRET=kweu249hp72hf4fh48g7w9f4wpef74
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - JWT_EXPIRES_IN=7d
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
@@ -290,6 +290,7 @@ services:
       - "5002:5002"
     environment:
       - PORT=5002
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - USER_DATABASE_URL=postgres://cc_user:cc_user_pass@postgres-user:5433/user_db
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
@@ -316,6 +317,7 @@ services:
       - "5003:5003"
     environment:
       - PORT=5003
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - POST_MONGO_URI=mongodb://mongo-post:27017/post_db
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
       - REDIS_URL=redis://redis:6379
@@ -340,6 +342,7 @@ services:
       - "5004:5004"
     environment:
       - PORT=5004
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - EXAM_DATABASE_URL=postgres://cc_exam:cc_exam_pass@postgres-exam:5435/exam_db
     depends_on:
       - postgres-exam
@@ -359,6 +362,7 @@ services:
       - "5005:5005"
     environment:
       - PORT=5005
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - COURSE_MONGO_URI=mongodb://mongo-course:27018/course_db
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
@@ -381,6 +385,7 @@ services:
       - "5006:5006"
     environment:
       - PORT=5006
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - ENROLLMENT_DATABASE_URL=postgres://cc_enrollment:cc_enrollment_pass@postgres-enrollment:5434/enrollment_db
       - COURSE_SERVICE_URL=http://course-service:5005
     depends_on:
@@ -401,6 +406,7 @@ services:
       - "5007:5007"
     environment:
       - PORT=5007
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - CODING_DATABASE_URL=postgres://cc_coding:cc_coding_pass@postgres-coding:5436/coding_db
       - CODING_MONGO_URI=mongodb://mongo-coding:27019/coding_problems_db
       - ENABLE_LOCAL_EXEC=${ENABLE_LOCAL_EXEC}
@@ -427,10 +433,11 @@ services:
       - "5008:5008"
     environment:
       - PORT=5008
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - NOTIFICATION_MONGO_URI=mongodb://mongo-notification:27021/notification_db
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
       - CHAT_SERVICE_URL=http://chat-service:5009
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change-this-internal-token}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
     depends_on:
       - mongo-notification
       - chat-service
@@ -450,12 +457,13 @@ services:
       - "5009:5009"
     environment:
       - PORT=5009
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - CHAT_MONGO_URI=mongodb://mongo-chat:27020/chat_db
       - NOTIFICATION_SERVICE_URL=http://notification-service:5008
       - USER_SERVICE_URL=http://user-service:5002
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change-this-internal-token}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
     depends_on:
       - mongo-chat
       - redis
@@ -475,7 +483,7 @@ services:
       - PORT=5010
       - MENTOR_DATABASE_URL=postgres://cc_mentor:cc_mentor_pass@postgres-mentor:5432/mentor_db
       - AUTH_SERVICE_URL=http://auth-service:5001
-      - JWT_SECRET=kweu249hp72hf4fh48g7w9f4wpef74
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - REDIS_URL=redis://redis:6379
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
       - CLIENT_ORIGINS=${CLIENT_ORIGINS:-http://localhost:5173,http://localhost:3000}

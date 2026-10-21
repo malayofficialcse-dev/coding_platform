@@ -23,10 +23,9 @@ router.get("/mutual/:id", protect, getMutualConnections);
 router.get("/stats/:id", protect, getUserNetworkStats);
 router.get("/search", searchUsers);
 router.get("/", getAllUsers);
-router.get("/:id", getUserById);
+router.get("/:id", protect, getUserById);
 router.post("/follow/:id", protect, followUser);
 router.post("/unfollow/:id", protect, unfollowUser);
 router.put("/profile", protect, updateProfile);
 
 export default router;
-

@@ -2,10 +2,7 @@ import jwt from "jsonwebtoken";
 
 const getJwtSecrets = () => [
   process.env.JWT_SECRET,
-  "kweu249hp72hf4fh48g7w9f4wpef74",
-  "replace-with-a-long-random-secret",
-  "default_jwt_secret",
-].filter(Boolean);
+].filter((secret) => secret && secret.length >= 64);
 
 const verifyTokenSafely = (token) => {
   const secrets = getJwtSecrets();
@@ -130,4 +127,3 @@ export const requirePermission = (module, action = "view") => (req, res, next) =
 };
 
 export default { protect, requireAdmin, optionalAuth, requirePermission };
-

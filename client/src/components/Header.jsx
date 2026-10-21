@@ -38,7 +38,6 @@ export default function Header() {
     if (!user) {
       return [
         { to: "/", label: "Home", icon: FaHome, iconOnly: true },
-        { to: "/courses", label: "Courses", icon: FaBookOpen },
         { to: "/about", label: "About", icon: FaInfoCircle },
       ];
     }

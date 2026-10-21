@@ -1,5 +1,13 @@
 import jwt from "jsonwebtoken";
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 64) {
+    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
+  }
+  return secret;
+};
+
 export const protect = (req, res, next) => {
   // 1. Check if user info was already enriched by API Gateway
   const gatewayUserId = req.headers["x-user-id"];
@@ -23,7 +31,7 @@ export const protect = (req, res, next) => {
 
   const token = authHeader.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_jwt_secret");
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = {
       _id: decoded.userId || decoded.id,
       id: decoded.userId || decoded.id,
@@ -60,4 +68,3 @@ export const requirePermission = (module, action = "view") => (req, res, next) =
 };
 
 export default { protect, requireAdmin, requirePermission };
-

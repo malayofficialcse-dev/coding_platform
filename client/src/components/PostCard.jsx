@@ -568,16 +568,26 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
 
           {/* ACTION BUTTONS */}
           <div className="d-flex flex-wrap gap-2 mt-3">
-            <button
-              type="button"
-              className="btn btn-sm  d-flex align-items-center gap-2"
-              onClick={handleLike}
-              style={{ minWidth: 110 }}
-            >
-              <FaHeart color={liked ? "#dc2626" : "#1d4ed8"} />
-              {/* <span>Like</span> */}
-              <span className="badge bg-secondary">{likes}</span>
-            </button>
+            {user ? (
+              <button
+                type="button"
+                className="btn btn-sm d-flex align-items-center gap-2"
+                onClick={handleLike}
+                style={{ minWidth: 110 }}
+              >
+                <FaHeart color={liked ? "#dc2626" : "#1d4ed8"} />
+                <span className="badge bg-secondary">{likes}</span>
+              </button>
+            ) : (
+              <span
+                className="btn btn-sm d-flex align-items-center gap-2"
+                title="Sign in to like posts"
+                style={{ minWidth: 110, cursor: "default" }}
+              >
+                <FaHeart color="#1d4ed8" />
+                <span className="badge bg-secondary">{likes}</span>
+              </span>
+            )}
 
             <button
               type="button"
@@ -590,7 +600,7 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
               <span className="badge bg-secondary">{comments.length}</span>
             </button>
 
-            <button
+            {user && <button
               type="button"
               className="btn btn-sm  d-flex align-items-center gap-2"
               onClick={handleRepost}
@@ -598,11 +608,11 @@ export default function PostCard({ post, user, onUpdate, onDelete, embedded = fa
             >
               <FaShare />
               {/* <span>Repost</span> */}
-            </button>
+            </button>}
           </div>
 
           {showComments && (
-            <CommentSection comments={comments} onComment={handleComment} />
+            <CommentSection comments={comments} onComment={handleComment} user={user} />
           )}
         </div>
       </div>
