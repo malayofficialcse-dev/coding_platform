@@ -9,14 +9,6 @@ export async function requestProfileService(serviceName, path, context) {
 
   const headers = { Accept: "application/json" };
   if (context.authorization) headers.Authorization = context.authorization;
-  if (context.viewer) {
-    headers["x-user-id"] = context.viewer.id;
-    headers["x-user-role"] = context.viewer.role;
-    headers["x-user-name"] = context.viewer.name;
-    headers["x-user-username"] = context.viewer.username;
-    headers["x-user-email"] = context.viewer.email;
-    headers["x-user-permissions"] = JSON.stringify(context.viewer.permissions);
-  }
 
   const url = `${baseUrl.replace(/\/+$/, "")}${path}`;
   const response = await fetch(url, {

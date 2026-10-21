@@ -2,7 +2,7 @@ import Notification from "../models/Notification.js";
 
 export const getNotifications = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -18,7 +18,7 @@ export const getNotifications = async (req, res) => {
 
 export const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -36,7 +36,7 @@ export const getUnreadCount = async (req, res) => {
 export const markAsRead = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
 
     const notification = await Notification.findById(notificationId);
     if (!notification) return res.status(404).json({ error: "Notification not found" });
@@ -56,7 +56,7 @@ export const markAsRead = async (req, res) => {
 
 export const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
     await Notification.updateMany({ recipient: String(userId), read: false }, { read: true });
     res.json({ message: "All notifications marked as read" });
   } catch (err) {
@@ -67,7 +67,7 @@ export const markAllAsRead = async (req, res) => {
 export const deleteNotification = async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
 
     const notification = await Notification.findById(notificationId);
     if (!notification) return res.status(404).json({ error: "Notification not found" });
@@ -85,7 +85,7 @@ export const deleteNotification = async (req, res) => {
 
 export const deleteAllNotifications = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id || req.headers["x-user-id"];
+    const userId = req.user.id;
     await Notification.deleteMany({ recipient: String(userId) });
     res.json({ message: "All notifications deleted" });
   } catch (err) {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import api from "../api/api";
+import api, { refreshSession } from "../api/api";
+import { clearAccessToken, setAccessToken } from "../api/accessToken";
 import { initSocket, disconnectSocket } from "../socket";
 
 export const AuthContext = createContext();
@@ -10,48 +11,41 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const handleRefresh = (event) => {
+      if (!event.detail) return;
+      setUser(event.detail);
+      localStorage.setItem("user", JSON.stringify(event.detail));
+    };
+    window.addEventListener("code-campus:session-refreshed", handleRefresh);
+    let active = true;
     const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const res = await api.get("/auth/me");
-        if (localStorage.getItem("token") !== token) {
-          return;
-        }
-
-        if (res.data?.token) {
-          localStorage.setItem("token", res.data.token);
-        }
-        const { token: _newToken, ...userData } = res.data;
+        const { accessToken, user: userData } = await refreshSession();
+        if (!active) return;
+        setAccessToken(accessToken);
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
-
         if (userData?._id) {
           initSocket(userData._id);
         }
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        if (localStorage.getItem("token") !== token) return;
-        if (err.response?.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-        }
+      } catch {
+        if (!active) return;
+        clearAccessToken();
+        localStorage.removeItem("user");
         setUser(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
-
     checkAuth();
+    return () => {
+      active = false;
+      window.removeEventListener("code-campus:session-refreshed", handleRefresh);
+    };
   }, []);
 
-  const login = (token, userObj) => {
-    localStorage.setItem("token", token);
+  const login = (accessToken, userObj) => {
+    setAccessToken(accessToken);
     localStorage.setItem("user", JSON.stringify(userObj));
     setUser(userObj);
     if (userObj?._id) {
@@ -60,8 +54,13 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Could not revoke the server session:", error);
+    }
+    clearAccessToken();
     localStorage.removeItem("user");
     setUser(null);
     disconnectSocket();

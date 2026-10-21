@@ -7,7 +7,6 @@ import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import Redis from "ioredis";
 import { getServices } from "./config/services.js";
-import { verifyJwtSafely } from "./security/jwt.js";
 import { mountGraphQL } from "./graphql/index.js";
 
 import path from "path";
@@ -21,6 +20,7 @@ const app = express();
 const PORT = process.env.API_GATEWAY_PORT || 5100;
 
 const SERVICES = getServices();
+app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
 
 // ---- Redis Client (graceful: works without Redis too) ----
 let redis = null;
@@ -43,12 +43,12 @@ try {
 }
 
 // 1. CORS Configuration
-const allowedOrigins = [
+const allowedOrigins = (process.env.CLIENT_ORIGINS || [
   "http://localhost:3000",
   "http://localhost:5173",
   "https://code-campus-malay1.onrender.com",
   "https://code-campus-htg4.vercel.app",
-];
+].join(",")).split(",").map((origin) => origin.trim()).filter(Boolean);
 
 app.use(
   cors({
@@ -56,7 +56,7 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(null, true); // Allow dev origins dynamically
+        callback(new Error("Origin not allowed."));
       }
     },
     credentials: true,
@@ -85,37 +85,21 @@ if (redis) {
 
 const limiter = rateLimit(limiterConfig);
 app.use(limiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  ...(redis && {
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+      prefix: "rl:auth:",
+    }),
+  }),
+  message: { error: "Too many authentication requests. Try again later." },
+});
+app.use("/api/auth", authLimiter);
 
-// 4. Token Decoder & Header Enrichment Middleware
-const enrichUserHeaders = (req, res, next) => {
-  for (const header of [
-    "x-user-id",
-    "x-user-role",
-    "x-user-email",
-    "x-user-name",
-    "x-user-username",
-    "x-user-permissions",
-  ]) {
-    delete req.headers[header];
-  }
-
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
-    const decoded = verifyJwtSafely(token);
-    if (decoded) {
-      req.headers["x-user-id"]          = decoded.userId || decoded.id || "";
-      req.headers["x-user-role"]        = decoded.role || "user";
-      req.headers["x-user-email"]       = decoded.email || "";
-      req.headers["x-user-name"]        = decoded.name  || "";
-      req.headers["x-user-username"]    = decoded.username || "";
-      req.headers["x-user-permissions"] = JSON.stringify(decoded.permissions || {});
-    }
-  }
-  next();
-};
-
-app.use(enrichUserHeaders);
 await mountGraphQL(app);
 
 // 5. Health Check Endpoint
@@ -128,33 +112,12 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Helper to create proxy with header forwarding
 const createServiceProxy = (target) => {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite: (_path, req) => req.originalUrl,
     on: {
-      proxyReq: (proxyReq, req) => {
-        if (req.headers["x-user-id"]) {
-          proxyReq.setHeader("x-user-id", req.headers["x-user-id"]);
-        }
-        if (req.headers["x-user-role"]) {
-          proxyReq.setHeader("x-user-role", req.headers["x-user-role"]);
-        }
-        if (req.headers["x-user-email"]) {
-          proxyReq.setHeader("x-user-email", req.headers["x-user-email"]);
-        }
-        if (req.headers["x-user-name"]) {
-          proxyReq.setHeader("x-user-name", req.headers["x-user-name"]);
-        }
-        if (req.headers["x-user-username"]) {
-          proxyReq.setHeader("x-user-username", req.headers["x-user-username"]);
-        }
-        if (req.headers["x-user-permissions"]) {
-          proxyReq.setHeader("x-user-permissions", req.headers["x-user-permissions"]);
-        }
-      },
       error: (err, req, res) => {
         console.error(`[Gateway Proxy Error] Target: ${target}`, err.message);
         if (!res.headersSent) {

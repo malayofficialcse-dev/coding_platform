@@ -226,6 +226,8 @@ services:
     environment:
       - API_GATEWAY_PORT=5000
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
+      - CLIENT_ORIGINS=${CLIENT_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
       - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth-service:5001
       - USER_SERVICE_URL=http://user-service:5002
@@ -261,13 +263,18 @@ services:
       dockerfile: Dockerfile
     container_name: code-campus-auth
     restart: always
-    ports:
-      - "5001:5001"
     environment:
+      - NODE_ENV=production
       - PORT=5001
       - AUTH_DATABASE_URL=postgres://cc_auth:cc_auth_pass@postgres-auth:5432/auth_db
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - JWT_EXPIRES_IN=7d
+      - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL:-10m}
+      - REFRESH_TOKEN_IDLE_DAYS=${REFRESH_TOKEN_IDLE_DAYS:-7}
+      - REFRESH_TOKEN_ABSOLUTE_DAYS=${REFRESH_TOKEN_ABSOLUTE_DAYS:-30}
+      - REFRESH_COOKIE_SAME_SITE=${REFRESH_COOKIE_SAME_SITE:-none}
+      - REFRESH_COOKIE_SECURE=${REFRESH_COOKIE_SECURE:-true}
+      - CLIENT_ORIGINS=${CLIENT_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}

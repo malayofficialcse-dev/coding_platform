@@ -1,11 +1,6 @@
-import jwt from "jsonwebtoken";
-
-const secrets = () => [process.env.JWT_SECRET].filter((secret) => secret && secret.length >= 64);
+import { verifyAccessToken } from "./security/accessToken.js";
 export function decodeToken(token) {
-  for (const secret of secrets()) {
-    try { return jwt.verify(token, secret); } catch {}
-  }
-  return null;
+  try { return verifyAccessToken(token); } catch { return null; }
 }
 
 export function authenticate(req, res, next) {

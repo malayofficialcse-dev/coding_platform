@@ -18,13 +18,9 @@ export const sequelize = new Sequelize(dbUrl, {
 });
 
 export const connectDB = async () => {
-  try {
-    await sequelize.authenticate();
-    await sequelize.sync({ alter: true });
-    console.log("[Auth Service] PostgreSQL connected — auth_db");
-  } catch (err) {
-    console.error(`[Auth Service DB Error]: ${err.message}`);
-  }
+  await sequelize.authenticate();
+  await sequelize.sync();
+  console.log("[Auth Service] PostgreSQL connected — auth_db");
 };
 
 export default connectDB;

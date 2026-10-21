@@ -28,8 +28,8 @@ export default function Signup() {
         authResponse = await api.post("/auth/login", { email: account.email, password: account.password });
       }
 
-      if (!authResponse.data.token || !authResponse.data.user) throw new Error("Signup did not return an account session.");
-      const loggedIn = await login(authResponse.data.token, authResponse.data.user);
+      if (!authResponse.data.accessToken || !authResponse.data.user) throw new Error("Signup did not return an account session.");
+      const loggedIn = await login(authResponse.data.accessToken, authResponse.data.user);
       if (!loggedIn) return;
       if (accountType === "mentor") {
         try {

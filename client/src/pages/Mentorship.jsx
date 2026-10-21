@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
+import { getAccessToken } from "../api/accessToken";
 import { toast } from "react-toastify";
 import { FaChalkboardTeacher, FaClock, FaUsers, FaVideo } from "react-icons/fa";
-import api from "../api/api";
+import api, { refreshSession } from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
 import "./Mentorship.css";
 
@@ -49,12 +50,23 @@ export default function Mentorship() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (!getAccessToken()) return undefined;
     const socket = io(mentorSocketOrigin(), {
       path: "/mentor-socket.io",
-      auth: { token: localStorage.getItem("token") },
+      auth: { token: getAccessToken() },
       transports: ["websocket", "polling"],
     });
     socket.on("mentor:sessions-updated", load);
+    socket.on("connect_error", async (error) => {
+      if (!/unauthorized|token|jwt|expired/i.test(error.message || "")) return;
+      try {
+        const { accessToken } = await refreshSession();
+        socket.auth = { token: accessToken };
+        socket.disconnect().connect();
+      } catch {
+        socket.disconnect();
+      }
+    });
     return () => socket.disconnect();
   }, [load]);
 

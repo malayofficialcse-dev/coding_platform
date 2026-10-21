@@ -14,7 +14,7 @@ Welcome to the **Microservices Backend** for Code-Campus. It contains 10 domain-
                     ┌─────────────────────────────────┐
                     │       API GATEWAY (:5000)       │
                     │  • Reverse Proxy & Routing      │
-                    │  • Token Header Enrichment      │
+                    │  • Access Token Verification    │
                     │  • Rate Limiting & CORS         │
                     │  • WebSocket Upgrades           │
                     └────────────────┬────────────────┘
@@ -61,7 +61,7 @@ Welcome to the **Microservices Backend** for Code-Campus. It contains 10 domain-
 - **Docker & Docker Compose** (Optional, for containerized deployment)
 
 ### 2. Environment Setup
-Set `JWT_SECRET` to the same cryptographically random value of at least 64 characters in the gateway and every service environment. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` and rotate any previously configured value; authentication rejects missing or shorter secrets. Merge `INTERNAL_SERVICE_TOKEN` from [.env.example](./.env.example) into the environment; use a long random secret shared by the Auth and Mentor services. Add LiveKit Cloud `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` there to enable real video. Never put the LiveKit API secret in the frontend environment.
+Set `JWT_SECRET` to the same cryptographically random value of at least 64 characters in the gateway and every service environment. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` and rotate any previously configured value; authentication rejects missing or shorter secrets. Set `CLIENT_ORIGINS` to the comma-separated, exact list of trusted browser origins. Access tokens last 10 minutes by default; refresh sessions rotate opaque, HttpOnly cookies with a 7-day idle and 30-day absolute lifetime. For separate-site UI and API deployments, configure `REFRESH_COOKIE_SAME_SITE=none` and `REFRESH_COOKIE_SECURE=true` (HTTPS is required). Never expose or store access tokens in localStorage. See [AUTH_TOKEN_FLOW.md](./AUTH_TOKEN_FLOW.md) for the complete lifecycle and diagram. Merge `INTERNAL_SERVICE_TOKEN` from [.env.example](./.env.example) into the environment; use a long random secret shared by the Auth and Mentor services. Add LiveKit Cloud `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` there to enable real video. Never put the LiveKit API secret in the frontend environment.
 
 RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
 

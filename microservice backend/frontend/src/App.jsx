@@ -5,7 +5,7 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
-import { clearSession, getSavedUser, hasSession } from "./lib/api";
+import { api, clearSession, getSavedUser, hasSession, refreshSession } from "./lib/api";
 import { AppShell } from "./components/AppShell";
 import { AuthContext, useAuth } from "./lib/auth";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -22,6 +22,8 @@ import { AdminDashboardPage, AdminCourseCreatePage, AdminExamCreatePage } from "
 
 function RequireAuth({ children }) {
   const location = useLocation();
+  const { loading } = useAuth();
+  if (loading) return <div className="p-8 text-sm text-muted">Loading session…</div>;
   if (!hasSession()) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
@@ -30,6 +32,7 @@ function RequireAuth({ children }) {
 
 export default function App() {
   const [user, setUser] = useState(getSavedUser);
+  const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(
     () => localStorage.getItem("code-campus-theme") || "light",
   );
@@ -39,13 +42,33 @@ export default function App() {
     localStorage.setItem("code-campus-theme", theme);
   }, [theme]);
 
-  const signOut = () => {
+  useEffect(() => {
+    let active = true;
+    refreshSession().then(({ user: freshUser }) => {
+      if (active) setUser(freshUser);
+    }).catch(() => {
+      if (active) setUser(null);
+      clearSession();
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const signOut = async () => {
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Could not revoke the server session:", error);
+    }
     clearSession();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, signOut }}>
+    <AuthContext.Provider value={{ user, setUser, signOut, loading }}>
       <Routes>
         <Route element={<AppShell theme={theme} onThemeChange={setTheme} />}>
           <Route index element={<DashboardPage />} />
@@ -77,7 +100,8 @@ function Protected({ children }) {
 }
 
 function AdminOnly({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 text-sm text-muted">Loading session…</div>;
   return user?.role === "admin" ? (
     children
   ) : (

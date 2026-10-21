@@ -1,16 +1,12 @@
 import io from "socket.io-client";
+import { getAccessToken } from "./api/accessToken";
+import { refreshSession } from "./api/api";
 
 let socket;
 
-export const initSocket = (userId) => {
-  const normalizedUserId = String(userId || "");
+export const initSocket = () => {
   if (socket) {
-    // Reuse an in-progress connection as well. AuthContext and ChatPanel both
-    // initialize the socket; replacing it before the handshake caused a loop.
-    if (String(socket.auth?.userId || "") === normalizedUserId) {
-      return socket;
-    }
-    socket.disconnect();
+    return socket;
   }
 
   const configuredSocketUrl = import.meta.env.VITE_SOCKET_URL?.replace(/\/+$/, "");
@@ -20,7 +16,7 @@ export const initSocket = (userId) => {
     (configuredApiUrl ? configuredApiUrl.replace(/\/api$/, "") : window.location.origin);
 
   socket = io(BACKEND_URL, {
-    auth: { userId: normalizedUserId },
+    auth: { token: getAccessToken() },
     path: "/socket.io",
     transports: ["websocket", "polling"],
     withCredentials: true,
@@ -36,6 +32,14 @@ export const initSocket = (userId) => {
 
   socket.on("connect_error", (error) => {
     console.error("Socket connection error:", error);
+    if (/token|jwt|expired|unauthorized/i.test(error.message || "")) {
+      refreshSession()
+        .then(({ accessToken }) => {
+          socket.auth = { token: accessToken };
+          socket.connect();
+        })
+        .catch(() => disconnectSocket());
+    }
   });
 
   socket.on("disconnect", () => {

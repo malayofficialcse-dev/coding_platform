@@ -34,10 +34,10 @@ export function AuthPage({ mode }) {
           ? { ...form, role: "student" }
           : { email: form.email, password: form.password },
       });
-      if (!result?.token || !result?.user) {
+      if (!result?.accessToken || !result?.user) {
         throw new Error("The sign-in response was incomplete. Please try again.");
       }
-      saveSession(result.token, result.user);
+      saveSession(result.accessToken, result.user);
       setUser(result.user);
       navigate(location.state?.from || "/", { replace: true });
     } catch (reason) {

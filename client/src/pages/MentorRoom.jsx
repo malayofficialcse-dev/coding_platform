@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
+import { getAccessToken } from "../api/accessToken";
 import { toast } from "react-toastify";
-import api from "../api/api";
+import api, { refreshSession } from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
 import "./MentorRoom.css";
 
@@ -62,7 +63,17 @@ export default function MentorRoom() {
         await nextRoom.connect(response.data.url, response.data.token);
         if (!active) { nextRoom.disconnect(); return; }
         setRoom(nextRoom); setConnected(true); setJoining(false);
-        const nextSocket = io(socketOrigin(), { path: "/mentor-socket.io", auth: { token: localStorage.getItem("token") }, transports: ["websocket", "polling"] });
+        const nextSocket = io(socketOrigin(), { path: "/mentor-socket.io", auth: { token: getAccessToken() }, transports: ["websocket", "polling"] });
+        nextSocket.on("connect_error", async (error) => {
+          if (!/unauthorized|token|jwt|expired/i.test(error.message || "")) return;
+          try {
+            const { accessToken } = await refreshSession();
+            nextSocket.auth = { token: accessToken };
+            nextSocket.disconnect().connect();
+          } catch {
+            nextSocket.disconnect();
+          }
+        });
         nextSocket.on("connect", () => nextSocket.emit("session:join", { sessionId: id }, (ack) => { if (ack?.error) toast.error(ack.error); }));
         nextSocket.on("session:chat", (item) => setMessages((items) => [...items, item]));
         nextSocket.on("session:poll", (item) => setPolls((items) => [item, ...items.filter((poll) => poll.id !== item.id)]));

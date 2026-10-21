@@ -12,7 +12,7 @@ export const getUsersForSidebar = async (req, res) => {
     }
 
     const USER_SERVICE = process.env.USER_SERVICE_URL || "http://localhost:5002";
-    const authHeaders = { "x-user-id": String(loggedInUserId) };
+    const authHeaders = { Authorization: req.headers.authorization };
 
     let mutualUsers = [];
 

@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import { verifyAccessToken } from "../security/accessToken.js";
 
 dotenv.config();
 
@@ -26,17 +27,28 @@ export function initSocket(server) {
     transports: ["websocket", "polling"],
   });
 
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (typeof token !== "string" || !token) throw new Error("Access token is required.");
+      const decoded = verifyAccessToken(token);
+      const userId = decoded.userId || decoded.id;
+      if (!userId) throw new Error("Access token has no user identity.");
+      socket.data.userId = String(userId);
+      next();
+    } catch {
+      next(new Error("Unauthorized."));
+    }
+  });
+
   io.on("connection", (socket) => {
     console.log(`[Chat Socket] Client connected: ${socket.id}`);
 
-    const userId = socket.handshake.auth?.userId || socket.handshake.query?.userId;
-    if (userId) {
-      const normalizedUserId = String(userId);
-      const sockets = userSockets.get(normalizedUserId) || new Set();
-      sockets.add(socket.id);
-      userSockets.set(normalizedUserId, sockets);
-      socket.join(normalizedUserId);
-    }
+    const userId = socket.data.userId;
+    const sockets = userSockets.get(userId) || new Set();
+    sockets.add(socket.id);
+    userSockets.set(userId, sockets);
+    socket.join(userId);
 
     io.emit("getOnlineUsers", Array.from(userSockets.keys()));
     socket.on("getOnlineUsers", () => {
@@ -44,17 +56,12 @@ export function initSocket(server) {
     });
 
     socket.on("disconnect", async () => {
-      if (userId) {
-        const normalizedUserId = String(userId);
-        const sockets = userSockets.get(normalizedUserId);
-        sockets?.delete(socket.id);
-        if (!sockets?.size) {
-          userSockets.delete(normalizedUserId);
-          const lastSeen = new Date();
-          // Application user IDs are UUID strings owned by the user service;
-          // they are not Mongo ObjectIds in the chat service.
-          io.emit("userLastSeen", { userId: normalizedUserId, lastSeen });
-        }
+      const sockets = userSockets.get(userId);
+      sockets?.delete(socket.id);
+      if (!sockets?.size) {
+        userSockets.delete(userId);
+        const lastSeen = new Date();
+        io.emit("userLastSeen", { userId, lastSeen });
       }
       io.emit("getOnlineUsers", Array.from(userSockets.keys()));
       console.log(`[Chat Socket] Client disconnected: ${socket.id}`);

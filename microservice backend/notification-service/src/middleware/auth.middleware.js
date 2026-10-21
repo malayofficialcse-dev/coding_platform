@@ -1,46 +1,19 @@
-import jwt from "jsonwebtoken";
-
-const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 64) {
-    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
-  }
-  return secret;
-};
+import { verifyAccessToken } from "../security/accessToken.js";
 
 export const protect = (req, res, next) => {
-  // 1. Check if user info was already enriched by API Gateway
-  const gatewayUserId = req.headers["x-user-id"];
-  if (gatewayUserId) {
-    req.user = {
-      _id: gatewayUserId,
-      id: gatewayUserId,
-      role: req.headers["x-user-role"] || "user",
-      email: req.headers["x-user-email"] || "",
-      name: req.headers["x-user-name"] || "",
-      username: req.headers["x-user-username"] || "",
-    };
-    return next();
-  }
-
-  // 2. Fallback to direct Bearer token verification
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
-  }
-
-  const token = authHeader.split(" ")[1];
+  const match = req.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+  if (!match) return res.status(401).json({ error: "Access denied. No token provided." });
   try {
-    const decoded = jwt.verify(token, getJwtSecret());
+    const decoded = verifyAccessToken(match[1]);
     req.user = {
       _id: decoded.userId || decoded.id,
       id: decoded.userId || decoded.id,
       role: decoded.role || "user",
-      email: decoded.email,
+      email: decoded.email || "",
     };
     next();
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token." });
+  } catch {
+    res.status(401).json({ error: "Invalid or expired token." });
   }
 };
 

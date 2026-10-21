@@ -862,6 +862,7 @@
 // ...existing code...
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
+import { getAccessToken, setAccessToken } from "../../api/accessToken";
 import { exportToExcel } from "../../utils/excelExport";
 import ExportExcelButton from "../../components/ExportExcelButton";
 
@@ -876,7 +877,7 @@ const EMPTY_BOILERPLATE = { python3: "", java: "", javascript: "", cpp: "" };
 const EMPTY_SOLUTION = { python3: "", java: "", javascript: "", cpp: "" };
 
 export function AdminCodingProblems() {
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
+  const [token, setToken] = useState(getAccessToken() || "");
   const [problems, setProblems] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -893,12 +894,7 @@ export function AdminCodingProblems() {
   });
 
   useEffect(() => {
-    // keep api interceptor in sync with admin token
-    if (token) {
-      localStorage.setItem("token", token);
-    } else {
-      localStorage.removeItem("token");
-    }
+    setAccessToken(token);
     fetchProblems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -1048,7 +1044,7 @@ export function AdminCodingProblems() {
         <div style={{ width: 420 }}>
           <input className="form-control mb-2" placeholder="Admin JWT (token only or Bearer ...)" value={token} onChange={(e) => setToken(e.target.value)} />
           <div className="d-flex gap-2">
-            <button className="btn btn-sm btn-outline-secondary" onClick={() => { setToken(""); localStorage.removeItem("token"); }}>Clear</button>
+            <button className="btn btn-sm btn-outline-secondary" onClick={() => { setToken(""); setAccessToken(null); }}>Clear</button>
             <button className="btn btn-sm btn-primary" onClick={fetchProblems}>{loading ? "Refreshing..." : "Refresh"}</button>
           </div>
         </div>

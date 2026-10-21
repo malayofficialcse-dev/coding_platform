@@ -1,54 +1,51 @@
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../security/accessToken.js";
 
-const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 64) {
-    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
-  }
-  return secret;
+const decodeAccessToken = (token) => {
+  try { return verifyAccessToken(token); } catch { return null; }
 };
 
+const userFromToken = (decoded) => ({
+  _id: decoded.userId || decoded.id,
+  id: decoded.userId || decoded.id,
+  role: decoded.role || "user",
+  email: decoded.email || "",
+  name: decoded.name || "",
+  permissions: decoded.permissions || {},
+});
+
 export const protect = (req, res, next) => {
-  // 1. Check if user info was already enriched by API Gateway
-  const gatewayUserId = req.headers["x-user-id"];
-  if (gatewayUserId) {
-    req.user = {
-      _id: gatewayUserId,
-      id: gatewayUserId,
-      role: req.headers["x-user-role"] || "user",
-      email: req.headers["x-user-email"] || "",
-      name: req.headers["x-user-name"] || "",
-      username: req.headers["x-user-username"] || "",
-    };
-    return next();
-  }
+  const match = req.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+  if (!match) return res.status(401).json({ error: "Access denied. No token provided." });
+  const decoded = decodeAccessToken(match[1]);
+  if (!decoded) return res.status(401).json({ error: "Invalid or expired token." });
+  req.user = userFromToken(decoded);
+  next();
+};
 
-  // 2. Fallback to direct Bearer token verification
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
+export const optionalAuth = (req, res, next) => {
+  const match = req.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+  if (match) {
+    const decoded = decodeAccessToken(match[1]);
+    if (decoded) req.user = userFromToken(decoded);
   }
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, getJwtSecret());
-    req.user = {
-      _id: decoded.userId || decoded.id,
-      id: decoded.userId || decoded.id,
-      role: decoded.role || "user",
-      email: decoded.email,
-    };
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token." });
-  }
+  next();
 };
 
 export const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || !["admin", "super_admin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Forbidden: Admin privileges required." });
   }
   next();
 };
 
-export default { protect, requireAdmin };
+export const requirePermission = (module, action = "view") => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized." });
+  const { role, permissions } = req.user;
+  if (["super_admin", "admin"].includes(role)) return next();
+  if (permissions?.[module]?.[action]) return next();
+  return res.status(403).json({
+    error: `Forbidden: Missing required permission for ${module}:${action}.`,
+  });
+};
+
+export default { protect, requireAdmin, optionalAuth, requirePermission };

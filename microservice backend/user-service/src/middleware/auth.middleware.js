@@ -1,11 +1,7 @@
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../security/accessToken.js";
 
 const verifyJwt = (token) => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 64) {
-    throw new Error("JWT_SECRET must be configured with at least 64 characters.");
-  }
-  return jwt.verify(token, secret);
+  return verifyAccessToken(token);
 };
 
 export const protect = (req, res, next) => {
