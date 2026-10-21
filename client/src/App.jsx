@@ -67,7 +67,7 @@ const FEED_ROLES        = ["admin", "super_admin", "feed_coordinator"];
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Header />
         <main className="wrap cc-site-main">
           <Suspense fallback={<div className="cc-route-loading" role="status">Loading page…</div>}>

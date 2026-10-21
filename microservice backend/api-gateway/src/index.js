@@ -118,6 +118,13 @@ const createServiceProxy = (target) => {
     changeOrigin: true,
     pathRewrite: (_path, req) => req.originalUrl,
     on: {
+      proxyRes: (proxyRes) => {
+        for (const headerName of Object.keys(proxyRes.headers)) {
+          if (headerName.startsWith("access-control-")) {
+            delete proxyRes.headers[headerName];
+          }
+        }
+      },
       error: (err, req, res) => {
         console.error(`[Gateway Proxy Error] Target: ${target}`, err.message);
         if (!res.headersSent) {
