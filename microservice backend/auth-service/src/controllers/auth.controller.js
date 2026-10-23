@@ -54,7 +54,7 @@ const getCookieOptions = () => {
     httpOnly: true,
     secure,
     sameSite,
-    path: "/api/auth",
+    path: "/",
   };
 };
 

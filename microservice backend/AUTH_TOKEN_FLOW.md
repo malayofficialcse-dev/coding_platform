@@ -11,7 +11,7 @@ sequenceDiagram
     participant API as Protected microservice
 
     Browser->>UI: Submit credentials
-    UI->>GW: POST /api/auth/login or /register
+    UI->>GW: POST /v1/auth/login or /register
     GW->>GW: CORS allowlist and auth rate limit
     GW->>Auth: Forward authentication request
     Auth->>Auth: Verify password / create account
@@ -29,7 +29,7 @@ sequenceDiagram
     end
 
     opt Access token expired
-        UI->>GW: POST /api/auth/refresh with credentials
+        UI->>GW: POST /v1/auth/refresh with credentials
         GW->>GW: Enforce trusted origin and rate limits
         GW->>Auth: Forward refresh cookie
         Auth->>DB: Lock and validate active session hash
@@ -62,6 +62,9 @@ sequenceDiagram
 - Refresh calls are single-flight in each tab and use the Web Locks API where
   available to serialize rotation across tabs. Browsers without Web Locks still
   use in-tab single-flight refresh.
+- New integrations should use `/v1/auth/*`. `/api/auth/*` remains available as
+  a compatibility alias while services are migrated incrementally. The refresh
+  cookie uses `Path=/` so sessions work with either prefix during the migration.
 
 ## Deployment checklist
 

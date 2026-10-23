@@ -22,7 +22,9 @@ app.get("/health", (req, res) => {
 
 // Mount Routes
 app.use("/api/posts", postRoutes);
+app.use("/v1/posts", postRoutes);
 app.use("/api/admin/posts", postRoutes);
+app.use("/v1/admin/posts", postRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -35,5 +37,4 @@ connectDB().then(() => {
     console.log(`[Post Service] Running on port ${PORT}`);
   });
 });
-
 

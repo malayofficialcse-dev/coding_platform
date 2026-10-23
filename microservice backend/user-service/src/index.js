@@ -29,8 +29,11 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/users", userRoutes);
+app.use("/v1/users", userRoutes);
 app.use("/api/social", socialRoutes);
+app.use("/v1/social", socialRoutes);
 app.use("/api/admin/rbac", rbacRoutes);
+app.use("/v1/admin/rbac", rbacRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -39,6 +39,7 @@ app.post("/internal/notification-event", (req, res) => {
 });
 
 app.use("/api/messages", messageRoutes);
+app.use("/v1/messages", messageRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -48,4 +49,3 @@ connectDB().then(() => {
     console.log(`[Chat Service] Running on port ${PORT} with Socket.IO enabled`);
   });
 });
-

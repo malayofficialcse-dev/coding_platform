@@ -30,8 +30,11 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/exams", examRoutes);
+app.use("/v1/exams", examRoutes);
 app.use("/api/admin/exams", examRoutes);
+app.use("/v1/admin/exams", examRoutes);
 app.use("/api/attempts", attemptRoutes);
+app.use("/v1/attempts", attemptRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -41,5 +44,4 @@ connectDB().then(() => {
     console.log(`[Exam Service] Running on port ${PORT}`);
   });
 });
-
 

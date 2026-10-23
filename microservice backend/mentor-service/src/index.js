@@ -21,7 +21,7 @@ const server = http.createServer(app);
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",").map((origin) => origin.trim());
 const originPolicy = (origin, callback) => !origin || allowedOrigins.includes(origin) ? callback(null, true) : callback(new Error("Origin not allowed"));
 const io = new Server(server, { path: "/mentor-socket.io", cors: { origin: originPolicy, credentials: true }, maxHttpBufferSize: 1e6 });
-app.post("/api/mentor/webhooks/livekit", express.raw({ type: "application/webhook+json", limit: "1mb" }), async (req, res) => {
+const handleLiveKitWebhook = async (req, res) => {
   if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return res.sendStatus(503);
   try {
     const receiver = new WebhookReceiver(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
@@ -49,11 +49,16 @@ app.post("/api/mentor/webhooks/livekit", express.raw({ type: "application/webhoo
     console.warn("Rejected LiveKit webhook:", error.message);
     res.sendStatus(401);
   }
-});
+};
+const liveKitWebhookBody = express.raw({ type: "application/webhook+json", limit: "1mb" });
+app.post("/api/mentor/webhooks/livekit", liveKitWebhookBody, handleLiveKitWebhook);
+app.post("/v1/mentor/webhooks/livekit", liveKitWebhookBody, handleLiveKitWebhook);
 app.use(cors({ origin: originPolicy, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.get("/health", (_req, res) => res.json({ service: "Mentor Service", status: "UP" }));
-app.use("/api/mentor", authenticate, createMentorRouter(io));
+const mentorRouter = createMentorRouter(io);
+app.use("/api/mentor", authenticate, mentorRouter);
+app.use("/v1/mentor", authenticate, mentorRouter);
 app.use((error, _req, res, _next) => {
   console.error("[Mentor Service] Request failed:", error.message);
   res.status(500).json({ error: "Mentor service request failed." });

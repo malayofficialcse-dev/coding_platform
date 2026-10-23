@@ -62,8 +62,14 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["API-Version"],
   })
 );
+
+app.use("/v1", (_req, res, next) => {
+  res.set("API-Version", "1");
+  next();
+});
 
 // 2. Logging
 app.use(morgan("dev"));
@@ -99,6 +105,7 @@ const authLimiter = rateLimit({
   message: { error: "Too many authentication requests. Try again later." },
 });
 app.use("/api/auth", authLimiter);
+app.use("/v1/auth", authLimiter);
 
 await mountGraphQL(app);
 
@@ -141,20 +148,35 @@ const createServiceProxy = (target) => {
 
 // 6. Microservice Routes
 app.use("/api/auth",       createServiceProxy(SERVICES.auth));
+app.use("/v1/auth",        createServiceProxy(SERVICES.auth));
 app.use("/api/users",      createServiceProxy(SERVICES.user));
+app.use("/v1/users",       createServiceProxy(SERVICES.user));
 app.use("/api/social",     createServiceProxy(SERVICES.user));
+app.use("/v1/social",      createServiceProxy(SERVICES.user));
 app.use("/api/mentor", createServiceProxy(SERVICES.mentor));
+app.use("/v1/mentor", createServiceProxy(SERVICES.mentor));
 app.use("/api/admin/rbac", createServiceProxy(SERVICES.user)); // RBAC admin endpoints
+app.use("/v1/admin/rbac",  createServiceProxy(SERVICES.user));
 app.use("/api/posts",      createServiceProxy(SERVICES.post));
+app.use("/v1/posts",       createServiceProxy(SERVICES.post));
 app.use("/api/admin/posts",createServiceProxy(SERVICES.post));
+app.use("/v1/admin/posts", createServiceProxy(SERVICES.post));
 app.use("/api/exams",      createServiceProxy(SERVICES.exam));
+app.use("/v1/exams",       createServiceProxy(SERVICES.exam));
 app.use("/api/attempts",   createServiceProxy(SERVICES.exam));
+app.use("/v1/attempts",    createServiceProxy(SERVICES.exam));
 app.use("/api/admin/exams",createServiceProxy(SERVICES.exam));
+app.use("/v1/admin/exams", createServiceProxy(SERVICES.exam));
 app.use("/api/courses",    createServiceProxy(SERVICES.course));
+app.use("/v1/courses",     createServiceProxy(SERVICES.course));
 app.use("/api/enrollments",createServiceProxy(SERVICES.enrollment));
+app.use("/v1/enrollments", createServiceProxy(SERVICES.enrollment));
 app.use("/api/coding",     createServiceProxy(SERVICES.coding));
+app.use("/v1/coding",      createServiceProxy(SERVICES.coding));
 app.use("/api/notifications", createServiceProxy(SERVICES.notification));
+app.use("/v1/notifications",  createServiceProxy(SERVICES.notification));
 app.use("/api/messages",   createServiceProxy(SERVICES.chat));
+app.use("/v1/messages",    createServiceProxy(SERVICES.chat));
 
 // 7. WebSocket Proxy for Socket.IO (/socket.io) to Chat/Socket Service
 const wsProxy = createProxyMiddleware({

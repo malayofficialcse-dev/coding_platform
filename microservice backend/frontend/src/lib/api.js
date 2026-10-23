@@ -1,4 +1,11 @@
-const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+const configuredApiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+const API_BASE = configuredApiUrl
+  ? configuredApiUrl.endsWith("/v1")
+    ? configuredApiUrl
+    : configuredApiUrl.endsWith("/api")
+      ? `${configuredApiUrl.slice(0, -4)}/v1`
+      : `${configuredApiUrl}/v1`
+  : "/v1";
 let accessToken = null;
 let refreshPromise = null;
 
@@ -38,7 +45,7 @@ async function refreshSession() {
 export async function api(path, options = {}) {
   const isGatewayHealth = path === "/../health";
   const requestPath = isGatewayHealth ? "/health" : path;
-  const baseUrl = isGatewayHealth ? API_BASE.replace(/\/api$/, "") : API_BASE;
+  const baseUrl = isGatewayHealth ? API_BASE.replace(/\/v1$/, "") : API_BASE;
   const makeRequest = () => {
     const headers = new Headers(options.headers || {});
     if (options.body && !(options.body instanceof FormData)) {

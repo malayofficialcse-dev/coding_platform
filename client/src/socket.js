@@ -13,7 +13,7 @@ export const initSocket = () => {
   const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "");
   const BACKEND_URL =
     configuredSocketUrl ||
-    (configuredApiUrl ? configuredApiUrl.replace(/\/api$/, "") : window.location.origin);
+    (configuredApiUrl ? configuredApiUrl.replace(/\/(?:api|v1)$/, "") : window.location.origin);
 
   socket = io(BACKEND_URL, {
     auth: { token: getAccessToken() },

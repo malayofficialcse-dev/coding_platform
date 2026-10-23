@@ -15,14 +15,14 @@ npm run dev
 ```
 
 Open the Vite URL printed in the terminal (normally `http://localhost:5173`).
-The development server proxies `/api` and `/health` to the gateway at
+The development server proxies `/v1`, legacy `/api`, and `/health` to the gateway at
 `http://localhost:5100`.
 
 The existing monolithic backend may use port `5000`; the local microservices
 gateway uses port `5100` to avoid conflicting with it. Docker Compose keeps its
 existing gateway port mapping on `5000`. If the gateway is running elsewhere,
 set `VITE_API_PROXY_TARGET` for the Vite server, or set `VITE_API_URL` to the
-gateway API base (for example, `https://api.example.com/api`) when building for
+gateway API base (for example, `https://api.example.com/v1`) when building for
 deployment.
 
 ## Available screens

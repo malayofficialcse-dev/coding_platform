@@ -25,6 +25,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/enrollments", enrollmentRoutes);
+app.use("/v1/enrollments", enrollmentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -34,5 +35,4 @@ connectDB().then(() => {
     console.log(`[Enrollment Service] Running on port ${PORT}`);
   });
 });
-
 

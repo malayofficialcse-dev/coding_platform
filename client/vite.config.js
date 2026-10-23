@@ -19,6 +19,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
+        "/v1": {
+          target: apiTarget,
+          changeOrigin: true,
+        },
         "/api": {
           target: apiTarget,
           changeOrigin: true,

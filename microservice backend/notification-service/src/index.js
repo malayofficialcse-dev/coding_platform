@@ -22,6 +22,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/notifications", notificationRoutes);
+app.use("/v1/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -38,5 +39,4 @@ connectDB().then(async () => {
 }).catch((err) => {
   console.error("[Notification Service] DB connection failed:", err.message);
 });
-
 

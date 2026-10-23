@@ -39,17 +39,26 @@ Welcome to the **Microservices Backend** for Code-Campus. It contains 10 domain-
 
 | Service Name | Port | Description & Responsibilities | Key Routes |
 |---|---|---|---|
-| **API Gateway** | `5100` local, `5000` Docker | Central Reverse Proxy & WS Tunnel | `/api/*`, `/socket.io`, `/health` |
-| **Auth Service** | `5001` | JWT Auth, Registration, Login | `/api/auth/register`, `/api/auth/login`, `/api/auth/me` |
-| **User Service** | `5002` | User Profiles, Follows, Directory | `/api/users`, `/api/users/follow/:id`, `/api/users/search` |
-| **Post Service** | `5003` | Posts, Comments, Feeds, **Dashboard Controller** | `/api/posts`, `/api/posts/feed`, `/api/posts/admin/*`, `/api/posts/dashboard/metrics` |
-| **Exam Service** | `5004` | Exam Banks, Scoring, Anti-Cheat | `/api/exams`, `/api/attempts`, `/api/exams/:id/analytics` |
-| **Course Service** | `5005` | Courses, Modules, Topics | `/api/courses`, `/api/courses/:id/topics` |
-| **Enrollment Service** | `5006` | Course Enrollments & Expiry | `/api/enrollments`, `/api/enrollments/my` |
-| **Coding Service** | `5007` | Code Execution & Plagiarism | `/api/coding/problems`, `/api/coding/submit/:id` |
-| **Notification Service** | `5008` | Notifications & Event Alerts | `/api/notifications`, `/api/notifications/unread-count` |
-| **Chat Service** | `5009` | Direct Messaging & Socket.IO | `/api/messages`, `/api/messages/users`, `/socket.io` |
-| **Mentor Service** | `5010` | Mentor approval, sessions, LiveKit tokens, room chat and polls | `/api/mentor/*`, `/mentor-socket.io` |
+| **API Gateway** | `5100` local, `5000` Docker | Central Reverse Proxy & WS Tunnel | `/v1/*`, legacy `/api/*`, `/socket.io`, `/health` |
+| **Auth Service** | `5001` | JWT Auth, Registration, Login | `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/me` |
+| **User Service** | `5002` | User Profiles, Follows, Directory | `/v1/users`, `/v1/social`, `/v1/admin/rbac` |
+| **Post Service** | `5003` | Posts, Comments, Feeds, **Dashboard Controller** | `/v1/posts`, `/v1/admin/posts` |
+| **Exam Service** | `5004` | Exam Banks, Scoring, Anti-Cheat | `/v1/exams`, `/v1/attempts`, `/v1/admin/exams` |
+| **Course Service** | `5005` | Courses, Modules, Topics | `/v1/courses` |
+| **Enrollment Service** | `5006` | Course Enrollments & Expiry | `/v1/enrollments` |
+| **Coding Service** | `5007` | Code Execution & Plagiarism | `/v1/coding` |
+| **Notification Service** | `5008` | Notifications & Event Alerts | `/v1/notifications` |
+| **Chat Service** | `5009` | Direct Messaging & Socket.IO | `/v1/messages`, `/socket.io` |
+| **Mentor Service** | `5010` | Mentor approval, sessions, LiveKit tokens, room chat and polls | `/v1/mentor/*`, `/mentor-socket.io` |
+
+### REST API versioning
+
+Use `/v1/*` for REST API integrations. All existing REST services are mounted
+under version 1 at the gateway and inside their owning service. The former
+`/api/*` routes remain available as compatibility aliases while clients migrate.
+Versioned responses include `API-Version: 1`, exposed to browser clients by
+CORS. The Auth service applies the same authentication rate limit to both
+prefixes. Operational health checks and WebSocket endpoints remain unversioned.
 
 ---
 

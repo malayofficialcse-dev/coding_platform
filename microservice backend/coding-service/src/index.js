@@ -31,6 +31,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/coding", codingRoutes);
+app.use("/v1/coding", codingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -40,5 +41,4 @@ connectDB().then(() => {
     console.log(`[Coding Service] Running on port ${PORT}`);
   });
 });
-
 

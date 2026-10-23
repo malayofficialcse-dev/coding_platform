@@ -3,10 +3,12 @@ import { clearAccessToken, getAccessToken, setAccessToken } from "./accessToken"
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "");
 const apiBaseUrl = configuredApiUrl
-  ? configuredApiUrl.endsWith("/api")
+  ? configuredApiUrl.endsWith("/v1")
     ? configuredApiUrl
-    : `${configuredApiUrl}/api`
-  : "/api";
+    : configuredApiUrl.endsWith("/api")
+      ? `${configuredApiUrl.slice(0, -4)}/v1`
+      : `${configuredApiUrl}/v1`
+  : "/v1";
 
 const api = axios.create({
   baseURL: apiBaseUrl,

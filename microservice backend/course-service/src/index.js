@@ -25,6 +25,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/courses", courseRoutes);
+app.use("/v1/courses", courseRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -34,5 +35,4 @@ connectDB().then(() => {
     console.log(`[Course Service] Running on port ${PORT}`);
   });
 });
-
 
