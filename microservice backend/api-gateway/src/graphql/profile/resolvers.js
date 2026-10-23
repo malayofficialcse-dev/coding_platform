@@ -3,7 +3,7 @@ import { JSONScalar } from "../json.scalar.js";
 import { requireViewer } from "../context.js";
 import { optionalProfileService, requireProfileService } from "./profile.api.js";
 
-const userPath = (id) => `/api/users/${encodeURIComponent(id)}`;
+const userPath = (id) => `/v1/users/${encodeURIComponent(id)}`;
 const isAdmin = (viewer) => ["admin", "super_admin"].includes(viewer.role);
 const canViewLearning = (viewer, profileId) =>
   Boolean(viewer && (viewer.id === String(profileId) || isAdmin(viewer)));
@@ -112,7 +112,7 @@ export const profileResolvers = {
     },
     posts: async ({ id, first }, _args, context) => {
       const limit = Math.min(Math.max(Number(first) || 20, 1), 50);
-      const path = `/api/posts/user/${encodeURIComponent(id)}?page=1&limit=${limit}`;
+      const path = `/v1/posts/user/${encodeURIComponent(id)}?page=1&limit=${limit}`;
       const posts = await optionalProfileService("post", path, context, []);
       return (Array.isArray(posts) ? posts : []).map(mapPost);
     },
@@ -134,7 +134,7 @@ export const profileResolvers = {
       if (!viewerId) return null;
       return (await optionalProfileService(
         "user",
-        `/api/social/stats/${encodeURIComponent(id)}`,
+        `/v1/social/stats/${encodeURIComponent(id)}`,
         context,
         emptyStats
       )) || emptyStats;
@@ -143,7 +143,7 @@ export const profileResolvers = {
       if (!viewerId || id === viewerId) return null;
       return (await optionalProfileService(
         "user",
-        `/api/social/trail/${encodeURIComponent(id)}`,
+        `/v1/social/trail/${encodeURIComponent(id)}`,
         context,
         emptyTrail
       )) || emptyTrail;
@@ -152,7 +152,7 @@ export const profileResolvers = {
       if (!viewerId || id === viewerId) return null;
       return (await optionalProfileService(
         "user",
-        `/api/social/mutual/${encodeURIComponent(id)}`,
+        `/v1/social/mutual/${encodeURIComponent(id)}`,
         context,
         { count: 0, users: [] }
       )) || { count: 0, users: [] };
@@ -162,16 +162,16 @@ export const profileResolvers = {
     enrollments: async ({ id, viewerId, canView }, _args, context) => {
       if (!canView) return [];
       const path = id === viewerId
-        ? "/api/enrollments/my"
-        : `/api/enrollments/user/${encodeURIComponent(id)}`;
+        ? "/v1/enrollments/my"
+        : `/v1/enrollments/user/${encodeURIComponent(id)}`;
       const result = await optionalProfileService("enrollment", path, context, []);
       return Array.isArray(result) ? result : [];
     },
     attempts: async ({ id, viewerId, canView }, _args, context) => {
       if (!canView) return [];
       const path = id === viewerId
-        ? "/api/attempts/my"
-        : `/api/attempts/user/${encodeURIComponent(id)}`;
+        ? "/v1/attempts/my"
+        : `/v1/attempts/user/${encodeURIComponent(id)}`;
       const result = await optionalProfileService("exam", path, context, []);
       return Array.isArray(result) ? result : [];
     },
@@ -179,7 +179,7 @@ export const profileResolvers = {
       if (!isOwner) return [];
       const result = await optionalProfileService(
         "coding",
-        "/api/coding/submissions/my",
+        "/v1/coding/submissions/my",
         context,
         []
       );

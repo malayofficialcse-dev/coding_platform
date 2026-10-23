@@ -1,13 +1,13 @@
 # Mentor service
 
-This service owns mentor applications, super admin decisions, session schedules, enrollment, LiveKit join tokens, persisted room chat, and polls. It has its own PostgreSQL database. The API gateway proxies `/api/mentor/*`; room sockets use `/mentor-socket.io` and Redis pub/sub.
+This service owns mentor applications, super admin decisions, session schedules, enrollment, LiveKit join tokens, persisted room chat, and polls. It has its own PostgreSQL database. The API gateway proxies `/v1/mentor/*`; legacy `/api/mentor/*` routes remain available during migration. Room sockets use `/mentor-socket.io` and Redis pub/sub.
 
 ## Local setup
 
 1. Copy `../.env.example` to `../.env` only if you are creating a fresh local environment. Merge these values into an existing `.env` rather than overwriting it.
 2. Set `JWT_SECRET` to the same cryptographically random value of at least 64 characters in the gateway and every service that verifies JWTs. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
 3. Set `INTERNAL_SERVICE_TOKEN` to a long random value. Auth and mentor services must use the same value; notification and chat use it for their private service calls.
-4. Create a LiveKit Cloud project and set `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`. The API secret stays in the service environment; it must never be added to the browser env. Configure the LiveKit webhook to `https://your-domain/api/mentor/webhooks/livekit` for attendance and room-end events.
+4. Create a LiveKit Cloud project and set `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`. The API secret stays in the service environment; it must never be added to the browser env. Configure the LiveKit webhook to `https://your-domain/v1/mentor/webhooks/livekit` for attendance and room-end events.
 5. Start services and databases with `docker compose up --build` from the `microservice backend` directory, or install the service packages using the root `install:all` script and start it with `npm run dev:mentor`.
 6. Sign up using **Apply as a mentor**, then sign in as a super admin and open **Mentor sessions** to review the pending application. After approval, the applicant signs in again to receive the mentor role.
 
@@ -24,9 +24,9 @@ For local development, `MENTOR_DATABASE_URL` defaults to the same PostgreSQL ser
 
 ## Endpoints
 
-- `GET/POST /api/mentor/applications` and `GET /api/mentor/me`
-- `GET/PATCH /api/mentor/admin/applications` (super admin only)
-- `GET/POST /api/mentor/sessions`, `POST /sessions/:id/enroll`, `POST /sessions/:id/join-token`, and `POST /sessions/:id/end`
-- `GET /api/mentor/sessions/:id/messages` and `/polls`, Socket.IO event `session:chat`, `POST /api/mentor/polls/:id/vote`
+- `GET/POST /v1/mentor/applications` and `GET /v1/mentor/me`
+- `GET/PATCH /v1/mentor/admin/applications` (super admin only)
+- `GET/POST /v1/mentor/sessions`, `POST /sessions/:id/enroll`, `POST /sessions/:id/join-token`, and `POST /sessions/:id/end`
+- `GET /v1/mentor/sessions/:id/messages` and `/polls`, Socket.IO event `session:chat`, `POST /v1/mentor/polls/:id/vote`
 
 Room tokens are scoped to one room and expire after 15 minutes. The server enforces enrollment/capacity and controls publishing: learners cannot publish in a large group class, while 1:1 and small group attendees may use camera and screen sharing.

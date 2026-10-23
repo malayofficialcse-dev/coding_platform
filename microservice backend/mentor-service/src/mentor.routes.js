@@ -63,7 +63,7 @@ export function createMentorRouter(io) {
       const internalToken = process.env.INTERNAL_SERVICE_TOKEN;
       if (!internalToken) return res.status(503).json({ error: "Role approval is not configured. Set INTERNAL_SERVICE_TOKEN on both services." });
       try {
-        await axios.patch(`${process.env.AUTH_SERVICE_URL || "http://localhost:5001"}/api/auth/internal/users/${application.user_id}/role`,
+        await axios.patch(`${process.env.AUTH_SERVICE_URL || "http://localhost:5001"}/v1/auth/internal/users/${application.user_id}/role`,
           { role: "mentor" }, { headers: { "x-internal-service-token": internalToken }, timeout: 5000 });
         roleGranted = true;
       } catch (error) {
@@ -76,7 +76,7 @@ export function createMentorRouter(io) {
       ({ rows } = await pool.query(`UPDATE mentor_applications SET status=$2,reviewer_id=$3,review_note=$4,reviewed_at=now(),updated_at=now() WHERE id=$1 RETURNING *`,
         [application.id, decision, req.user.id, clean(req.body.reviewNote, 1000)]));
     } catch (error) {
-      if (roleGranted) await axios.patch(`${process.env.AUTH_SERVICE_URL || "http://localhost:5001"}/api/auth/internal/users/${application.user_id}/role`,
+      if (roleGranted) await axios.patch(`${process.env.AUTH_SERVICE_URL || "http://localhost:5001"}/v1/auth/internal/users/${application.user_id}/role`,
         { role: "student" }, { headers: { "x-internal-service-token": process.env.INTERNAL_SERVICE_TOKEN }, timeout: 5000 }).catch(() => {});
       throw error;
     }

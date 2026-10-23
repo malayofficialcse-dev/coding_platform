@@ -39,7 +39,7 @@ export async function mountGraphQL(app) {
 
   await server.start();
   app.use(
-    "/api/graphql",
+    ["/v1/graphql", "/api/graphql"],
     express.json({ limit: "256kb" }),
     expressMiddleware(server, { context: createGraphQLContext })
   );

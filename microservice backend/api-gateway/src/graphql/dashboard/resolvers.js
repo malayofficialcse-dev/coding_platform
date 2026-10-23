@@ -47,13 +47,13 @@ export const dashboardResolvers = {
       const limit = Math.min(Math.max(Number(first) || 20, 1), 50);
 
       const [usersResponse, recommendationsResponse, postsResponse] = await Promise.all([
-        requireDashboardService("user", "/api/users", context),
+        requireDashboardService("user", "/v1/users", context),
         context.viewer
-          ? requireDashboardService("user", "/api/social/recommendations", context)
+          ? requireDashboardService("user", "/v1/social/recommendations", context)
           : Promise.resolve({ data: [] }),
         requireDashboardService(
           "post",
-          `/api/posts?group=${encodeURIComponent("General Feed")}&page=1&limit=${limit}`,
+          `/v1/posts?group=${encodeURIComponent("General Feed")}&page=1&limit=${limit}`,
           context
         ),
       ]);

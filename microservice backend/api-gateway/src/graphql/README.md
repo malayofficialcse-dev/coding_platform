@@ -1,6 +1,8 @@
 # Profile GraphQL API
 
-The gateway exposes the authenticated and public profile aggregation at `POST /api/graphql`.
+The gateway exposes the authenticated and public profile aggregation at
+`POST /v1/graphql`. The legacy `POST /api/graphql` path remains available during
+the API version migration.
 
 ## Layout
 

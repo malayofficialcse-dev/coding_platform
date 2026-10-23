@@ -162,4 +162,4 @@ curl http://localhost:5009/health  # Chat Service
 ---
 
 ## 🔗 React Client Configuration
-The root `client` app uses `/api` as its default API base and the Vite development proxy forwards API and Socket.IO traffic to the local gateway at `http://localhost:5100`. Override the proxy target with `VITE_API_PROXY_TARGET` when running the gateway elsewhere. For production builds, set `VITE_API_URL` to the API gateway origin (with or without the `/api` suffix); set `VITE_SOCKET_URL` if Socket.IO is hosted on a different origin.
+The root `client` app uses `/v1` as its default API base and the Vite development proxy forwards versioned API, legacy `/api`, and Socket.IO traffic to the local gateway at `http://localhost:5100`. Override the proxy target with `VITE_API_PROXY_TARGET` when running the gateway elsewhere. For production builds, set `VITE_API_URL` to the API gateway origin (with or without the `/v1` suffix; a legacy `/api` suffix is normalized to `/v1`); set `VITE_SOCKET_URL` if Socket.IO is hosted on a different origin.

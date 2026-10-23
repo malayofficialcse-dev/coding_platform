@@ -21,17 +21,17 @@ export const getUsersForSidebar = async (req, res) => {
       const [mutualRes, followingRes, followersRes] = await Promise.allSettled([
         callService({
           baseURL: USER_SERVICE,
-          path: `/api/social/${encodeURIComponent(loggedInUserId)}/mutual-follows`,
+          path: `/v1/social/${encodeURIComponent(loggedInUserId)}/mutual-follows`,
           headers: authHeaders,
         }),
         callService({
           baseURL: USER_SERVICE,
-          path: `/api/social/${encodeURIComponent(loggedInUserId)}/following`,
+          path: `/v1/social/${encodeURIComponent(loggedInUserId)}/following`,
           headers: authHeaders,
         }),
         callService({
           baseURL: USER_SERVICE,
-          path: `/api/social/${encodeURIComponent(loggedInUserId)}/followers`,
+          path: `/v1/social/${encodeURIComponent(loggedInUserId)}/followers`,
           headers: authHeaders,
         }),
       ]);
@@ -84,7 +84,7 @@ export const getUsersForSidebar = async (req, res) => {
           try {
             const batch = await callService({
               baseURL: USER_SERVICE,
-              path: "/api/users/batch",
+              path: "/v1/users/batch",
               method: "POST",
               headers: authHeaders,
               data: { ids: otherIds },
