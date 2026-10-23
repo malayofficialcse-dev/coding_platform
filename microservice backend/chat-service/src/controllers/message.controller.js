@@ -129,27 +129,27 @@ export const getUsersForSidebar = async (req, res) => {
     }
     const users = Array.from(usersById.values());
 
-    // Attach last message info from MongoDB
-    const followingIds = users.map((u) => u._id);
-    const recentMessages = followingIds.length
-      ? await Message.find({
-          $or: [
-            { senderId: loggedInUserId, receiverId: { $in: followingIds } },
-            { receiverId: loggedInUserId, senderId: { $in: followingIds } },
-          ],
+    // Conversation.lastMessage is maintained on every send. Read one summary
+    // per conversation instead of scanning and transferring its whole history.
+    const conversationsWithLastMessage = users.length
+      ? await Conversation.find({
+          participants: String(loggedInUserId),
+          isGroup: false,
         })
-          .sort({ createdAt: -1 })
-          .select("senderId receiverId text image createdAt")
+          .sort({ lastMessageAt: -1 })
+          .select("participants lastMessage lastMessageAt")
+          .populate("lastMessage", "senderId receiverId text image createdAt")
           .lean()
       : [];
-
     const latestByUser = new Map();
-    for (const msg of recentMessages) {
-      const otherId =
-        String(msg.senderId) === String(loggedInUserId)
-          ? String(msg.receiverId)
-          : String(msg.senderId);
-      if (!latestByUser.has(otherId)) latestByUser.set(otherId, msg);
+    for (const conversation of conversationsWithLastMessage) {
+      const otherId = (conversation.participants || [])
+        .map(String)
+        .find((id) => id !== String(loggedInUserId));
+      const message = conversation.lastMessage;
+      if (otherId && message && !latestByUser.has(otherId)) {
+        latestByUser.set(otherId, message);
+      }
     }
 
     res.status(200).json(

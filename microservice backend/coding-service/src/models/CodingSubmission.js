@@ -1,6 +1,7 @@
 import { DataTypes, Model, Op } from "sequelize";
 import { sequelize } from "../config/pgDb.js";
 import CodingProblem from "./CodingProblem.js";
+import User from "./User.js";
 
 class CodingSubmission extends Model {
   get _id() {
@@ -23,7 +24,8 @@ class CodingSubmission extends Model {
    */
   static find(filter = {}) {
     const where = {};
-    if (filter.user) where.user = String(filter.user);
+    if (typeof filter.user === "string") where.user = filter.user;
+    else if (Array.isArray(filter.user?.$in)) where.user = { [Op.in]: filter.user.$in.map(String) };
     if (filter.problem) where.problem = String(filter.problem);
     if (filter.result) where.result = filter.result;
 
@@ -31,6 +33,8 @@ class CodingSubmission extends Model {
       where,
       order: [["createdAt", "DESC"]],
       limit: undefined,
+      populateUser: false,
+      populateProblem: false,
     };
 
     const queryPromise = {
@@ -53,25 +57,43 @@ class CodingSubmission extends Model {
         return queryPromise;
       },
       populate() {
+        const path = arguments[0];
+        if (path === "user") queryState.populateUser = true;
+        if (path === "problem") queryState.populateProblem = true;
         return queryPromise;
       },
       then(onFulfilled, onRejected) {
-        return CodingSubmission.findAll(queryState)
+        return CodingSubmission.findAll({
+          where: queryState.where,
+          order: queryState.order,
+          limit: queryState.limit,
+        })
           .then(async (results) => {
             const list = results.map((r) => r.toObject());
-            // Enrich with problem title if available
-            try {
+            if (queryState.populateProblem) {
               const problemIds = [...new Set(list.map((s) => s.problem))];
               if (problemIds.length) {
                 const problems = await CodingProblem.find({ _id: { $in: problemIds } })
-                  .select("title difficulty")
+                  .select("title difficulty dsaTopic")
                   .lean();
                 const probMap = new Map(problems.map((p) => [String(p._id), p]));
                 list.forEach((sub) => {
                   sub.problem = probMap.get(String(sub.problem)) || { _id: sub.problem, title: "Problem" };
                 });
               }
-            } catch (e) {}
+            }
+            if (queryState.populateUser) {
+              const userIds = [...new Set(list.map((s) => s.user))];
+              if (userIds.length) {
+                const users = await User.collection.find({ _id: { $in: userIds } }, {
+                  projection: { name: 1, username: 1, email: 1, profileImage: 1, college: 1, degree: 1, yearOfPassing: 1 },
+                }).toArray();
+                const userMap = new Map(users.map((user) => [String(user._id), user]));
+                list.forEach((sub) => {
+                  sub.user = userMap.get(String(sub.user)) || { _id: sub.user };
+                });
+              }
+            }
             return list;
           })
           .then(onFulfilled, onRejected);
@@ -81,14 +103,6 @@ class CodingSubmission extends Model {
     return queryPromise;
   }
 
-  /**
-   * Compatibility wrapper for aggregation pipelines
-   */
-  static async aggregate(pipeline = []) {
-    // Return empty array or run basic SQL aggregation if needed
-    const all = await CodingSubmission.findAll({ raw: true });
-    return all.map((item) => ({ ...item, _id: item.id }));
-  }
 }
 
 CodingSubmission.init(
@@ -149,13 +163,11 @@ CodingSubmission.init(
     tableName: "coding_submissions",
     timestamps: true,
     indexes: [
-      { fields: ["user"] },
-      { fields: ["problem"] },
+      { fields: ["user", "createdAt"] },
+      { fields: ["problem", "createdAt"] },
       { fields: ["result"] },
-      { fields: ["createdAt"] },
+      { fields: ["result", "user", "problem"] },
     ],
   }
 );
-
-export { Op };
 export default CodingSubmission;

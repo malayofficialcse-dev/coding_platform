@@ -42,7 +42,8 @@ export async function startNotificationConsumer() {
       ch.ack(msg);
     } catch (error) {
       console.error("[Notification Consumer]", error.message);
-      ch.nack(msg, false, true);
+      // Avoid infinite requeue loops on poison pill or auth error messages
+      ch.nack(msg, false, !msg.fields?.redelivered);
     }
   });
   console.log("[Notification Service] Consuming RabbitMQ notification events");

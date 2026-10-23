@@ -28,7 +28,21 @@ api.interceptors.request.use((config) => {
 });
 
 let refreshPromise;
+let refreshSessionInvalid = false;
+let refreshRetryAfter = 0;
+
+export function resetRefreshSessionState() {
+  refreshSessionInvalid = false;
+  refreshRetryAfter = 0;
+}
+
 export async function refreshSession() {
+  if (refreshSessionInvalid) {
+    throw new Error("Refresh session is invalid. Sign in again.");
+  }
+  if (Date.now() < refreshRetryAfter) {
+    throw new Error("Session refresh is temporarily delayed.");
+  }
   if (!refreshPromise) {
     const sendRefresh = () => axios.post(`${apiBaseUrl}/auth/refresh`, {}, {
       withCredentials: true,
@@ -37,6 +51,7 @@ export async function refreshSession() {
       if (!data?.accessToken || !data?.user) {
         throw new Error("Refresh response did not include a valid session.");
       }
+      resetRefreshSessionState();
       setAccessToken(data.accessToken);
       window.dispatchEvent(new CustomEvent("code-campus:session-refreshed", {
         detail: data.user,
@@ -47,7 +62,19 @@ export async function refreshSession() {
     const refresh = locks
       ? locks.request("code-campus-refresh-token", { mode: "exclusive" }, sendRefresh)
       : sendRefresh();
-    refreshPromise = refresh.finally(() => {
+    refreshPromise = refresh.catch((error) => {
+      const status = error.response?.status;
+      if (status === 401) refreshSessionInvalid = true;
+      if (status === 429) {
+        const retrySeconds = Number(error.response.headers?.["retry-after"]);
+        const rateLimitSeconds = Number(error.response.headers?.["ratelimit-reset"]);
+        const delayMs = (retrySeconds || rateLimitSeconds || 60) * 1000;
+        refreshRetryAfter = Date.now() + Math.min(Math.max(delayMs, 5000), 15 * 60 * 1000);
+      } else if (status && status >= 500) {
+        refreshRetryAfter = Date.now() + 5000;
+      }
+      throw error;
+    }).finally(() => {
       refreshPromise = null;
     });
   }

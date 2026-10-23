@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import api, { refreshSession } from "../api/api";
+import api, { refreshSession, resetRefreshSessionState } from "../api/api";
 import { clearAccessToken, setAccessToken } from "../api/accessToken";
 import { initSocket, disconnectSocket } from "../socket";
 
@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (accessToken, userObj) => {
+    resetRefreshSessionState();
     setAccessToken(accessToken);
     localStorage.setItem("user", JSON.stringify(userObj));
     setUser(userObj);

@@ -69,28 +69,24 @@ export const createPostAsAdmin = async (req, res) => {
 // 5. Aggregate metrics for Post Dashboard Overview
 export const getPostDashboardMetrics = async (req, res) => {
   try {
-    const totalPosts = await Post.countDocuments();
-    const totalComments = await Comment.countDocuments();
-
-    // Aggregate total likes across all posts
-    const likeAggregation = await Post.aggregate([
-      { $project: { numberOfLikes: { $size: { $ifNull: ["$likes", []] } } } },
-      { $group: { _id: null, totalLikes: { $sum: "$numberOfLikes" } } },
+    const [totalPosts, totalComments, likeAggregation, postsByGroup, trendingPosts] = await Promise.all([
+      Post.countDocuments(),
+      Comment.countDocuments(),
+      Post.aggregate([
+        { $project: { numberOfLikes: { $size: { $ifNull: ["$likes", []] } } } },
+        { $group: { _id: null, totalLikes: { $sum: "$numberOfLikes" } } },
+      ]),
+      Post.aggregate([
+        { $group: { _id: "$group", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      Post.aggregate([
+        { $project: { text: 1, author: 1, group: 1, createdAt: 1, likeCount: { $size: { $ifNull: ["$likes", []] } }, commentCount: { $size: { $ifNull: ["$comments", []] } } } },
+        { $sort: { likeCount: -1 } },
+        { $limit: 5 },
+      ]),
     ]);
-    const totalLikes = likeAggregation.length > 0 ? likeAggregation[0].totalLikes : 0;
-
-    // Group posts by category/group
-    const postsByGroup = await Post.aggregate([
-      { $group: { _id: "$group", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ]);
-
-    // Top 5 trending posts by likes
-    const trendingPosts = await Post.aggregate([
-      { $project: { text: 1, author: 1, group: 1, createdAt: 1, likeCount: { $size: { $ifNull: ["$likes", []] } }, commentCount: { $size: { $ifNull: ["$comments", []] } } } },
-      { $sort: { likeCount: -1 } },
-      { $limit: 5 },
-    ]);
+    const totalLikes = likeAggregation[0]?.totalLikes || 0;
 
     res.json({
       totalPosts,

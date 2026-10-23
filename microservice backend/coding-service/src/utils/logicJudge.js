@@ -162,6 +162,7 @@ export function detectAlgorithmicPatterns(code, language) {
 
   // Stack / Queue
   if (
+
     /\b(Stack|Queue|Deque|ArrayDeque|PriorityQueue|heapq)\b/i.test(cleaned) ||
     (/\.push\b/.test(cleaned) && /\.pop\b/.test(cleaned))
   ) {

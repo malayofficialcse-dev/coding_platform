@@ -1,15 +1,19 @@
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config();
+
 import express from "express";
 import http from "http";
 import cors from "cors";
 import morgan from "morgan";
-import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
 import messageRoutes from "./routes/message.routes.js";
-import { initSocket } from "./lib/socket.js";
+import { initSocket, getSocket } from "./lib/socket.js";
 import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
-
-dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 
 const app = express();
 const server = http.createServer(app);

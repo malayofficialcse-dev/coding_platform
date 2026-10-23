@@ -7,6 +7,9 @@ import { connectDB } from "./config/db.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
 import { startNotificationConsumer } from "./lib/rabbitmq.js";
 
+import { fileURLToPath } from "node:url";
+
+dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)) });
 dotenv.config();
 
 const app = express();

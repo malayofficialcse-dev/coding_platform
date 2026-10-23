@@ -12,7 +12,7 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-conversationSchema.index({ participants: 1 });
+conversationSchema.index({ participants: 1, isGroup: 1, lastMessageAt: -1 });
 conversationSchema.index({ lastMessageAt: -1 });
 
 export default mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);

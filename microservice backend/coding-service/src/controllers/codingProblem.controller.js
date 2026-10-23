@@ -4,22 +4,27 @@ export const getAllProblems = async (req, res) => {
   try {
     const { difficulty, dsaTopic, search } = req.query;
     const filter = {};
+    const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     if (difficulty && difficulty !== "all") {
-      filter.difficulty = { $regex: new RegExp(`^${difficulty}$`, "i") };
+      filter.difficulty = { $regex: new RegExp(`^${escapeRegex(difficulty)}$`, "i") };
     }
     if (dsaTopic && dsaTopic !== "all") {
-      filter.dsaTopic = { $regex: new RegExp(`^${dsaTopic}$`, "i") };
+      filter.dsaTopic = { $regex: new RegExp(`^${escapeRegex(dsaTopic)}$`, "i") };
     }
     if (search && search.trim()) {
+      const safeSearch = escapeRegex(search.trim().slice(0, 100));
       filter.$or = [
-        { title: { $regex: search.trim(), $options: "i" } },
-        { description: { $regex: search.trim(), $options: "i" } },
-        { dsaTopic: { $regex: search.trim(), $options: "i" } },
+        { title: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
+        { dsaTopic: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
-    const problems = await CodingProblem.find(filter).sort({ createdAt: -1 });
+    const problems = await CodingProblem.find(filter)
+      .select("title difficulty dsaTopic tags acceptanceRate createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
     res.json(problems);
   } catch (err) {
     console.error(err);

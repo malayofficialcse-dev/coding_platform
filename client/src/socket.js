@@ -3,6 +3,7 @@ import { getAccessToken } from "./api/accessToken";
 import { refreshSession } from "./api/api";
 
 let socket;
+let socketRefreshAttempted = false;
 
 export const initSocket = () => {
   if (socket) {
@@ -27,12 +28,18 @@ export const initSocket = () => {
   });
 
   socket.on("connect", () => {
+    socketRefreshAttempted = false;
     console.log("Socket connected:", socket.id);
   });
 
   socket.on("connect_error", (error) => {
     console.error("Socket connection error:", error);
     if (/token|jwt|expired|unauthorized/i.test(error.message || "")) {
+      if (socketRefreshAttempted) {
+        disconnectSocket();
+        return;
+      }
+      socketRefreshAttempted = true;
       refreshSession()
         .then(({ accessToken }) => {
           socket.auth = { token: accessToken };
