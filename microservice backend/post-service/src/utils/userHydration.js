@@ -44,7 +44,7 @@ export const fetchUsersBatch = async (userIds) => {
   // 1. Try batch API on user-service
   try {
     const res = await axios.post(
-      `${USER_SERVICE_URL}/api/users/batch`,
+      `${USER_SERVICE_URL}/v1/users/batch`,
       { ids: missingIds },
       { timeout: 4000 }
     );
@@ -218,7 +218,7 @@ export const hydratePostsWithUsers = async (posts) => {
  */
 export const syncAllUsersFromUserService = async () => {
   try {
-    const res = await axios.get(`${USER_SERVICE_URL}/api/users`, { timeout: 5000 });
+    const res = await axios.get(`${USER_SERVICE_URL}/v1/users`, { timeout: 5000 });
     const users = Array.isArray(res.data) ? res.data : [];
     for (const u of users) {
       const uId = String(u.id || u._id);

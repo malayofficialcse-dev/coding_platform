@@ -38,8 +38,8 @@ export const syncUserToGraph = async (user) => {
 };
 
 /**
- * POST /api/social/:id/follow
- * or POST /api/users/follow/:id
+ * POST /v1/social/:id/follow
+ * or POST /v1/users/follow/:id
  */
 export const followUser = async (req, res) => {
   try {
@@ -116,8 +116,8 @@ export const followUser = async (req, res) => {
 };
 
 /**
- * DELETE /api/social/:id/follow
- * or POST /api/users/unfollow/:id
+ * DELETE /v1/social/:id/follow
+ * or POST /v1/users/unfollow/:id
  */
 export const unfollowUser = async (req, res) => {
   try {
@@ -152,11 +152,11 @@ export const unfollowUser = async (req, res) => {
 };
 
 /**
- * GET /api/social/:id/followers
+ * GET /v1/social/:id/followers
  */
 
 /**
- * GET /api/social/:id/mutual-follows
+ * GET /v1/social/:id/mutual-follows
  * Returns users who mutually follow each other with the given user.
  * Used by the chat service to populate the sidebar contact list.
  */
@@ -192,7 +192,7 @@ export const getMutualFollows = async (req, res) => {
   }
 };
 /**
- * GET /api/social/:id/followers
+ * GET /v1/social/:id/followers
  */
 export const getFollowers = async (req, res) => {
   try {
@@ -218,7 +218,7 @@ export const getFollowers = async (req, res) => {
 };
 
 /**
- * GET /api/social/:id/following
+ * GET /v1/social/:id/following
  */
 export const getFollowing = async (req, res) => {
   try {
@@ -244,8 +244,8 @@ export const getFollowing = async (req, res) => {
 };
 
 /**
- * GET /api/social/:id/mutual
- * or GET /api/users/graph/mutual/:id
+ * GET /v1/social/:id/mutual
+ * or GET /v1/users/graph/mutual/:id
  */
 export const getMutualConnections = async (req, res) => {
   try {
@@ -282,8 +282,8 @@ export const getMutualConnections = async (req, res) => {
 };
 
 /**
- * GET /api/social/trail/:id
- * or GET /api/users/graph/trail/:id
+ * GET /v1/social/trail/:id
+ * or GET /v1/users/graph/trail/:id
  * Calculates degree of connection (1st, 2nd, 3rd+) and the full shortest path trail between users
  */
 export const getConnectionTrail = async (req, res) => {
@@ -390,8 +390,8 @@ export const getConnectionTrail = async (req, res) => {
 };
 
 /**
- * GET /api/social/stats/:id
- * or GET /api/users/graph/stats/:id
+ * GET /v1/social/stats/:id
+ * or GET /v1/users/graph/stats/:id
  * Network reach & influence statistics
  */
 export const getUserNetworkStats = async (req, res) => {
@@ -456,8 +456,8 @@ export const getUserNetworkStats = async (req, res) => {
 };
 
 /**
- * GET /api/social/recommendations
- * or GET /api/users/graph/recommendations
+ * GET /v1/social/recommendations
+ * or GET /v1/users/graph/recommendations
  * Multi-factor "People You May Know" graph recommendation engine
  */
 export const getRecommendations = async (req, res) => {
