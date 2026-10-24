@@ -132,7 +132,6 @@ export function createMentorRouter(io) {
 
   router.post("/sessions/:id/join-token", asyncRoute(async (req, res) => {
     if (!validUuid(req.params.id)) return res.status(400).json({ error: "Invalid session id." });
-    if (!process.env.LIVEKIT_URL || !process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return res.status(503).json({ error: "Live video is not configured. Add LiveKit URL, API key, and API secret to the mentor service environment." });
     const session = (await pool.query("SELECT * FROM mentor_sessions WHERE id=$1", [req.params.id])).rows[0];
     if (!session || session.status === "cancelled" || session.status === "ended") return res.status(404).json({ error: "Session is unavailable." });
     if (session.mentor_id !== req.user.id && !await isMember(session.id, req.user.id)) return res.status(403).json({ error: "Enroll in this session before joining." });
@@ -143,23 +142,40 @@ export function createMentorRouter(io) {
     if ((!isHost && session.status !== "live" && now < scheduledStart - 15 * 60000) || now > ends + 30 * 60000) {
       return res.status(409).json({ error: isHost ? "This session's end time has passed." : "You can join 15 minutes before the scheduled time, or as soon as your mentor starts the session." });
     }
-    const canPublish = isHost || session.format !== "group_class";
-    const roomService = new RoomServiceClient(livekitApiUrl(), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
-    try {
-      await roomService.createRoom({ name: session.room_name, maxParticipants: session.max_participants + 1, emptyTimeout: 300, departureTimeout: 30 });
-    } catch (error) {
-      console.error("Could not prepare LiveKit room:", error.message);
-      return res.status(502).json({ error: "Could not prepare the video room. Try joining again." });
-    }
-    const accessToken = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET,
-      { identity: req.user.id, name: clean(req.user.name, 100), ttl: "15m" });
-    accessToken.addGrant({ roomJoin: true, room: session.room_name, canPublish, canSubscribe: true, canPublishData: false });
-    const token = await accessToken.toJwt();
+
     if (isHost && session.status === "scheduled") {
       await pool.query("UPDATE mentor_sessions SET status='live',started_at=COALESCE(started_at,now()),updated_at=now() WHERE id=$1 AND status='scheduled'", [session.id]);
       io.emit("mentor:sessions-updated");
     }
-    res.json({ url: process.env.LIVEKIT_URL, token, session: { id: session.id, title: session.title, format: session.format, mentorId: session.mentor_id } });
+
+    const hasLiveKit = Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
+    if (!hasLiveKit) {
+      return res.json({
+        url: null,
+        token: null,
+        mode: "browser_media",
+        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id }
+      });
+    }
+
+    const canPublish = isHost || session.format !== "group_class";
+    try {
+      const roomService = new RoomServiceClient(livekitApiUrl(), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
+      await roomService.createRoom({ name: session.room_name, maxParticipants: session.max_participants + 1, emptyTimeout: 300, departureTimeout: 30 });
+      const accessToken = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET,
+        { identity: req.user.id, name: clean(req.user.name, 100), ttl: "15m" });
+      accessToken.addGrant({ roomJoin: true, room: session.room_name, canPublish, canSubscribe: true, canPublishData: false });
+      const token = await accessToken.toJwt();
+      res.json({ url: process.env.LIVEKIT_URL, token, mode: "livekit", session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id } });
+    } catch (error) {
+      console.warn("LiveKit room service unavailable, falling back to browser media:", error.message);
+      res.json({
+        url: null,
+        token: null,
+        mode: "browser_media",
+        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id }
+      });
+    }
   }));
 
   router.post("/sessions/:id/end", requireMentor, asyncRoute(async (req, res) => {
@@ -167,7 +183,7 @@ export function createMentorRouter(io) {
     if (!session) return res.status(404).json({ error: "Active session not found for this mentor." });
     if (session.status === "live" && process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
       try { await new RoomServiceClient(livekitApiUrl(), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET).deleteRoom(session.room_name); }
-      catch (error) { console.error("Could not close LiveKit room:", error.message); return res.status(502).json({ error: "Could not close the live room. Try again." }); }
+      catch (error) { console.warn("Could not delete LiveKit room:", error.message); }
     }
     const { rows } = await pool.query("UPDATE mentor_sessions SET status='ended',updated_at=now() WHERE id=$1 RETURNING *", [session.id]);
     io.to(`session:${req.params.id}`).emit("session:ended");
@@ -242,6 +258,26 @@ export async function configureRealtime(io) {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
       socket.join(`session:${sessionId}`);
       callback({ ok: true });
+    });
+    socket.on("session:raise-hand", async ({ sessionId } = {}, callback = () => {}) => {
+      if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
+      io.to(`session:${sessionId}`).emit("session:hand-raised", { userId: socket.user.id, userName: clean(socket.user.name, 100) });
+      callback({ ok: true });
+    });
+    socket.on("session:lower-hand", async ({ sessionId } = {}, callback = () => {}) => {
+      if (!validUuid(sessionId)) return callback({ error: "Invalid session." });
+      io.to(`session:${sessionId}`).emit("session:hand-lowered", { userId: socket.user.id });
+      callback({ ok: true });
+    });
+    socket.on("session:question", async ({ sessionId, body } = {}, callback = () => {}) => {
+      try {
+        if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
+        const text = clean(body, 500);
+        if (!text) return callback({ error: "Question cannot be empty." });
+        const question = { id: Date.now(), user_name: clean(socket.user.name, 100), body: text, created_at: new Date().toISOString() };
+        io.to(`session:${sessionId}`).emit("session:question", question);
+        callback({ ok: true });
+      } catch { callback({ error: "Could not send question." }); }
     });
     socket.on("session:chat", async ({ sessionId, body } = {}, callback = () => {}) => {
       try {
