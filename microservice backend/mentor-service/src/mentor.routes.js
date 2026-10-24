@@ -158,7 +158,7 @@ export function createMentorRouter(io) {
       });
     }
 
-    const canPublish = isHost || session.format !== "group_class";
+    const canPublish = isHost;
     try {
       const roomService = new RoomServiceClient(livekitApiUrl(), process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET);
       await roomService.createRoom({ name: session.room_name, maxParticipants: session.max_participants + 1, emptyTimeout: 300, departureTimeout: 30 });
@@ -280,6 +280,13 @@ export async function configureRealtime(io) {
         senderId: socket.user.id,
         targetUserId,
         signal,
+      });
+    });
+    socket.on("session:request-stream", ({ sessionId } = {}) => {
+      if (!validUuid(sessionId)) return;
+      io.to(`session:${sessionId}`).emit("session:request-stream", {
+        studentId: socket.user.id,
+        studentName: clean(socket.user.name, 100),
       });
     });
     socket.on("disconnect", () => {

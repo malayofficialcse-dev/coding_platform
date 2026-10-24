@@ -14,7 +14,14 @@ const socketOrigin = () => {
   try { return new URL(c).origin; } catch { return window.location.origin; }
 };
 
-/* ── Remote Track Tile (LiveKit) ──────────────────────────── */
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ],
+};
+
+/* ── LiveKit Remote Track Tile ────────────────────────────── */
 function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
   const ref = useRef(null);
 
@@ -27,7 +34,7 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
     if (el instanceof HTMLAudioElement) el.style.display = "none";
     ref.current.appendChild(el);
     return () => {
-      try { track.detach(el); el.remove(); } catch {}
+      try { track.detach(el); el.remove(); } catch (e) { void e; }
     };
   }, [publication?.track]);
 
@@ -35,7 +42,7 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
     return <div ref={ref} style={{ display: "none" }} />;
   }
 
-  const name = participant.name || participant.identity || "Participant";
+  const name = participant.name || participant.identity || "Mentor";
   const isScreen = publication?.source === "screen_share";
 
   return (
@@ -52,7 +59,7 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
       <div className="mr-tile-overlay">
         <span className="mr-tile-name">
           {name}
-          {isHost && <span className="mr-tile-host-tag">HOST</span>}
+          {isHost && <span className="mr-tile-host-tag">MENTOR</span>}
           {isScreen && " · Screen"}
         </span>
       </div>
@@ -60,8 +67,8 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
   );
 }
 
-/* ── Local Stream Tile (Native Media Fallback) ─────────────── */
-function LocalStreamTile({ stream, isScreen = false, label = "You", isHost = false, onPin, isPinned = false }) {
+/* ── Local Stream Video (Mentor Camera / Screen) ──────────── */
+function LocalStreamTile({ stream, isScreen = false, label = "You", isHost = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -71,25 +78,45 @@ function LocalStreamTile({ stream, isScreen = false, label = "You", isHost = fal
   }, [stream]);
 
   return (
-    <div
-      className={`mr-tile ${isPinned ? "mr-tile--pinned" : ""} ${isScreen ? "mr-tile--screen" : ""}`}
-      onClick={() => onPin && onPin(isScreen ? "screen" : "local")}
-    >
+    <div className={`mr-tile ${isScreen ? "mr-tile--screen mr-tile--pinned" : ""}`}>
       <div className="mr-tile-video">
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          muted={!isScreen}
+          muted
           style={{ transform: !isScreen ? "scaleX(-1)" : "none" }}
         />
       </div>
       <div className="mr-tile-overlay">
         <span className="mr-tile-name">
           {label}
-          {isHost && <span className="mr-tile-host-tag">HOST</span>}
-          {isScreen && " · Screen Share"}
+          {isHost && <span className="mr-tile-host-tag">MENTOR</span>}
+          {isScreen && " · Screen"}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Remote Broadcast Player (For Students) ────────────────── */
+function RemoteBroadcastPlayer({ stream, isScreen = false, mentorName = "Mentor" }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div className="mr-broadcast-stage">
+      <div className="mr-broadcast-badge">
+        <span className="mr-live-dot" />
+        {mentorName} · {isScreen ? "Screen Sharing" : "Live Camera"}
+      </div>
+      <div className="mr-broadcast-video-wrap">
+        <video ref={videoRef} autoPlay playsInline />
       </div>
     </div>
   );
@@ -133,7 +160,6 @@ export default function MentorRoom() {
 
   const [room, setRoom] = useState(null);
   const [session, setSession] = useState(null);
-  const [isLiveKitMode, setIsLiveKitMode] = useState(false);
   const [connected, setConnected] = useState(false);
   const [trackRevision, setTrackRevision] = useState(0);
   const [socket, setSocket] = useState(null);
@@ -144,7 +170,6 @@ export default function MentorRoom() {
   const [pollOptions, setPollOptions] = useState("Yes,No");
   const [joining, setJoining] = useState(true);
   const [sidebarTab, setSidebarTab] = useState("chat"); // chat | polls | questions
-  const [pinnedId, setPinnedId] = useState(null);
   const [micOn, setMicOn] = useState(false);
   const [camOn, setCamOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
@@ -154,36 +179,50 @@ export default function MentorRoom() {
   const [questions, setQuestions] = useState([]);
   const [qInput, setQInput] = useState("");
   const [peers, setPeers] = useState([]);
+
+  /* Native media streams (Mentor broadcast) */
   const [localStream, setLocalStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
+  const [remoteMentorStream, setRemoteMentorStream] = useState(null);
 
   const chatBottomRef = useRef(null);
   const elapsedRef = useRef(null);
+  const mentorPeerConnectionsRef = useRef(new Map()); // mentor: studentId -> RTCPeerConnection
+  const studentPcRef = useRef(null); // student: RTCPeerConnection
 
-  const isHost = useMemo(
-    () => session?.mentorId === (user?.id || user?._id),
-    [session, user]
-  );
+  /* Determine if the logged-in user is the Mentor (Host) */
+  const isHost = useMemo(() => {
+    if (!session || !user) return false;
+    const currentUserId = String(user.id || user._id || "");
+    const mentorId = String(session.mentorId || session.mentor_id || "");
+    return Boolean(
+      (currentUserId && mentorId && currentUserId === mentorId) ||
+      (user.role === "mentor" && currentUserId === mentorId)
+    );
+  }, [session, user]);
 
-  /* auto-scroll chat */
+  /* Auto-scroll chat */
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* elapsed timer */
+  /* Elapsed timer */
   useEffect(() => {
     if (!connected) return;
     elapsedRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(elapsedRef.current);
   }, [connected]);
 
-  /* cleanup media tracks */
+  /* Clean up local media tracks */
   useEffect(() => {
     return () => {
       localStream?.getTracks().forEach((t) => t.stop());
       screenStream?.getTracks().forEach((t) => t.stop());
+      mentorPeerConnectionsRef.current.forEach((pc) => pc.close());
+      mentorPeerConnectionsRef.current.clear();
+      studentPcRef.current?.close();
     };
-  }, [localStream, screenStream]);
+  }, []);
 
   const formatElapsed = (s) => {
     const h = Math.floor(s / 3600);
@@ -194,7 +233,64 @@ export default function MentorRoom() {
       : `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
-  /* join room */
+  /* Helper to get active broadcast stream for mentor */
+  const getActiveMentorStream = () => {
+    if (screenStream) return screenStream;
+    if (localStream) return localStream;
+    return null;
+  };
+
+  /* Send mentor offer to a specific student */
+  const sendOfferToStudent = async (studentId, sock) => {
+    if (!isHost || !sock) return;
+    const stream = getActiveMentorStream();
+    if (!stream) return;
+
+    try {
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+      mentorPeerConnectionsRef.current.set(studentId, pc);
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sock.emit("session:signal", {
+            sessionId: id,
+            targetUserId: studentId,
+            signal: { type: "candidate", candidate: event.candidate },
+          });
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      sock.emit("session:signal", {
+        sessionId: id,
+        targetUserId: studentId,
+        signal: { type: "offer", sdp: pc.localDescription },
+      });
+    } catch (err) {
+      console.warn("Could not initiate WebRTC offer to student:", err);
+    }
+  };
+
+  /* Push tracks to all connected students when mentor changes media */
+  const broadcastTracksToAllStudents = (stream) => {
+    if (!isHost || !socket) return;
+    mentorPeerConnectionsRef.current.forEach((pc) => pc.close());
+    mentorPeerConnectionsRef.current.clear();
+
+    if (!stream) return;
+    peers.forEach((peer) => {
+      const peerId = peer.userId || peer.id;
+      if (peerId && String(peerId) !== String(user?.id || user?._id)) {
+        sendOfferToStudent(peerId, socket);
+      }
+    });
+  };
+
+  /* Join session room */
   useEffect(() => {
     let active = true;
     let nextRoom = null;
@@ -205,8 +301,8 @@ export default function MentorRoom() {
         if (!active) return;
         setSession(res.data.session);
 
+        /* LiveKit cloud mode if credentials returned */
         if (res.data.url && res.data.token) {
-          setIsLiveKitMode(true);
           try {
             const { Room, RoomEvent } = await import("livekit-client");
             nextRoom = new Room({ adaptiveStream: true, dynacast: true, stopLocalTrackOnUnpublish: true });
@@ -225,16 +321,13 @@ export default function MentorRoom() {
             setRoom(nextRoom);
           } catch (lkErr) {
             console.warn("LiveKit client connect failed, using browser media:", lkErr.message);
-            setIsLiveKitMode(false);
           }
-        } else {
-          setIsLiveKitMode(false);
         }
 
         setConnected(true);
         setJoining(false);
 
-        /* socket setup */
+        /* Socket setup */
         const nextSocket = io(socketOrigin(), {
           path: "/mentor-socket.io",
           auth: { token: getAccessToken() },
@@ -258,15 +351,106 @@ export default function MentorRoom() {
               setPeers(ack.peers);
             }
           });
+          /* If student, request stream from mentor */
+          const myId = String(user?.id || user?._id || "");
+          const hostId = String(res.data.session?.mentorId || "");
+          if (myId !== hostId) {
+            nextSocket.emit("session:request-stream", { sessionId: id });
+          }
         });
 
         nextSocket.on("session:peer-joined", (data) => {
           if (data?.peers) setPeers(data.peers);
           else if (data?.userId) setPeers((prev) => [...prev.filter((p) => p.userId !== data.userId), data]);
+
+          /* If we are the mentor and already broadcasting, push stream to this newly joined student */
+          const myId = String(user?.id || user?._id || "");
+          const hostId = String(res.data.session?.mentorId || "");
+          if (myId === hostId && data?.userId && data.userId !== myId) {
+            sendOfferToStudent(data.userId, nextSocket);
+          }
         });
 
         nextSocket.on("session:peer-left", ({ userId }) => {
           setPeers((prev) => prev.filter((p) => p.userId !== userId));
+          if (mentorPeerConnectionsRef.current.has(userId)) {
+            mentorPeerConnectionsRef.current.get(userId)?.close();
+            mentorPeerConnectionsRef.current.delete(userId);
+          }
+        });
+
+        /* Handle incoming student stream requests on mentor */
+        nextSocket.on("session:request-stream", ({ studentId }) => {
+          const myId = String(user?.id || user?._id || "");
+          const hostId = String(res.data.session?.mentorId || "");
+          if (myId === hostId && studentId && studentId !== myId) {
+            sendOfferToStudent(studentId, nextSocket);
+          }
+        });
+
+        /* Handle WebRTC signaling */
+        nextSocket.on("session:signal", async ({ senderId, targetUserId, signal }) => {
+          const myId = String(user?.id || user?._id || "");
+          if (targetUserId && targetUserId !== myId) return;
+
+          /* Student receives offer from mentor */
+          if (signal?.type === "offer") {
+            try {
+              studentPcRef.current?.close();
+              const pc = new RTCPeerConnection(RTC_CONFIG);
+              studentPcRef.current = pc;
+
+              pc.ontrack = (event) => {
+                if (event.streams && event.streams[0]) {
+                  setRemoteMentorStream(event.streams[0]);
+                }
+              };
+
+              pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                  nextSocket.emit("session:signal", {
+                    sessionId: id,
+                    targetUserId: senderId,
+                    signal: { type: "candidate", candidate: event.candidate },
+                  });
+                }
+              };
+
+              await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+
+              nextSocket.emit("session:signal", {
+                sessionId: id,
+                targetUserId: senderId,
+                signal: { type: "answer", sdp: pc.localDescription },
+              });
+            } catch (err) {
+              console.warn("Student WebRTC answer failed:", err);
+            }
+          }
+
+          /* Mentor receives answer from student */
+          if (signal?.type === "answer") {
+            const pc = mentorPeerConnectionsRef.current.get(senderId);
+            if (pc) {
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              } catch (err) {
+                console.warn("Mentor could not set remote description:", err);
+              }
+            }
+          }
+
+          /* ICE candidates */
+          if (signal?.type === "candidate") {
+            const pc = isHost ? mentorPeerConnectionsRef.current.get(senderId) : studentPcRef.current;
+            if (pc && signal.candidate) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+              } catch (e) { void e; }
+            }
+          }
         });
 
         nextSocket.on("session:chat", (item) =>
@@ -300,7 +484,7 @@ export default function MentorRoom() {
 
         setSocket(nextSocket);
 
-        /* load history */
+        /* Load history */
         const [msgRes, pollRes] = await Promise.all([
           api.get(`/mentor/sessions/${id}/messages`).catch(() => ({ data: [] })),
           api.get(`/mentor/sessions/${id}/polls`).catch(() => ({ data: [] })),
@@ -328,7 +512,7 @@ export default function MentorRoom() {
 
   useEffect(() => () => socket?.disconnect(), [socket]);
 
-  /* participants list */
+  /* Participants list */
   const participants = useMemo(() => {
     if (room) {
       return [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
@@ -342,8 +526,9 @@ export default function MentorRoom() {
     return peers;
   }, [room, trackRevision, peers]);
 
-  /* controls */
+  /* Mentor Media Controls: Only the Mentor can invoke these! */
   const toggleMic = async () => {
+    if (!isHost) return;
     try {
       if (room?.localParticipant) {
         const next = !room.localParticipant.isMicrophoneEnabled;
@@ -362,11 +547,13 @@ export default function MentorRoom() {
             const track = audioStream.getAudioTracks()[0];
             localStream.addTrack(track);
             setMicOn(true);
+            broadcastTracksToAllStudents(localStream);
           }
         } else {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           setLocalStream(stream);
           setMicOn(true);
+          broadcastTracksToAllStudents(stream);
         }
       }
     } catch {
@@ -375,6 +562,7 @@ export default function MentorRoom() {
   };
 
   const toggleCamera = async () => {
+    if (!isHost) return;
     try {
       if (room?.localParticipant) {
         const next = !room.localParticipant.isCameraEnabled;
@@ -386,11 +574,9 @@ export default function MentorRoom() {
           if (localStream) {
             localStream.getVideoTracks().forEach((t) => t.stop());
             const remaining = localStream.getAudioTracks();
-            if (remaining.length > 0) {
-              setLocalStream(new MediaStream(remaining));
-            } else {
-              setLocalStream(null);
-            }
+            const nextStream = remaining.length > 0 ? new MediaStream(remaining) : null;
+            setLocalStream(nextStream);
+            broadcastTracksToAllStudents(screenStream || nextStream);
           }
           setCamOn(false);
         } else {
@@ -400,6 +586,7 @@ export default function MentorRoom() {
           });
           setLocalStream(stream);
           setCamOn(true);
+          broadcastTracksToAllStudents(screenStream || stream);
         }
       }
     } catch {
@@ -408,6 +595,7 @@ export default function MentorRoom() {
   };
 
   const toggleScreen = async () => {
+    if (!isHost) return;
     try {
       if (room?.localParticipant) {
         const next = !room.localParticipant.isScreenShareEnabled;
@@ -421,14 +609,17 @@ export default function MentorRoom() {
           }
           setScreenStream(null);
           setScreenOn(false);
+          broadcastTracksToAllStudents(camOn ? localStream : null);
         } else {
-          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
           stream.getVideoTracks()[0].onended = () => {
             setScreenStream(null);
             setScreenOn(false);
+            broadcastTracksToAllStudents(camOn ? localStream : null);
           };
           setScreenStream(stream);
           setScreenOn(true);
+          broadcastTracksToAllStudents(stream);
         }
       }
     } catch {
@@ -436,6 +627,7 @@ export default function MentorRoom() {
     }
   };
 
+  /* Chat / Q&A / Poll Controls (Available to everyone) */
   const sendMessage = (e) => {
     e.preventDefault();
     if (!message.trim() || !socket) return;
@@ -447,6 +639,7 @@ export default function MentorRoom() {
 
   const createPoll = async (e) => {
     e.preventDefault();
+    if (!isHost) return;
     try {
       const res = await api.post(`/mentor/sessions/${id}/polls`, {
         question: pollQuestion,
@@ -498,7 +691,7 @@ export default function MentorRoom() {
     navigate("/mentorship");
   };
 
-  /* LiveKit video tracks if room is active */
+  /* LiveKit tracks */
   const allLiveKitVideoTracks = useMemo(() => {
     if (!room) return [];
     return participants.flatMap(({ participant, tracks }) =>
@@ -508,14 +701,14 @@ export default function MentorRoom() {
     );
   }, [room, participants]);
 
-  /* ── Loading Screen ──────────────────────────────────────── */
+  /* Loading Screen */
   if (joining) {
     return (
       <div className="mr-loading">
         <div className="mr-loading-card">
           <div className="mr-loading-spinner" />
           <h2>Connecting to session…</h2>
-          <p>Setting up your live masterclass room. Initializing audio & video streams.</p>
+          <p>Joining the live masterclass room. Setting up secure connection.</p>
         </div>
       </div>
     );
@@ -525,7 +718,6 @@ export default function MentorRoom() {
     ? participants.length
     : Math.max(peers.length, 1);
 
-  /* ── Room UI ─────────────────────────────────────────────── */
   return (
     <div className="mr-page">
       {/* ── Top Bar ──────────────────────────────────────────── */}
@@ -537,58 +729,65 @@ export default function MentorRoom() {
               <span className="mr-live-dot" />
               LIVE
             </div>
-            <h1 className="mr-session-title">{session?.title || "Live Session"}</h1>
+            <h1 className="mr-session-title">{session?.title || "Masterclass"}</h1>
             <span className="mr-elapsed">{formatElapsed(elapsed)}</span>
+            <span className={`mr-role-tag ${isHost ? "mr-role-tag--mentor" : "mr-role-tag--student"}`}>
+              {isHost ? "Mentor (Host)" : "Attendee (View Only)"}
+            </span>
           </div>
         </div>
+
         <div className="mr-topbar-right">
           <span className="mr-participants-count">
-            👥 {participantCount} participant{participantCount !== 1 ? "s" : ""}
+            👥 {participantCount} attendee{participantCount !== 1 ? "s" : ""}
           </span>
+
           {raisedHands.length > 0 && (
             <span className="mr-raised-count">✋ {raisedHands.length}</span>
           )}
-          <button
-            className={`mr-ctrl-btn ${micOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
-            onClick={toggleMic}
-            disabled={!connected}
-            title={micOn ? "Mute mic" : "Unmute mic"}
-          >
-            {micOn ? "🎙" : "🔇"}
-          </button>
-          <button
-            className={`mr-ctrl-btn ${camOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
-            onClick={toggleCamera}
-            disabled={!connected}
-            title={camOn ? "Turn off camera" : "Turn on camera"}
-          >
-            {camOn ? "📹" : "📷"}
-          </button>
-          <button
-            className={`mr-ctrl-btn ${screenOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
-            onClick={toggleScreen}
-            disabled={!connected}
-            title="Share screen"
-          >
-            🖥
-          </button>
-          {!isHost && (
+
+          {/* BROADCAST CONTROLS: ONLY FOR THE MENTOR */}
+          {isHost ? (
+            <>
+              <button
+                className={`mr-ctrl-btn ${micOn ? "mr-ctrl-btn--active" : ""}`}
+                onClick={toggleMic}
+                title={micOn ? "Mute Microphone" : "Unmute Microphone"}
+              >
+                {micOn ? "🎙" : "🔇"}
+              </button>
+              <button
+                className={`mr-ctrl-btn ${camOn ? "mr-ctrl-btn--active" : ""}`}
+                onClick={toggleCamera}
+                title={camOn ? "Turn Off Camera" : "Turn On Camera"}
+              >
+                {camOn ? "📹" : "📷"}
+              </button>
+              <button
+                className={`mr-ctrl-btn ${screenOn ? "mr-ctrl-btn--active" : ""}`}
+                onClick={toggleScreen}
+                title={screenOn ? "Stop Screen Share" : "Share Screen to Students"}
+              >
+                🖥
+              </button>
+              <button className="mr-end-btn" onClick={() => leave(true)}>
+                End Session
+              </button>
+            </>
+          ) : (
+            /* STUDENTS / ATTENDEES: NO CAMERA, NO MIC, NO SCREEN SHARE */
             <button
               className={`mr-ctrl-btn ${myHandRaised ? "mr-ctrl-btn--raised" : ""}`}
               onClick={raiseHand}
-              title={myHandRaised ? "Lower hand" : "Raise hand"}
+              title={myHandRaised ? "Lower Hand" : "Raise Hand"}
             >
               ✋
             </button>
           )}
+
           <button className="mr-leave-btn" onClick={() => leave(false)}>
             Leave
           </button>
-          {isHost && (
-            <button className="mr-end-btn" onClick={() => leave(true)}>
-              End Session
-            </button>
-          )}
         </div>
       </header>
 
@@ -596,7 +795,7 @@ export default function MentorRoom() {
       <div className="mr-body">
         {/* ── Stage ────────────────────────────────────────────── */}
         <main className="mr-stage">
-          {/* LiveKit SFU Mode */}
+          {/* CASE 1: LiveKit SFU Tracks */}
           {allLiveKitVideoTracks.length > 0 ? (
             <div className={`mr-grid mr-grid--${Math.min(allLiveKitVideoTracks.length, 4)}`}>
               {allLiveKitVideoTracks.map(({ participant, publication }) => (
@@ -605,76 +804,95 @@ export default function MentorRoom() {
                   participant={participant}
                   publication={publication}
                   isHost={String(participant.identity) === String(session?.mentorId)}
-                  onPin={setPinnedId}
                 />
               ))}
             </div>
-          ) : screenStream ? (
-            /* Browser Media: Screen Sharing Active */
-            <div className="mr-pinned-area">
-              <LocalStreamTile
-                stream={screenStream}
-                isScreen
-                isPinned
-                label={`${user?.name || "Host"}'s Screen`}
-                isHost={isHost}
-              />
-              {camOn && localStream && (
-                <div className="mr-strip">
-                  <LocalStreamTile
-                    stream={localStream}
-                    label={user?.name || "You"}
-                    isHost={isHost}
-                  />
-                </div>
-              )}
-            </div>
-          ) : camOn && localStream ? (
-            /* Browser Media: Camera Active */
-            <div className="mr-grid mr-grid--1">
-              <LocalStreamTile
-                stream={localStream}
-                label={user?.name || "You"}
-                isHost={isHost}
-              />
-            </div>
-          ) : (
-            /* Masterclass Standby Stage */
-            <div className="mr-no-video">
-              <div className="mr-no-video-inner">
-                <div className="mr-waiting-avatar">
-                  {(session?.title || "S")[0].toUpperCase()}
-                </div>
-                <h2>{session?.title || "Interactive Masterclass"}</h2>
-                <p>
-                  {isHost
-                    ? "Welcome to your masterclass room. Turn on your camera or share your screen to begin presenting."
-                    : "You are connected to the live session room. The mentor will begin presenting shortly."}
-                </p>
-                <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "16px" }}>
-                  <button
-                    className="mr-leave-btn"
-                    style={{ background: "var(--mr-primary)", color: "#fff", border: "none", padding: "8px 18px" }}
-                    onClick={toggleCamera}
-                  >
-                    {camOn ? "Turn Off Camera" : "Turn On Camera"}
-                  </button>
-                  <button
-                    className="mr-leave-btn"
-                    style={{ background: "#334155", color: "#fff", border: "none", padding: "8px 18px" }}
-                    onClick={toggleScreen}
-                  >
-                    {screenOn ? "Stop Screen" : "Share Screen"}
-                  </button>
-                </div>
-                <div className="mr-waiting-dots" style={{ marginTop: "24px" }}>
-                  <span /><span /><span />
+          ) : isHost ? (
+            /* CASE 2: MENTOR'S STAGE */
+            screenStream ? (
+              <div className="mr-pinned-area">
+                <LocalStreamTile
+                  stream={screenStream}
+                  isScreen
+                  label="Your Shared Screen"
+                  isHost
+                />
+                {camOn && localStream && (
+                  <div className="mr-strip">
+                    <LocalStreamTile
+                      stream={localStream}
+                      label="Your Camera"
+                      isHost
+                    />
+                  </div>
+                )}
+              </div>
+            ) : camOn && localStream ? (
+              <div className="mr-grid mr-grid--1">
+                <LocalStreamTile
+                  stream={localStream}
+                  label="Your Live Camera"
+                  isHost
+                />
+              </div>
+            ) : (
+              /* Mentor Studio Control Card (When Camera & Screen are off) */
+              <div className="mr-no-video">
+                <div className="mr-studio-card">
+                  <div className="mr-studio-badge">🎯 Mentor Studio Hub</div>
+                  <h2>{session?.title || "Live Masterclass"}</h2>
+                  <p>
+                    You are hosting this session. Students are in <strong>view-only mode</strong> and can only watch, listen, and interact via chat and Q&amp;A.
+                  </p>
+                  <div className="mr-studio-actions">
+                    <button className="mr-studio-btn mr-studio-btn--primary" onClick={toggleCamera}>
+                      📹 Turn On Camera
+                    </button>
+                    <button className="mr-studio-btn mr-studio-btn--secondary" onClick={toggleScreen}>
+                      🖥 Share Screen
+                    </button>
+                    <button className="mr-studio-btn mr-studio-btn--secondary" onClick={toggleMic}>
+                      {micOn ? "🔇 Mute Mic" : "🎙 Unmute Mic"}
+                    </button>
+                  </div>
+                  <div className="mr-studio-note">
+                    {participantCount} attendee{participantCount !== 1 ? "s" : ""} currently in room · Click buttons above to start broadcasting
+                  </div>
                 </div>
               </div>
-            </div>
+            )
+          ) : (
+            /* CASE 3: STUDENT'S STAGE (ATTENDEES JUST WATCH & LISTEN) */
+            remoteMentorStream ? (
+              <RemoteBroadcastPlayer
+                stream={remoteMentorStream}
+                isScreen={remoteMentorStream.getVideoTracks()[0]?.label?.toLowerCase().includes("screen")}
+                mentorName={session?.mentor_name || "Mentor"}
+              />
+            ) : (
+              /* Scaler-style Attendee Waiting Card */
+              <div className="mr-no-video">
+                <div className="mr-attendee-card">
+                  <div className="mr-attendee-avatar">
+                    {(session?.mentor_name || session?.title || "M")[0].toUpperCase()}
+                  </div>
+                  <h2>{session?.title || "Live Masterclass"}</h2>
+                  <div className="mr-attendee-topic">Topic: {session?.topic || "Engineering"}</div>
+                  <p>
+                    Welcome to the masterclass! The mentor is in the room. As soon as the mentor turns on their camera or screen share, the live broadcast will appear right here.
+                  </p>
+                  <div className="mr-attendee-pill">
+                    🎧 Listen-and-view mode · Post questions in Q&amp;A or chat on the right
+                  </div>
+                  <div className="mr-waiting-dots" style={{ marginTop: "20px" }}>
+                    <span /><span /><span />
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
-          {/* Raised hands notification */}
+          {/* Raised hands notification for mentor */}
           {isHost && raisedHands.length > 0 && (
             <div className="mr-raised-hands-bar">
               ✋ Raised hands: {raisedHands.map((h) => h.userName).join(", ")}
@@ -752,7 +970,7 @@ export default function MentorRoom() {
                 {questions.length === 0 && (
                   <div className="mr-chat-empty">
                     <span>🙋</span>
-                    <p>No questions yet. Raise a question for the mentor!</p>
+                    <p>No questions yet. Ask a question for the mentor!</p>
                   </div>
                 )}
                 {questions.map((q) => (
@@ -771,7 +989,7 @@ export default function MentorRoom() {
               <form className="mr-chat-form" onSubmit={sendQuestion}>
                 <input
                   className="mr-chat-input"
-                  placeholder="Ask a question…"
+                  placeholder="Ask the mentor a question…"
                   value={qInput}
                   maxLength={500}
                   onChange={(e) => setQInput(e.target.value)}
