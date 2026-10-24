@@ -14,7 +14,7 @@ const socketOrigin = () => {
   try { return new URL(c).origin; } catch { return window.location.origin; }
 };
 
-/* ── Video Track Tile ──────────────────────────────────────── */
+/* ── Remote Track Tile (LiveKit) ──────────────────────────── */
 function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
   const ref = useRef(null);
 
@@ -26,7 +26,9 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
     if (el instanceof HTMLVideoElement) el.playsInline = true;
     if (el instanceof HTMLAudioElement) el.style.display = "none";
     ref.current.appendChild(el);
-    return () => { track.detach(el); el.remove(); };
+    return () => {
+      try { track.detach(el); el.remove(); } catch {}
+    };
   }, [publication?.track]);
 
   if (publication?.kind === "audio") {
@@ -52,6 +54,41 @@ function TrackTile({ participant, publication, isHost, isPinned, onPin }) {
           {name}
           {isHost && <span className="mr-tile-host-tag">HOST</span>}
           {isScreen && " · Screen"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Local Stream Tile (Native Media Fallback) ─────────────── */
+function LocalStreamTile({ stream, isScreen = false, label = "You", isHost = false, onPin, isPinned = false }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div
+      className={`mr-tile ${isPinned ? "mr-tile--pinned" : ""} ${isScreen ? "mr-tile--screen" : ""}`}
+      onClick={() => onPin && onPin(isScreen ? "screen" : "local")}
+    >
+      <div className="mr-tile-video">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={!isScreen}
+          style={{ transform: !isScreen ? "scaleX(-1)" : "none" }}
+        />
+      </div>
+      <div className="mr-tile-overlay">
+        <span className="mr-tile-name">
+          {label}
+          {isHost && <span className="mr-tile-host-tag">HOST</span>}
+          {isScreen && " · Screen Share"}
         </span>
       </div>
     </div>
@@ -96,6 +133,7 @@ export default function MentorRoom() {
 
   const [room, setRoom] = useState(null);
   const [session, setSession] = useState(null);
+  const [isLiveKitMode, setIsLiveKitMode] = useState(false);
   const [connected, setConnected] = useState(false);
   const [trackRevision, setTrackRevision] = useState(0);
   const [socket, setSocket] = useState(null);
@@ -115,6 +153,10 @@ export default function MentorRoom() {
   const [myHandRaised, setMyHandRaised] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [qInput, setQInput] = useState("");
+  const [peers, setPeers] = useState([]);
+  const [localStream, setLocalStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
+
   const chatBottomRef = useRef(null);
   const elapsedRef = useRef(null);
 
@@ -135,6 +177,14 @@ export default function MentorRoom() {
     return () => clearInterval(elapsedRef.current);
   }, [connected]);
 
+  /* cleanup media tracks */
+  useEffect(() => {
+    return () => {
+      localStream?.getTracks().forEach((t) => t.stop());
+      screenStream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [localStream, screenStream]);
+
   const formatElapsed = (s) => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
@@ -147,7 +197,7 @@ export default function MentorRoom() {
   /* join room */
   useEffect(() => {
     let active = true;
-    let nextRoom;
+    let nextRoom = null;
 
     const join = async () => {
       try {
@@ -155,31 +205,42 @@ export default function MentorRoom() {
         if (!active) return;
         setSession(res.data.session);
 
-        const { Room, RoomEvent } = await import("livekit-client");
-        nextRoom = new Room({ adaptiveStream: true, dynacast: true, stopLocalTrackOnUnpublish: true });
+        if (res.data.url && res.data.token) {
+          setIsLiveKitMode(true);
+          try {
+            const { Room, RoomEvent } = await import("livekit-client");
+            nextRoom = new Room({ adaptiveStream: true, dynacast: true, stopLocalTrackOnUnpublish: true });
 
-        const refresh = () => setTrackRevision((r) => r + 1);
-        [
-          RoomEvent.TrackSubscribed, RoomEvent.TrackUnsubscribed,
-          RoomEvent.TrackPublished, RoomEvent.TrackUnpublished,
-          RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected,
-          RoomEvent.LocalTrackPublished, RoomEvent.LocalTrackUnpublished,
-          RoomEvent.Disconnected,
-        ].forEach((ev) => nextRoom.on(ev, refresh));
+            const refresh = () => setTrackRevision((r) => r + 1);
+            [
+              RoomEvent.TrackSubscribed, RoomEvent.TrackUnsubscribed,
+              RoomEvent.TrackPublished, RoomEvent.TrackUnpublished,
+              RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected,
+              RoomEvent.LocalTrackPublished, RoomEvent.LocalTrackUnpublished,
+              RoomEvent.Disconnected,
+            ].forEach((ev) => nextRoom.on(ev, refresh));
 
-        await nextRoom.connect(res.data.url, res.data.token);
-        if (!active) { nextRoom.disconnect(); return; }
+            await nextRoom.connect(res.data.url, res.data.token);
+            if (!active) { nextRoom.disconnect(); return; }
+            setRoom(nextRoom);
+          } catch (lkErr) {
+            console.warn("LiveKit client connect failed, using browser media:", lkErr.message);
+            setIsLiveKitMode(false);
+          }
+        } else {
+          setIsLiveKitMode(false);
+        }
 
-        setRoom(nextRoom);
         setConnected(true);
         setJoining(false);
 
-        /* socket */
+        /* socket setup */
         const nextSocket = io(socketOrigin(), {
           path: "/mentor-socket.io",
           auth: { token: getAccessToken() },
           transports: ["websocket", "polling"],
         });
+
         nextSocket.on("connect_error", async (err) => {
           if (!/unauthorized|token|jwt|expired/i.test(err.message || "")) return;
           try {
@@ -188,39 +249,61 @@ export default function MentorRoom() {
             nextSocket.disconnect().connect();
           } catch { nextSocket.disconnect(); }
         });
-        nextSocket.on("connect", () =>
+
+        nextSocket.on("connect", () => {
           nextSocket.emit("session:join", { sessionId: id }, (ack) => {
-            if (ack?.error) toast.error(ack.error);
-          })
-        );
+            if (ack?.error) {
+              toast.error(ack.error);
+            } else if (ack?.peers) {
+              setPeers(ack.peers);
+            }
+          });
+        });
+
+        nextSocket.on("session:peer-joined", (data) => {
+          if (data?.peers) setPeers(data.peers);
+          else if (data?.userId) setPeers((prev) => [...prev.filter((p) => p.userId !== data.userId), data]);
+        });
+
+        nextSocket.on("session:peer-left", ({ userId }) => {
+          setPeers((prev) => prev.filter((p) => p.userId !== userId));
+        });
+
         nextSocket.on("session:chat", (item) =>
           setMessages((prev) => [...prev, item])
         );
+
         nextSocket.on("session:poll", (item) =>
           setPolls((prev) => [item, ...prev.filter((p) => p.id !== item.id)])
         );
+
         nextSocket.on("session:poll-results", ({ pollId, results }) =>
           setPolls((prev) => prev.map((p) => (p.id === pollId ? { ...p, results } : p)))
         );
+
         nextSocket.on("session:ended", () => {
           toast.info("The mentor ended this session.");
           navigate("/mentorship");
         });
+
         nextSocket.on("session:hand-raised", ({ userId, userName }) => {
           setRaisedHands((prev) => [...prev.filter((h) => h.userId !== userId), { userId, userName }]);
         });
+
         nextSocket.on("session:hand-lowered", ({ userId }) => {
           setRaisedHands((prev) => prev.filter((h) => h.userId !== userId));
         });
+
         nextSocket.on("session:question", (q) =>
           setQuestions((prev) => [q, ...prev])
         );
+
         setSocket(nextSocket);
 
         /* load history */
         const [msgRes, pollRes] = await Promise.all([
-          api.get(`/mentor/sessions/${id}/messages`),
-          api.get(`/mentor/sessions/${id}/polls`),
+          api.get(`/mentor/sessions/${id}/messages`).catch(() => ({ data: [] })),
+          api.get(`/mentor/sessions/${id}/polls`).catch(() => ({ data: [] })),
         ]);
         if (active) {
           setMessages(msgRes.data || []);
@@ -245,43 +328,114 @@ export default function MentorRoom() {
 
   useEffect(() => () => socket?.disconnect(), [socket]);
 
-  /* participants */
+  /* participants list */
   const participants = useMemo(() => {
-    if (!room) return [];
-    return [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
-      participant: p,
-      tracks: [
-        ...p.videoTrackPublications.values(),
-        ...p.audioTrackPublications.values(),
-      ].filter((pub) => pub.track),
-    }));
-  }, [room, trackRevision]);
+    if (room) {
+      return [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
+        participant: p,
+        tracks: [
+          ...p.videoTrackPublications.values(),
+          ...p.audioTrackPublications.values(),
+        ].filter((pub) => pub.track),
+      }));
+    }
+    return peers;
+  }, [room, trackRevision, peers]);
 
   /* controls */
   const toggleMic = async () => {
     try {
-      const next = !room.localParticipant.isMicrophoneEnabled;
-      await room.localParticipant.setMicrophoneEnabled(next);
-      setMicOn(next);
-      setTrackRevision((r) => r + 1);
-    } catch { toast.error("Microphone permission denied."); }
+      if (room?.localParticipant) {
+        const next = !room.localParticipant.isMicrophoneEnabled;
+        await room.localParticipant.setMicrophoneEnabled(next);
+        setMicOn(next);
+        setTrackRevision((r) => r + 1);
+      } else {
+        if (localStream) {
+          const audioTracks = localStream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            const next = !audioTracks[0].enabled;
+            audioTracks.forEach((t) => (t.enabled = next));
+            setMicOn(next);
+          } else {
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const track = audioStream.getAudioTracks()[0];
+            localStream.addTrack(track);
+            setMicOn(true);
+          }
+        } else {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setLocalStream(stream);
+          setMicOn(true);
+        }
+      }
+    } catch {
+      toast.error("Microphone permission denied or unavailable.");
+    }
   };
+
   const toggleCamera = async () => {
     try {
-      const next = !room.localParticipant.isCameraEnabled;
-      await room.localParticipant.setCameraEnabled(next);
-      setCamOn(next);
-      setTrackRevision((r) => r + 1);
-    } catch { toast.error("Camera permission denied."); }
+      if (room?.localParticipant) {
+        const next = !room.localParticipant.isCameraEnabled;
+        await room.localParticipant.setCameraEnabled(next);
+        setCamOn(next);
+        setTrackRevision((r) => r + 1);
+      } else {
+        if (camOn) {
+          if (localStream) {
+            localStream.getVideoTracks().forEach((t) => t.stop());
+            const remaining = localStream.getAudioTracks();
+            if (remaining.length > 0) {
+              setLocalStream(new MediaStream(remaining));
+            } else {
+              setLocalStream(null);
+            }
+          }
+          setCamOn(false);
+        } else {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: micOn,
+          });
+          setLocalStream(stream);
+          setCamOn(true);
+        }
+      }
+    } catch {
+      toast.error("Camera permission denied or unavailable.");
+    }
   };
+
   const toggleScreen = async () => {
     try {
-      const next = !room.localParticipant.isScreenShareEnabled;
-      await room.localParticipant.setScreenShareEnabled(next);
-      setScreenOn(next);
-      setTrackRevision((r) => r + 1);
-    } catch { toast.error("Screen sharing unavailable."); }
+      if (room?.localParticipant) {
+        const next = !room.localParticipant.isScreenShareEnabled;
+        await room.localParticipant.setScreenShareEnabled(next);
+        setScreenOn(next);
+        setTrackRevision((r) => r + 1);
+      } else {
+        if (screenOn) {
+          if (screenStream) {
+            screenStream.getTracks().forEach((t) => t.stop());
+          }
+          setScreenStream(null);
+          setScreenOn(false);
+        } else {
+          const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          stream.getVideoTracks()[0].onended = () => {
+            setScreenStream(null);
+            setScreenOn(false);
+          };
+          setScreenStream(stream);
+          setScreenOn(true);
+        }
+      }
+    } catch {
+      toast.error("Screen sharing cancelled or unavailable.");
+    }
   };
+
   const sendMessage = (e) => {
     e.preventDefault();
     if (!message.trim() || !socket) return;
@@ -290,6 +444,7 @@ export default function MentorRoom() {
     });
     setMessage("");
   };
+
   const createPoll = async (e) => {
     e.preventDefault();
     try {
@@ -302,6 +457,7 @@ export default function MentorRoom() {
       setSidebarTab("polls");
     } catch (err) { toast.error(err.response?.data?.error || "Could not create poll."); }
   };
+
   const vote = async (poll, optionIndex) => {
     try {
       const res = await api.post(`/mentor/polls/${poll.id}/vote`, { optionIndex });
@@ -312,11 +468,13 @@ export default function MentorRoom() {
       );
     } catch (err) { toast.error(err.response?.data?.error || "Could not vote."); }
   };
+
   const raiseHand = () => {
     const next = !myHandRaised;
     setMyHandRaised(next);
     socket?.emit(next ? "session:raise-hand" : "session:lower-hand", { sessionId: id });
   };
+
   const sendQuestion = (e) => {
     e.preventDefault();
     if (!qInput.trim()) return;
@@ -327,25 +485,28 @@ export default function MentorRoom() {
     setQuestions((prev) => [q, ...prev]);
     setQInput("");
   };
+
   const leave = async (end = false) => {
     if (end && isHost) {
       try { await api.post(`/mentor/sessions/${id}/end`); }
       catch (err) { toast.error(err.response?.data?.error || "Could not end session."); return; }
     }
+    localStream?.getTracks().forEach((t) => t.stop());
+    screenStream?.getTracks().forEach((t) => t.stop());
     room?.disconnect();
     socket?.disconnect();
     navigate("/mentorship");
   };
 
-  /* pinned participant */
-  const pinned = participants.find((p) => p.participant.identity === pinnedId);
-  const others = participants.filter((p) => p.participant.identity !== pinnedId);
-
-  const allVideoTracks = participants.flatMap(({ participant, tracks }) =>
-    tracks
-      .filter((pub) => pub.kind === "video")
-      .map((pub) => ({ participant, publication: pub }))
-  );
+  /* LiveKit video tracks if room is active */
+  const allLiveKitVideoTracks = useMemo(() => {
+    if (!room) return [];
+    return participants.flatMap(({ participant, tracks }) =>
+      (tracks || [])
+        .filter((pub) => pub.kind === "video")
+        .map((pub) => ({ participant, publication: pub }))
+    );
+  }, [room, participants]);
 
   /* ── Loading Screen ──────────────────────────────────────── */
   if (joining) {
@@ -354,11 +515,15 @@ export default function MentorRoom() {
         <div className="mr-loading-card">
           <div className="mr-loading-spinner" />
           <h2>Connecting to session…</h2>
-          <p>Setting up your video room. Please allow camera and microphone access.</p>
+          <p>Setting up your live masterclass room. Initializing audio & video streams.</p>
         </div>
       </div>
     );
   }
+
+  const participantCount = room
+    ? participants.length
+    : Math.max(peers.length, 1);
 
   /* ── Room UI ─────────────────────────────────────────────── */
   return (
@@ -377,34 +542,32 @@ export default function MentorRoom() {
           </div>
         </div>
         <div className="mr-topbar-right">
-          {participants.length > 0 && (
-            <span className="mr-participants-count">
-              👥 {participants.length} participant{participants.length !== 1 ? "s" : ""}
-            </span>
-          )}
+          <span className="mr-participants-count">
+            👥 {participantCount} participant{participantCount !== 1 ? "s" : ""}
+          </span>
           {raisedHands.length > 0 && (
             <span className="mr-raised-count">✋ {raisedHands.length}</span>
           )}
           <button
-            className={`mr-ctrl-btn ${!room ? "mr-ctrl-btn--disabled" : ""}`}
+            className={`mr-ctrl-btn ${micOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
             onClick={toggleMic}
-            disabled={!room}
+            disabled={!connected}
             title={micOn ? "Mute mic" : "Unmute mic"}
           >
             {micOn ? "🎙" : "🔇"}
           </button>
           <button
-            className={`mr-ctrl-btn ${!room ? "mr-ctrl-btn--disabled" : ""}`}
+            className={`mr-ctrl-btn ${camOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
             onClick={toggleCamera}
-            disabled={!room}
+            disabled={!connected}
             title={camOn ? "Turn off camera" : "Turn on camera"}
           >
             {camOn ? "📹" : "📷"}
           </button>
           <button
-            className={`mr-ctrl-btn ${screenOn ? "mr-ctrl-btn--active" : ""} ${!room ? "mr-ctrl-btn--disabled" : ""}`}
+            className={`mr-ctrl-btn ${screenOn ? "mr-ctrl-btn--active" : ""} ${!connected ? "mr-ctrl-btn--disabled" : ""}`}
             onClick={toggleScreen}
-            disabled={!room}
+            disabled={!connected}
             title="Share screen"
           >
             🖥
@@ -433,82 +596,10 @@ export default function MentorRoom() {
       <div className="mr-body">
         {/* ── Stage ────────────────────────────────────────────── */}
         <main className="mr-stage">
-          {/* Pinned / main area */}
-          {pinned ? (
-            <div className="mr-pinned-area">
-              {pinned.tracks
-                .filter((pub) => pub.kind === "video")
-                .map((pub) => (
-                  <TrackTile
-                    key={`${pinned.participant.identity}-${pub.trackSid}`}
-                    participant={pinned.participant}
-                    publication={pub}
-                    isHost={String(pinned.participant.identity) === String(session?.mentorId)}
-                    isPinned
-                    onPin={() => setPinnedId(null)}
-                  />
-                ))}
-              {/* strip of others */}
-              <div className="mr-strip">
-                {others.flatMap(({ participant, tracks }) =>
-                  tracks
-                    .filter((pub) => pub.kind === "video")
-                    .map((pub) => (
-                      <TrackTile
-                        key={`${participant.identity}-${pub.trackSid}`}
-                        participant={participant}
-                        publication={pub}
-                        isHost={String(participant.identity) === String(session?.mentorId)}
-                        onPin={setPinnedId}
-                      />
-                    ))
-                )}
-              </div>
-              {/* audio only tiles */}
-              {participants.flatMap(({ participant, tracks }) =>
-                tracks
-                  .filter((pub) => pub.kind === "audio")
-                  .map((pub) => (
-                    <TrackTile
-                      key={`${participant.identity}-${pub.trackSid}-audio`}
-                      participant={participant}
-                      publication={pub}
-                    />
-                  ))
-              )}
-            </div>
-          ) : allVideoTracks.length === 0 ? (
-            <div className="mr-no-video">
-              <div className="mr-no-video-inner">
-                <div className="mr-waiting-avatar">
-                  {(session?.title || "S")[0].toUpperCase()}
-                </div>
-                <h2>{session?.title}</h2>
-                <p>
-                  {connected
-                    ? "No video streams yet. Turn on your camera or wait for the host to start streaming."
-                    : "Connecting to the video room…"}
-                </p>
-                <div className="mr-waiting-dots">
-                  <span /><span /><span />
-                </div>
-              </div>
-              {/* audio tiles hidden */}
-              {participants.flatMap(({ participant, tracks }) =>
-                tracks
-                  .filter((pub) => pub.kind === "audio")
-                  .map((pub) => (
-                    <TrackTile
-                      key={`${participant.identity}-${pub.trackSid}-audio`}
-                      participant={participant}
-                      publication={pub}
-                    />
-                  ))
-              )}
-            </div>
-          ) : (
-            <div className={`mr-grid mr-grid--${Math.min(allVideoTracks.length, 4)}`}>
-              {allVideoTracks.map(({ participant, publication }) => (
+          {/* LiveKit SFU Mode */}
+          {allLiveKitVideoTracks.length > 0 ? (
+            <div className={`mr-grid mr-grid--${Math.min(allLiveKitVideoTracks.length, 4)}`}>
+              {allLiveKitVideoTracks.map(({ participant, publication }) => (
                 <TrackTile
                   key={`${participant.identity}-${publication.trackSid}`}
                   participant={participant}
@@ -517,18 +608,69 @@ export default function MentorRoom() {
                   onPin={setPinnedId}
                 />
               ))}
-              {/* audio */}
-              {participants.flatMap(({ participant, tracks }) =>
-                tracks
-                  .filter((pub) => pub.kind === "audio")
-                  .map((pub) => (
-                    <TrackTile
-                      key={`${participant.identity}-${pub.trackSid}-audio`}
-                      participant={participant}
-                      publication={pub}
-                    />
-                  ))
+            </div>
+          ) : screenStream ? (
+            /* Browser Media: Screen Sharing Active */
+            <div className="mr-pinned-area">
+              <LocalStreamTile
+                stream={screenStream}
+                isScreen
+                isPinned
+                label={`${user?.name || "Host"}'s Screen`}
+                isHost={isHost}
+              />
+              {camOn && localStream && (
+                <div className="mr-strip">
+                  <LocalStreamTile
+                    stream={localStream}
+                    label={user?.name || "You"}
+                    isHost={isHost}
+                  />
+                </div>
               )}
+            </div>
+          ) : camOn && localStream ? (
+            /* Browser Media: Camera Active */
+            <div className="mr-grid mr-grid--1">
+              <LocalStreamTile
+                stream={localStream}
+                label={user?.name || "You"}
+                isHost={isHost}
+              />
+            </div>
+          ) : (
+            /* Masterclass Standby Stage */
+            <div className="mr-no-video">
+              <div className="mr-no-video-inner">
+                <div className="mr-waiting-avatar">
+                  {(session?.title || "S")[0].toUpperCase()}
+                </div>
+                <h2>{session?.title || "Interactive Masterclass"}</h2>
+                <p>
+                  {isHost
+                    ? "Welcome to your masterclass room. Turn on your camera or share your screen to begin presenting."
+                    : "You are connected to the live session room. The mentor will begin presenting shortly."}
+                </p>
+                <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "16px" }}>
+                  <button
+                    className="mr-leave-btn"
+                    style={{ background: "var(--mr-primary)", color: "#fff", border: "none", padding: "8px 18px" }}
+                    onClick={toggleCamera}
+                  >
+                    {camOn ? "Turn Off Camera" : "Turn On Camera"}
+                  </button>
+                  <button
+                    className="mr-leave-btn"
+                    style={{ background: "#334155", color: "#fff", border: "none", padding: "8px 18px" }}
+                    onClick={toggleScreen}
+                  >
+                    {screenOn ? "Stop Screen" : "Share Screen"}
+                  </button>
+                </div>
+                <div className="mr-waiting-dots" style={{ marginTop: "24px" }}>
+                  <span /><span /><span />
+                </div>
+              </div>
             </div>
           )}
 

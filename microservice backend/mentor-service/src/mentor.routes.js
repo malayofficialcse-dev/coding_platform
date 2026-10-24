@@ -257,7 +257,37 @@ export async function configureRealtime(io) {
     socket.on("session:join", async ({ sessionId } = {}, callback = () => {}) => {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
       socket.join(`session:${sessionId}`);
-      callback({ ok: true });
+      socket.data.sessionId = sessionId;
+      const room = io.sockets.adapter.rooms.get(`session:${sessionId}`);
+      const peers = [];
+      if (room) {
+        for (const id of room) {
+          const s = io.sockets.sockets.get(id);
+          if (s?.user) peers.push({ userId: s.user.id, name: s.user.name, role: s.user.role });
+        }
+      }
+      io.to(`session:${sessionId}`).emit("session:peer-joined", {
+        userId: socket.user.id,
+        name: clean(socket.user.name, 100),
+        role: socket.user.role,
+        peers,
+      });
+      callback({ ok: true, peers });
+    });
+    socket.on("session:signal", ({ sessionId, targetUserId, signal } = {}) => {
+      if (!validUuid(sessionId) || !signal) return;
+      io.to(`session:${sessionId}`).emit("session:signal", {
+        senderId: socket.user.id,
+        targetUserId,
+        signal,
+      });
+    });
+    socket.on("disconnect", () => {
+      if (socket.data?.sessionId) {
+        io.to(`session:${socket.data.sessionId}`).emit("session:peer-left", {
+          userId: socket.user.id,
+        });
+      }
     });
     socket.on("session:raise-hand", async ({ sessionId } = {}, callback = () => {}) => {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
