@@ -8,7 +8,7 @@ import ConnectionBadge from "../components/ConnectionBadge";
 import UsersLogo from "../assets/users-solid-full.svg";
 import UserPlus from "../assets/user-plus-regular-full.svg";
 import UserMinus from "../assets/user-minus-solid-full.svg";
-import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic } from "react-icons/fa";
+import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic, FaChartBar, FaQuestionCircle, FaBookmark, FaTimes } from "react-icons/fa";
 import { formatDateTime } from "../utils/formatDateTime";
 import { executeGraphQL, GraphQLOperationError } from "../graphql/client";
 import { HOME_DASHBOARD_QUERY } from "../graphql/dashboard/documents";
@@ -57,6 +57,11 @@ export default function Dashboard() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [dashboardError, setDashboardError] = useState("");
   const [dashboardRefresh, setDashboardRefresh] = useState(0);
+
+  // Social Feed Tabs & Tag Filtering
+  const [feedTab, setFeedTab] = useState("all"); // "all" | "code" | "poll" | "question" | "saved"
+  const [activeTag, setActiveTag] = useState("");
+
   const { user } = useContext(AuthContext);
   const activeGroup = "General Feed";
 
@@ -88,12 +93,48 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [dashboardRefresh]);
 
-  const handleNewPost = () => {
-    api.get("/posts", { params: { group: activeGroup, page: 1, limit: 20 } }).then((r) => {
-      setPosts(r.data || []);
+  const fetchFilteredPosts = async (tab = feedTab, tag = activeTag) => {
+    setLoadingPosts(true);
+    setDashboardError("");
+    try {
+      const params = {
+        group: activeGroup,
+        page: 1,
+        limit: 20,
+      };
+      if (tab !== "all") params.type = tab;
+      if (tag) params.tag = tag;
+
+      const res = await api.get("/posts", { params });
+      setPosts(res.data || []);
       setPostsPage(1);
-      setHasMorePosts(r.headers["x-has-more"] === "true");
-    });
+      setHasMorePosts(res.headers["x-has-more"] === "true");
+    } catch (err) {
+      console.error("Filter posts error:", err);
+      setDashboardError("Failed to filter posts. Please try again.");
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  const handleTabChange = (newTab) => {
+    setFeedTab(newTab);
+    fetchFilteredPosts(newTab, activeTag);
+  };
+
+  const handleTagSelect = (tag) => {
+    const nextTag = activeTag === tag ? "" : tag;
+    setActiveTag(nextTag);
+    fetchFilteredPosts(feedTab, nextTag);
+  };
+
+  const clearTagFilter = () => {
+    setActiveTag("");
+    fetchFilteredPosts(feedTab, "");
+  };
+
+  const handleNewPost = () => {
+    fetchFilteredPosts(feedTab, activeTag);
     setShowPostModal(false);
   };
 
@@ -101,7 +142,14 @@ export default function Dashboard() {
     const nextPage = postsPage + 1;
     setLoadingPosts(true);
     try {
-      const res = await api.get("/posts", { params: { group: activeGroup, page: nextPage, limit: 20 } });
+      const params = {
+        group: activeGroup,
+        page: nextPage,
+        limit: 20,
+      };
+      if (feedTab !== "all") params.type = feedTab;
+      if (activeTag) params.tag = activeTag;
+      const res = await api.get("/posts", { params });
       setPosts((current) => [...current, ...(res.data || [])]);
       setPostsPage(nextPage);
       setHasMorePosts(res.headers["x-has-more"] === "true");
@@ -113,6 +161,7 @@ export default function Dashboard() {
   const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
   const currentUserId = user?._id || user?.id;
+
 
   const handleFollow = async (id) => {
     if (!user) return;
@@ -221,6 +270,7 @@ export default function Dashboard() {
                 user={user}
                 onUpdate={handleUpdatePost}
                 onDelete={handleDeletePost}
+                onTagClick={handleTagSelect}
                 embedded
               />
             </div>
@@ -234,10 +284,12 @@ export default function Dashboard() {
         user={user}
         onUpdate={handleUpdatePost}
         onDelete={handleDeletePost}
+        onTagClick={handleTagSelect}
         fullWidth={post.codeBlocks?.length > 0 && post.codeBlocks.some((cb) => cb.code?.length > 200)}
       />
     );
   };
+
 
   const DEFAULT_AVA = "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
 
@@ -385,26 +437,26 @@ export default function Dashboard() {
               </div>
 
               {user ? (
-                <div style={{ display: "flex", gap: 8, marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10, flexWrap: "wrap" }}>
                   {[
-                    { label: "Code" },
-                    { label: "Image" },
-                    { label: "Text" },
-                  ].map(({ label }) => (
+                    { label: "Code", icon: <FaCode size={13} /> },
+                    { label: "Poll", icon: <FaChartBar size={13} /> },
+                    { label: "Question", icon: <FaQuestionCircle size={13} /> },
+                    { label: "Image", icon: <FaImage size={13} /> },
+                    { label: "Text", icon: <FaAlignLeft size={13} /> },
+                  ].map(({ label, icon }) => (
                     <button
                       key={label}
                       className="cc-composer-btn"
                       onClick={() => setShowPostModal(true)}
                       style={{
-                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        flex: 1, minWidth: 70, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                         border: `1px solid ${C.border}`, borderRadius: "4px", padding: "0.5rem 0",
                         background: C.white, color: C.inkMuted, fontSize: "0.82rem", fontWeight: 600,
                         cursor: "pointer", transition: "all 0.15s",
                       }}
                     >
-                      {label === "Code" && <FaCode size={13} />}
-                      {label === "Image" && <FaImage size={13} />}
-                      {label === "Text" && <FaAlignLeft size={13} />}
+                      {icon}
                       <span>{label}</span>
                     </button>
                   ))}
@@ -416,8 +468,96 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Feed Filter Navigation Bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: "1rem",
+                overflowX: "auto",
+                paddingBottom: 4,
+              }}
+            >
+              {[
+                { id: "all", label: "🌟 All Feed" },
+                { id: "code", label: "💻 Code Snippets" },
+                { id: "poll", label: "📊 Polls" },
+                { id: "question", label: "❓ Questions" },
+                ...(user ? [{ id: "saved", label: "🔖 Saved Posts" }] : []),
+              ].map(({ id, label }) => {
+                const active = feedTab === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => handleTabChange(id)}
+                    style={{
+                      border: active ? `1.5px solid ${C.primary}` : `1px solid ${C.border}`,
+                      borderRadius: 20,
+                      padding: "6px 14px",
+                      background: active ? C.primaryLight : C.white,
+                      color: active ? C.primary : C.inkMuted,
+                      fontSize: "0.82rem",
+                      fontWeight: active ? 700 : 500,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease",
+                      boxShadow: active ? "0 2px 6px rgba(0, 120, 212, 0.12)" : "none",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Tag Filter Pill */}
+            {activeTag && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: "1rem",
+                  padding: "4px 12px",
+                  borderRadius: 20,
+                  background: C.primaryLight,
+                  color: C.primary,
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  border: `1px solid ${C.primaryMid}`,
+                }}
+              >
+                <span>Filter: #{activeTag}</span>
+                <button
+                  type="button"
+                  onClick={clearTagFilter}
+                  style={{
+                    border: 0,
+                    background: "transparent",
+                    color: C.primary,
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                  title="Clear tag filter"
+                >
+                  <FaTimes size={12} />
+                </button>
+              </div>
+            )}
+
+            {/* Feed Loading Indicator */}
+            {loadingPosts && (
+              <div className="text-center py-2 text-muted small">
+                Loading posts…
+              </div>
+            )}
+
             {/* Feed */}
-            {posts.length === 0 && (
+            {!loadingPosts && posts.length === 0 && (
               <div style={{
                 ...card, textAlign: "center", padding: "3rem 1rem",
                 color: C.inkMuted, fontSize: "0.95rem",

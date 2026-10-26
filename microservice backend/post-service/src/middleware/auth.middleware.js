@@ -40,4 +40,14 @@ export const requirePermission = (module, action = "view") => (req, res, next) =
   });
 };
 
-export default { protect, requireAdmin, requirePermission };
+export const optionalAuth = (req, res, next) => {
+  const match = req.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+  if (match) {
+    const decoded = decodeAccessToken(match[1]);
+    if (decoded) req.user = userFromToken(decoded);
+  }
+  next();
+};
+
+export default { protect, requireAdmin, requirePermission, optionalAuth };
+

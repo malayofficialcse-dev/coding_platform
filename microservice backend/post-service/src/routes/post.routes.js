@@ -16,6 +16,11 @@ import {
   undoRepost,
   updatePost,
   deletePost,
+  reactToPost,
+  votePoll,
+  bookmarkPost,
+  getBookmarkedPosts,
+  executeSnippet,
 } from "../controllers/post.controller.js";
 import {
   addComment,
@@ -29,7 +34,8 @@ import {
   createPostAsAdmin,
   getPostDashboardMetrics,
 } from "../controllers/dashboard.controller.js";
-import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, requirePermission, optionalAuth } from "../middleware/auth.middleware.js";
+
 
 // This module is evaluated before the service entrypoint, so load env values
 // before configuring the Cloudinary client below.
@@ -66,16 +72,23 @@ router.put("/admin/:postId", protect, requirePermission("feed", "edit"), updateA
 
 // Core Post Operations
 router.get("/feed", protect, getFeed);
+router.get("/bookmarks", protect, getBookmarkedPosts);
 router.get("/user/:id", getPostsByUser);
 router.get("/by-user/:id", getPostsByUser);
-router.get("/", getAllPosts);
+router.get("/", optionalAuth, getAllPosts);
 router.post("/", protect, upload.array("images", 5), createPost);
 router.put("/:id", protect, upload.array("images", 5), updatePost);
 router.delete("/:id", protect, deletePost);
 
-// Post Engagements
+// Snippet Runner
+router.post("/execute-snippet", executeSnippet);
+
+// Post Engagements & Reactions
 router.post("/like/:id", protect, likePost);
 router.post("/unlike/:id", protect, unlikePost);
+router.post("/react/:id", protect, reactToPost);
+router.post("/poll/:id/vote", protect, votePoll);
+router.post("/bookmark/:id", protect, bookmarkPost);
 router.post("/repost/:id", protect, repost);
 router.delete("/repost/:id", protect, undoRepost);
 
@@ -87,4 +100,5 @@ router.delete("/:postId/comments/:commentId", protect, deleteComment);
 router.delete("/comment/:postId/:commentId", protect, deleteComment);
 
 export default router;
+
 
