@@ -59,7 +59,29 @@ export default function TakeExam() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get(`/exams/${examId}`);
+        const [res, attemptsRes] = await Promise.all([
+          api.get(`/exams/${examId}`),
+          api.get("/attempts/my").catch(() => ({ data: [] })),
+        ]);
+
+        const myAttempt = (attemptsRes.data || []).find(
+          (a) => String(a.exam?._id || a.exam?.id || a.exam) === String(examId)
+        );
+
+        if (res.data.alreadyGiven || myAttempt) {
+          const attemptId = myAttempt?._id || myAttempt?.id || res.data.myAttempt?._id || res.data.myAttempt?.id;
+          alert("You have already given this exam. You cannot take the same exam again.");
+          try {
+            localStorage.removeItem(sessionKey);
+          } catch (_) {}
+          if (attemptId) {
+            nav(`/result/${attemptId}?examId=${examId}`);
+          } else {
+            nav("/exams");
+          }
+          return;
+        }
+
         setExam(res.data);
 
         // Restore local storage session if exists

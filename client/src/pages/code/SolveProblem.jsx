@@ -796,16 +796,38 @@ export function SolveProblem() {
                           </span>
                         )}
                       </div>
-                      {(currentActiveResult.result === "Accepted" || currentActiveResult.overallVerdict === "Accepted") && (
+                      {(currentActiveResult.result === "Accepted" || currentActiveResult.overallVerdict === "Accepted") ? (
                         <div className="sp-accepted-banner">
-                          🎉 All test cases passed!
+                          🎉 All test cases passed! Solution submitted successfully.
                           {nextProblem && (
                             <button className="sp-next-btn" onClick={() => navigate(`/coding/problems/${nextProblem._id}`)}>
                               Next Problem →
                             </button>
                           )}
                         </div>
-                      )}
+                      ) : submitResult ? (
+                        <div
+                          className="sp-rejected-banner"
+                          style={{
+                            background: "rgba(239, 68, 68, 0.12)",
+                            border: "1px solid rgba(239, 68, 68, 0.35)",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            color: "#f87171",
+                            fontSize: "13px",
+                            marginTop: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          <FaTimesCircle style={{ color: "#ef4444", fontSize: 16, flexShrink: 0 }} />
+                          <span>
+                            {submitResult.message || "Submission not accepted: Code has errors or failed test cases. Fix the code to submit."}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Compile Error */}

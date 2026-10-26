@@ -573,42 +573,52 @@ export const submitCode = async (req, res) => {
       if (percent > maxPlagiarism) maxPlagiarism = percent;
     }
 
-    // Save submission
-    const submissionDoc = new CodingSubmission({
-      user: userId,
-      problem: id,
-      code,
-      language: langKey,
-      result: overallVerdict,
-      passedCount,
-      totalCount: allTestCases.length,
-      plagiarism: maxPlagiarism,
-      logicScore: logicAnalysis.logicScore,
-      logicDetails: logicAnalysis,
-      details: results.map(r => ({
-        index: r.index,
-        input: r.input,
-        expectedOutput: r.expectedOutput,
-        userOutput: r.actualOutput,
-        status: r.verdict,
-        visible: r.visible,
-      })),
-    });
-    const savedSubmission = await submissionDoc.save();
+    const isAccepted = overallVerdict === "Accepted";
+    let savedSubmission = null;
+
+    // Only take / save the submission into the database if the code is correct (Accepted)
+    if (isAccepted) {
+      const submissionDoc = new CodingSubmission({
+        user: userId,
+        problem: id,
+        code,
+        language: langKey,
+        result: overallVerdict,
+        passedCount,
+        totalCount: allTestCases.length,
+        plagiarism: maxPlagiarism,
+        logicScore: logicAnalysis.logicScore,
+        logicDetails: logicAnalysis,
+        details: results.map(r => ({
+          index: r.index,
+          input: r.input,
+          expectedOutput: r.expectedOutput,
+          userOutput: r.actualOutput,
+          status: r.verdict,
+          visible: r.visible,
+        })),
+      });
+      savedSubmission = await submissionDoc.save();
+    }
 
     res.json({
       mode: "submit",
       result: overallVerdict,
+      accepted: isAccepted,
+      submissionRecorded: Boolean(savedSubmission),
       passedCount,
       totalCount: allTestCases.length,
       compileError: compileError || null,
       firstFailure,
       plagiarism: maxPlagiarism,
       results,
-      submissionId: savedSubmission._id,
+      submissionId: savedSubmission ? savedSubmission._id : null,
       language: langKey,
       logicScore: logicAnalysis.logicScore,
       logicAnalysis,
+      message: isAccepted
+        ? "Solution accepted and submission recorded!"
+        : "Submission rejected: Code is incorrect. All test cases must pass to accept a submission.",
     });
   } catch (err) {
     console.error("[Submit Code Error]:", err);

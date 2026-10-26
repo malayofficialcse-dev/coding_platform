@@ -9,11 +9,34 @@ export const getAllExams = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
+    const userId = req.user?._id || req.user?.id;
+    let attemptMap = new Map();
+    if (userId) {
+      const userAttempts = await Attempt.findAll({
+        where: { user: String(userId) },
+      });
+      userAttempts.forEach((a) => {
+        attemptMap.set(String(a.exam), a);
+      });
+    }
+
     // Strip answers from questions for client
     const sanitized = exams.map((exam) => {
       const obj = exam.toObject();
+      const questionCount = Array.isArray(obj.questions) ? obj.questions.length : 0;
       if (Array.isArray(obj.questions)) {
         obj.questions = obj.questions.map(({ answer, ...rest }) => rest);
+      }
+      const myAttempt = attemptMap.get(String(exam.id));
+      obj.alreadyGiven = Boolean(myAttempt);
+      if (myAttempt) {
+        obj.myAttempt = {
+          _id: myAttempt.id,
+          id: myAttempt.id,
+          score: myAttempt.score,
+          total: questionCount,
+          createdAt: myAttempt.createdAt,
+        };
       }
       return obj;
     });
@@ -29,6 +52,29 @@ export const getExamById = async (req, res) => {
     const exam = await Exam.findByPk(req.params.id);
     if (!exam) return res.status(404).json({ error: "Exam not found" });
     const result = exam.toObject();
+
+    const userId = req.user?._id || req.user?.id;
+    if (userId) {
+      const existing = await Attempt.findOne({
+        where: {
+          exam: String(req.params.id),
+          user: String(userId),
+        },
+      });
+      if (existing) {
+        result.alreadyGiven = true;
+        result.myAttempt = {
+          _id: existing.id,
+          id: existing.id,
+          score: existing.score,
+          total: Array.isArray(result.questions) ? result.questions.length : 0,
+          createdAt: existing.createdAt,
+        };
+      } else {
+        result.alreadyGiven = false;
+      }
+    }
+
     // Admin edit screens need the answer key; student exam sessions must never receive it.
     if (!req.baseUrl.includes("/admin/")) {
       result.questions = (result.questions || []).map(({ answer, ...question }) => question);

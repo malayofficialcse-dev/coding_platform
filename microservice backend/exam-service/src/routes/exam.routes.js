@@ -8,13 +8,13 @@ import {
   getExamAnalytics,
   getOverallExamAnalytics,
 } from "../controllers/exam.controller.js";
-import { protect, requireAdmin, requirePermission } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, requirePermission, optionalAuth } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.get("/overview/analytics", getOverallExamAnalytics);
-router.get("/", getAllExams);
-router.get("/:id", getExamById);
+router.get("/", optionalAuth, getAllExams);
+router.get("/:id", optionalAuth, getExamById);
 router.get("/:examId/analytics", getExamAnalytics);
 
 router.post("/", protect, requirePermission("exams", "create"), createExam);

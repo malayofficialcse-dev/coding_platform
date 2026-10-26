@@ -22,6 +22,17 @@ export const protect = (req, res, next) => {
   next();
 };
 
+export const optionalAuth = (req, res, next) => {
+  const match = req.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+  if (match) {
+    const decoded = decodeAccessToken(match[1]);
+    if (decoded) {
+      req.user = userFromToken(decoded);
+    }
+  }
+  next();
+};
+
 export const requireAdmin = (req, res, next) => {
   if (!req.user || !["admin", "super_admin"].includes(req.user.role)) {
     return res.status(403).json({ error: "Forbidden: Admin privileges required." });

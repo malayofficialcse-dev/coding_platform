@@ -245,6 +245,64 @@
   color: #fff !important;
 }
 
+.exl-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.exl-badge-given {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.exl-pill-score {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.exl-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exl-action-btn-view {
+  background: #f1f5f9 !important;
+  color: #0078d4 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.exl-action-btn-view:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #005a9e !important;
+}
+
+.exl-action-btn-given {
+  background: #e2e8f0 !important;
+  color: #64748b !important;
+  border-color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+  opacity: 0.9 !important;
+}
+
+.exl-card--given {
+  border-color: #bbf7d0;
+}
+
 /* ── Empty State ─────────────────────────────────────────────────────────── */
 .exl-empty-card {
   grid-column: 1 / -1;
@@ -342,4 +400,32 @@
   background: rgba(251, 191, 36, 0.15) !important;
   color: #fbbf24 !important;
   border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+[data-theme="dark"] .exl-badge-given {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+[data-theme="dark"] .exl-pill-score {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+}
+
+[data-theme="dark"] .exl-action-btn-view {
+  background: rgba(0, 120, 212, 0.15) !important;
+  color: #60a5fa !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+}
+
+[data-theme="dark"] .exl-action-btn-given {
+  background: rgba(51, 65, 85, 0.6) !important;
+  color: #94a3b8 !important;
+  border-color: rgba(71, 85, 105, 0.6) !important;
+}
+
+[data-theme="dark"] .exl-card--given {
+  border-color: rgba(34, 197, 94, 0.3) !important;
 }
