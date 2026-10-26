@@ -289,6 +289,20 @@ export const setApprovedMentorRole = async (req, res) => {
     if (!user || user.role === "super_admin") return res.status(404).json({ message: "Account not found." });
     user.role = req.body.role;
     await user.save();
+
+    // Synchronize role change to user_db as well
+    try {
+      const { Sequelize } = await import("sequelize");
+      const userDbUrl = process.env.USER_DATABASE_URL || "postgresql://postgres:malay21@127.0.0.1:5432/user_db";
+      const uSeq = new Sequelize(userDbUrl, { dialect: "postgres", logging: false });
+      await uSeq.query('UPDATE "users" SET role = :role, "updatedAt" = now() WHERE id = :id', {
+        replacements: { role: req.body.role, id: user.id }
+      });
+      await uSeq.close();
+    } catch (uErr) {
+      console.warn("[Auth Service] Sync to user_db notice:", uErr.message);
+    }
+
     res.json({ id: user.id, role: user.role });
   } catch (error) {
     res.status(500).json({ message: "Could not update mentor access." });

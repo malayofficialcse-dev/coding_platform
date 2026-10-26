@@ -48,17 +48,25 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || [
   "http://192.168.1.5:5173",
   "http://172.28.32.1:5173",
   "http://localhost:5173",
+  "http://localhost:5174",
   "https://code-campus-malay1.onrender.com",
   "https://code-campus-htg4.vercel.app",
 ].join(",")).split(",").map((origin) => origin.trim()).filter(Boolean);
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  return false;
+};
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Origin not allowed."));
+        callback(null, false);
       }
     },
     credentials: true,

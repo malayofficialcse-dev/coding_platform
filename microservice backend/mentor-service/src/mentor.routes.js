@@ -132,7 +132,12 @@ export function createMentorRouter(io) {
 
   router.post("/sessions/:id/join-token", asyncRoute(async (req, res) => {
     if (!validUuid(req.params.id)) return res.status(400).json({ error: "Invalid session id." });
-    const session = (await pool.query("SELECT * FROM mentor_sessions WHERE id=$1", [req.params.id])).rows[0];
+    const session = (await pool.query(`
+      SELECT s.*, COALESCE(u.name, 'Mentor') AS mentor_name
+      FROM mentor_sessions s
+      LEFT JOIN mentor_applications u ON u.user_id = s.mentor_id
+      WHERE s.id = $1
+    `, [req.params.id])).rows[0];
     if (!session || session.status === "cancelled" || session.status === "ended") return res.status(404).json({ error: "Session is unavailable." });
     if (session.mentor_id !== req.user.id && !await isMember(session.id, req.user.id)) return res.status(403).json({ error: "Enroll in this session before joining." });
     const isHost = session.mentor_id === req.user.id;
@@ -154,7 +159,7 @@ export function createMentorRouter(io) {
         url: null,
         token: null,
         mode: "browser_media",
-        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id }
+        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id, mentor_name: session.mentor_name }
       });
     }
 
@@ -166,14 +171,14 @@ export function createMentorRouter(io) {
         { identity: req.user.id, name: clean(req.user.name, 100), ttl: "15m" });
       accessToken.addGrant({ roomJoin: true, room: session.room_name, canPublish, canSubscribe: true, canPublishData: false });
       const token = await accessToken.toJwt();
-      res.json({ url: process.env.LIVEKIT_URL, token, mode: "livekit", session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id } });
+      res.json({ url: process.env.LIVEKIT_URL, token, mode: "livekit", session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id, mentor_name: session.mentor_name } });
     } catch (error) {
       console.warn("LiveKit room service unavailable, falling back to browser media:", error.message);
       res.json({
         url: null,
         token: null,
         mode: "browser_media",
-        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id }
+        session: { id: session.id, title: session.title, topic: session.topic, format: session.format, mentorId: session.mentor_id, mentor_name: session.mentor_name }
       });
     }
   }));

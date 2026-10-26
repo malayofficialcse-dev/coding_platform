@@ -19,7 +19,12 @@ const { createMentorRouter, configureRealtime } = await import("./mentor.routes.
 const app = express();
 const server = http.createServer(app);
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:3000").split(",").map((origin) => origin.trim());
-const originPolicy = (origin, callback) => !origin || allowedOrigins.includes(origin) ? callback(null, true) : callback(new Error("Origin not allowed"));
+const originPolicy = (origin, callback) => {
+  if (!origin || allowedOrigins.includes(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return callback(null, true);
+  }
+  return callback(null, false);
+};
 const io = new Server(server, { path: "/mentor-socket.io", cors: { origin: originPolicy, credentials: true }, maxHttpBufferSize: 1e6 });
 const handleLiveKitWebhook = async (req, res) => {
   if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return res.sendStatus(503);

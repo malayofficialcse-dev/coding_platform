@@ -102,21 +102,75 @@ function LocalStreamTile({ stream, isScreen = false, label = "You", isHost = fal
 /* ── Remote Broadcast Player (For Students) ────────────────── */
 function RemoteBroadcastPlayer({ stream, isScreen = false, mentorName = "Mentor" }) {
   const videoRef = useRef(null);
+  const [playBlocked, setPlayBlocked] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+      videoRef.current.play().then(() => {
+        setPlayBlocked(false);
+      }).catch((err) => {
+        console.warn("[WebRTC] Autoplay blocked, awaiting user click:", err);
+        setPlayBlocked(true);
+      });
     }
   }, [stream]);
 
+  const handleStartPlayback = () => {
+    if (videoRef.current) {
+      videoRef.current.play().then(() => setPlayBlocked(false)).catch(console.error);
+    }
+  };
+
   return (
-    <div className="mr-broadcast-stage">
-      <div className="mr-broadcast-badge">
-        <span className="mr-live-dot" />
-        {mentorName} · {isScreen ? "Screen Sharing" : "Live Camera"}
+    <div className="mr-tile mr-tile--screen mr-tile--pinned" style={{ width: "100%", height: "100%", flex: 1, minHeight: 0, position: "relative" }}>
+      <div className="mr-tile-video" style={{ width: "100%", height: "100%", position: "relative" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          controls={false}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: isScreen ? "contain" : "cover",
+            display: "block",
+            background: "#090d16",
+          }}
+        />
+        {playBlocked && (
+          <div
+            onClick={handleStartPlayback}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.88)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              zIndex: 10,
+              gap: "12px",
+            }}
+          >
+            <button
+              className="mr-studio-btn mr-studio-btn--primary"
+              style={{ padding: "12px 24px", fontSize: "14px", fontWeight: "700" }}
+            >
+              ▶ Click to Watch Live Broadcast
+            </button>
+            <span style={{ color: "#94a3b8", fontSize: "12px" }}>Browser blocked audio autoplay</span>
+          </div>
+        )}
       </div>
-      <div className="mr-broadcast-video-wrap">
-        <video ref={videoRef} autoPlay playsInline />
+      <div className="mr-tile-overlay">
+        <span className="mr-tile-name">
+          <span className="mr-live-dot" />
+          {mentorName}
+          <span className="mr-tile-host-tag">MENTOR</span>
+          {isScreen ? " · Screen Sharing" : " · Live Camera"}
+        </span>
       </div>
     </div>
   );
@@ -184,6 +238,15 @@ export default function MentorRoom() {
   const [localStream, setLocalStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
   const [remoteMentorStream, setRemoteMentorStream] = useState(null);
+  const [remoteIsScreen, setRemoteIsScreen] = useState(false);
+
+  const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const isHostRef = useRef(false);
+  const userRef = useRef(user);
+  const socketRef = useRef(null);
+  const peersRef = useRef([]);
+  const iceCandidateQueueRef = useRef(new Map());
 
   const chatBottomRef = useRef(null);
   const elapsedRef = useRef(null);
@@ -201,6 +264,18 @@ export default function MentorRoom() {
     );
   }, [session, user]);
 
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    peersRef.current = peers;
+  }, [peers]);
+
   /* Auto-scroll chat */
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -216,11 +291,13 @@ export default function MentorRoom() {
   /* Clean up local media tracks */
   useEffect(() => {
     return () => {
-      localStream?.getTracks().forEach((t) => t.stop());
-      screenStream?.getTracks().forEach((t) => t.stop());
-      mentorPeerConnectionsRef.current.forEach((pc) => pc.close());
+      localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      mentorPeerConnectionsRef.current.forEach((pc) => {
+        try { pc.close(); } catch (_) {}
+      });
       mentorPeerConnectionsRef.current.clear();
-      studentPcRef.current?.close();
+      try { studentPcRef.current?.close(); } catch (_) {}
     };
   }, []);
 
@@ -235,22 +312,31 @@ export default function MentorRoom() {
 
   /* Helper to get active broadcast stream for mentor */
   const getActiveMentorStream = () => {
-    if (screenStream) return screenStream;
-    if (localStream) return localStream;
-    return null;
+    return screenStreamRef.current || localStreamRef.current || null;
   };
 
   /* Send mentor offer to a specific student */
-  const sendOfferToStudent = async (studentId, sock) => {
-    if (!isHost || !sock) return;
-    const stream = getActiveMentorStream();
-    if (!stream) return;
+  const sendOfferToStudent = async (studentId, sock, explicitStream = null) => {
+    const stream = explicitStream || getActiveMentorStream();
+    if (!sock || !studentId || !stream) {
+      console.log("[WebRTC Mentor] Cannot send offer - missing sock, studentId, or stream:", { studentId, hasStream: Boolean(stream) });
+      return;
+    }
 
     try {
+      console.log(`[WebRTC Mentor] Initiating offer to student ${studentId}...`);
+      if (mentorPeerConnectionsRef.current.has(studentId)) {
+        try { mentorPeerConnectionsRef.current.get(studentId)?.close(); } catch (_) {}
+        mentorPeerConnectionsRef.current.delete(studentId);
+      }
+
       const pc = new RTCPeerConnection(RTC_CONFIG);
       mentorPeerConnectionsRef.current.set(studentId, pc);
+      iceCandidateQueueRef.current.set(studentId, []);
 
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -262,14 +348,25 @@ export default function MentorRoom() {
         }
       };
 
+      pc.onconnectionstatechange = () => {
+        console.log(`[WebRTC Mentor -> Student ${studentId}] connectionState:`, pc.connectionState);
+      };
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+
+      const isScreen = Boolean(screenStreamRef.current && (stream === screenStreamRef.current));
 
       sock.emit("session:signal", {
         sessionId: id,
         targetUserId: studentId,
-        signal: { type: "offer", sdp: pc.localDescription },
+        signal: {
+          type: "offer",
+          sdp: pc.localDescription,
+          isScreen,
+        },
       });
+      console.log(`[WebRTC Mentor] Offer successfully sent to student ${studentId} (isScreen: ${isScreen})`);
     } catch (err) {
       console.warn("Could not initiate WebRTC offer to student:", err);
     }
@@ -277,15 +374,27 @@ export default function MentorRoom() {
 
   /* Push tracks to all connected students when mentor changes media */
   const broadcastTracksToAllStudents = (stream) => {
-    if (!isHost || !socket) return;
-    mentorPeerConnectionsRef.current.forEach((pc) => pc.close());
+    const sock = socketRef.current;
+    if (!isHostRef.current || !sock) return;
+
+    mentorPeerConnectionsRef.current.forEach((pc) => {
+      try { pc.close(); } catch (_) {}
+    });
     mentorPeerConnectionsRef.current.clear();
 
-    if (!stream) return;
-    peers.forEach((peer) => {
+    if (!stream) {
+      sock.emit("session:signal", {
+        sessionId: id,
+        signal: { type: "stream-ended" },
+      });
+      return;
+    }
+
+    const myId = String(userRef.current?.id || userRef.current?._id || "");
+    peersRef.current.forEach((peer) => {
       const peerId = peer.userId || peer.id;
-      if (peerId && String(peerId) !== String(user?.id || user?._id)) {
-        sendOfferToStudent(peerId, socket);
+      if (peerId && String(peerId) !== myId) {
+        sendOfferToStudent(peerId, sock, stream);
       }
     });
   };
@@ -299,7 +408,14 @@ export default function MentorRoom() {
       try {
         const res = await api.post(`/mentor/sessions/${id}/join-token`);
         if (!active) return;
-        setSession(res.data.session);
+        const sess = res.data.session;
+        setSession(sess);
+
+        const currentUserId = String(userRef.current?.id || userRef.current?._id || "");
+        const mentorId = String(sess?.mentorId || sess?.mentor_id || "");
+        if (currentUserId && mentorId && currentUserId === mentorId) {
+          isHostRef.current = true;
+        }
 
         /* LiveKit cloud mode if credentials returned */
         if (res.data.url && res.data.token) {
@@ -333,6 +449,7 @@ export default function MentorRoom() {
           auth: { token: getAccessToken() },
           transports: ["websocket", "polling"],
         });
+        socketRef.current = nextSocket;
 
         nextSocket.on("connect_error", async (err) => {
           if (!/unauthorized|token|jwt|expired/i.test(err.message || "")) return;
@@ -349,30 +466,47 @@ export default function MentorRoom() {
               toast.error(ack.error);
             } else if (ack?.peers) {
               setPeers(ack.peers);
+              peersRef.current = ack.peers;
             }
           });
           /* If student, request stream from mentor */
-          const myId = String(user?.id || user?._id || "");
-          const hostId = String(res.data.session?.mentorId || "");
+          const myId = String(userRef.current?.id || userRef.current?._id || "");
+          const hostId = String(sess?.mentorId || sess?.mentor_id || "");
           if (myId !== hostId) {
             nextSocket.emit("session:request-stream", { sessionId: id });
           }
         });
 
         nextSocket.on("session:peer-joined", (data) => {
-          if (data?.peers) setPeers(data.peers);
-          else if (data?.userId) setPeers((prev) => [...prev.filter((p) => p.userId !== data.userId), data]);
+          if (data?.peers) {
+            setPeers(data.peers);
+            peersRef.current = data.peers;
+          } else if (data?.userId) {
+            setPeers((prev) => {
+              const updated = [...prev.filter((p) => p.userId !== data.userId), data];
+              peersRef.current = updated;
+              return updated;
+            });
+          }
 
           /* If we are the mentor and already broadcasting, push stream to this newly joined student */
-          const myId = String(user?.id || user?._id || "");
-          const hostId = String(res.data.session?.mentorId || "");
-          if (myId === hostId && data?.userId && data.userId !== myId) {
-            sendOfferToStudent(data.userId, nextSocket);
+          if (isHostRef.current && data?.userId) {
+            const myId = String(userRef.current?.id || userRef.current?._id || "");
+            if (String(data.userId) !== myId) {
+              const activeStream = getActiveMentorStream();
+              if (activeStream) {
+                sendOfferToStudent(data.userId, nextSocket, activeStream);
+              }
+            }
           }
         });
 
         nextSocket.on("session:peer-left", ({ userId }) => {
-          setPeers((prev) => prev.filter((p) => p.userId !== userId));
+          setPeers((prev) => {
+            const updated = prev.filter((p) => p.userId !== userId);
+            peersRef.current = updated;
+            return updated;
+          });
           if (mentorPeerConnectionsRef.current.has(userId)) {
             mentorPeerConnectionsRef.current.get(userId)?.close();
             mentorPeerConnectionsRef.current.delete(userId);
@@ -381,28 +515,50 @@ export default function MentorRoom() {
 
         /* Handle incoming student stream requests on mentor */
         nextSocket.on("session:request-stream", ({ studentId }) => {
-          const myId = String(user?.id || user?._id || "");
-          const hostId = String(res.data.session?.mentorId || "");
-          if (myId === hostId && studentId && studentId !== myId) {
-            sendOfferToStudent(studentId, nextSocket);
+          if (isHostRef.current && studentId) {
+            const myId = String(userRef.current?.id || userRef.current?._id || "");
+            if (String(studentId) !== myId) {
+              const activeStream = getActiveMentorStream();
+              if (activeStream) {
+                sendOfferToStudent(studentId, nextSocket, activeStream);
+              }
+            }
           }
         });
 
         /* Handle WebRTC signaling */
         nextSocket.on("session:signal", async ({ senderId, targetUserId, signal }) => {
-          const myId = String(user?.id || user?._id || "");
-          if (targetUserId && targetUserId !== myId) return;
+          const myId = String(userRef.current?.id || userRef.current?._id || "");
+          if (targetUserId && String(targetUserId) !== myId) return;
+
+          /* Stream ended signal (mentor turned off broadcast) */
+          if (signal?.type === "stream-ended") {
+            if (!isHostRef.current) {
+              setRemoteMentorStream(null);
+              setRemoteIsScreen(false);
+              try { studentPcRef.current?.close(); } catch (_) {}
+              studentPcRef.current = null;
+            }
+            return;
+          }
 
           /* Student receives offer from mentor */
           if (signal?.type === "offer") {
             try {
-              studentPcRef.current?.close();
+              console.log("[WebRTC Student] Received offer from mentor:", senderId);
+              if (studentPcRef.current) {
+                try { studentPcRef.current.close(); } catch (_) {}
+              }
+
               const pc = new RTCPeerConnection(RTC_CONFIG);
               studentPcRef.current = pc;
+              iceCandidateQueueRef.current.set("student", []);
 
               pc.ontrack = (event) => {
+                console.log("[WebRTC Student] ontrack event received:", event.streams);
                 if (event.streams && event.streams[0]) {
                   setRemoteMentorStream(event.streams[0]);
+                  setRemoteIsScreen(Boolean(signal.isScreen));
                 }
               };
 
@@ -416,7 +572,23 @@ export default function MentorRoom() {
                 }
               };
 
+              pc.onconnectionstatechange = () => {
+                console.log("[WebRTC Student] connectionState:", pc.connectionState);
+              };
+
               await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+
+              // Flush queued candidates
+              const queue = iceCandidateQueueRef.current.get("student") || [];
+              for (const cand of queue) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(cand));
+                } catch (e) {
+                  console.warn("Could not add queued candidate:", e);
+                }
+              }
+              iceCandidateQueueRef.current.set("student", null);
+
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
@@ -425,9 +597,11 @@ export default function MentorRoom() {
                 targetUserId: senderId,
                 signal: { type: "answer", sdp: pc.localDescription },
               });
+              console.log("[WebRTC Student] Answer sent to mentor");
             } catch (err) {
               console.warn("Student WebRTC answer failed:", err);
             }
+            return;
           }
 
           /* Mentor receives answer from student */
@@ -435,20 +609,43 @@ export default function MentorRoom() {
             const pc = mentorPeerConnectionsRef.current.get(senderId);
             if (pc) {
               try {
+                console.log("[WebRTC Mentor] Received answer from student:", senderId);
                 await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+
+                const queue = iceCandidateQueueRef.current.get(senderId) || [];
+                for (const cand of queue) {
+                  try {
+                    await pc.addIceCandidate(new RTCIceCandidate(cand));
+                  } catch (e) {
+                    console.warn("Could not add queued candidate on mentor:", e);
+                  }
+                }
+                iceCandidateQueueRef.current.set(senderId, null);
               } catch (err) {
                 console.warn("Mentor could not set remote description:", err);
               }
             }
+            return;
           }
 
           /* ICE candidates */
           if (signal?.type === "candidate") {
-            const pc = isHost ? mentorPeerConnectionsRef.current.get(senderId) : studentPcRef.current;
+            const isMentor = isHostRef.current;
+            const pc = isMentor ? mentorPeerConnectionsRef.current.get(senderId) : studentPcRef.current;
+            const queueKey = isMentor ? senderId : "student";
             if (pc && signal.candidate) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-              } catch (e) { void e; }
+              if (pc.remoteDescription && pc.remoteDescription.type) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                } catch (e) {
+                  console.warn("Could not add ICE candidate:", e);
+                }
+              } else {
+                const queue = iceCandidateQueueRef.current.get(queueKey);
+                if (Array.isArray(queue)) {
+                  queue.push(signal.candidate);
+                }
+              }
             }
           }
         });
@@ -536,8 +733,8 @@ export default function MentorRoom() {
         setMicOn(next);
         setTrackRevision((r) => r + 1);
       } else {
-        if (localStream) {
-          const audioTracks = localStream.getAudioTracks();
+        if (localStreamRef.current) {
+          const audioTracks = localStreamRef.current.getAudioTracks();
           if (audioTracks.length > 0) {
             const next = !audioTracks[0].enabled;
             audioTracks.forEach((t) => (t.enabled = next));
@@ -545,15 +742,16 @@ export default function MentorRoom() {
           } else {
             const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const track = audioStream.getAudioTracks()[0];
-            localStream.addTrack(track);
+            localStreamRef.current.addTrack(track);
             setMicOn(true);
-            broadcastTracksToAllStudents(localStream);
+            broadcastTracksToAllStudents(screenStreamRef.current || localStreamRef.current);
           }
         } else {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          localStreamRef.current = stream;
           setLocalStream(stream);
           setMicOn(true);
-          broadcastTracksToAllStudents(stream);
+          broadcastTracksToAllStudents(screenStreamRef.current || stream);
         }
       }
     } catch {
@@ -571,12 +769,13 @@ export default function MentorRoom() {
         setTrackRevision((r) => r + 1);
       } else {
         if (camOn) {
-          if (localStream) {
-            localStream.getVideoTracks().forEach((t) => t.stop());
-            const remaining = localStream.getAudioTracks();
+          if (localStreamRef.current) {
+            localStreamRef.current.getVideoTracks().forEach((t) => t.stop());
+            const remaining = localStreamRef.current.getAudioTracks();
             const nextStream = remaining.length > 0 ? new MediaStream(remaining) : null;
+            localStreamRef.current = nextStream;
             setLocalStream(nextStream);
-            broadcastTracksToAllStudents(screenStream || nextStream);
+            broadcastTracksToAllStudents(screenStreamRef.current || nextStream);
           }
           setCamOn(false);
         } else {
@@ -584,9 +783,10 @@ export default function MentorRoom() {
             video: { width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: micOn,
           });
+          localStreamRef.current = stream;
           setLocalStream(stream);
           setCamOn(true);
-          broadcastTracksToAllStudents(screenStream || stream);
+          broadcastTracksToAllStudents(screenStreamRef.current || stream);
         }
       }
     } catch {
@@ -604,19 +804,27 @@ export default function MentorRoom() {
         setTrackRevision((r) => r + 1);
       } else {
         if (screenOn) {
-          if (screenStream) {
-            screenStream.getTracks().forEach((t) => t.stop());
+          if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach((t) => t.stop());
           }
+          screenStreamRef.current = null;
           setScreenStream(null);
           setScreenOn(false);
-          broadcastTracksToAllStudents(camOn ? localStream : null);
+          const fallback = camOn ? localStreamRef.current : null;
+          broadcastTracksToAllStudents(fallback);
         } else {
           const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
           stream.getVideoTracks()[0].onended = () => {
+            if (screenStreamRef.current) {
+              screenStreamRef.current.getTracks().forEach((t) => t.stop());
+            }
+            screenStreamRef.current = null;
             setScreenStream(null);
             setScreenOn(false);
-            broadcastTracksToAllStudents(camOn ? localStream : null);
+            const fallback = camOn ? localStreamRef.current : null;
+            broadcastTracksToAllStudents(fallback);
           };
+          screenStreamRef.current = stream;
           setScreenStream(stream);
           setScreenOn(true);
           broadcastTracksToAllStudents(stream);
@@ -684,8 +892,13 @@ export default function MentorRoom() {
       try { await api.post(`/mentor/sessions/${id}/end`); }
       catch (err) { toast.error(err.response?.data?.error || "Could not end session."); return; }
     }
-    localStream?.getTracks().forEach((t) => t.stop());
-    screenStream?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mentorPeerConnectionsRef.current.forEach((pc) => {
+      try { pc.close(); } catch (_) {}
+    });
+    mentorPeerConnectionsRef.current.clear();
+    try { studentPcRef.current?.close(); } catch (_) {}
     room?.disconnect();
     socket?.disconnect();
     navigate("/mentorship");
@@ -866,7 +1079,7 @@ export default function MentorRoom() {
             remoteMentorStream ? (
               <RemoteBroadcastPlayer
                 stream={remoteMentorStream}
-                isScreen={remoteMentorStream.getVideoTracks()[0]?.label?.toLowerCase().includes("screen")}
+                isScreen={remoteIsScreen || Boolean(remoteMentorStream.getVideoTracks()[0]?.label?.toLowerCase().includes("screen"))}
                 mentorName={session?.mentor_name || "Mentor"}
               />
             ) : (

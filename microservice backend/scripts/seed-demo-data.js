@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 import AuthUser from "../auth-service/src/models/User.js";
+import UserProfile from "../user-service/src/models/User.js";
 import Course from "../course-service/src/models/Course.js";
 import Enrollment from "../enrollment-service/src/models/Enrollment.js";
 import Exam from "../exam-service/src/models/Exam.js";
@@ -140,11 +141,10 @@ const postTexts = [
 ];
 
 function stableId(namespace, index) {
-  const hex = createHash("sha256")
+  return createHash("sha256")
     .update(`code-campus-demo:${namespace}:${index}`)
     .digest("hex")
     .slice(0, 24);
-  return new authMongoose.Types.ObjectId(hex);
 }
 
 function daysAgo(days) {
@@ -486,75 +486,112 @@ function makeMessages() {
   }));
 }
 
+function mongoIdToUuid(mongoId) {
+  const hash = createHash("md5").update(String(mongoId)).digest("hex");
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    "4" + hash.substring(13, 16),
+    "8" + hash.substring(17, 20),
+    hash.substring(20, 32),
+  ].join("-");
+}
+
 async function upsertDemoRecords(Model, records) {
-  const operations = records.map((record) => ({
-    updateOne: {
-      filter: { _id: record._id },
-      update: { $setOnInsert: record },
-      upsert: true,
-    },
-  }));
-  const result = await Model.bulkWrite(operations, {
-    ordered: true,
-    timestamps: false,
-  });
-  return {
-    inserted: result.upsertedCount || 0,
-    alreadySeeded: result.matchedCount || 0,
-  };
+  if (typeof Model.bulkWrite === "function") {
+    const toId = (val) => {
+      if (typeof val === "string" && /^[0-9a-fA-F]{24}$/.test(val) && Model.base?.Types?.ObjectId?.createFromHexString) {
+        return Model.base.Types.ObjectId.createFromHexString(val);
+      }
+      return val;
+    };
+
+    const operations = records.map((record) => {
+      const rec = { ...record };
+      if (rec._id) rec._id = toId(rec._id);
+      if (rec.author) rec.author = toId(rec.author);
+      if (rec.createdBy) rec.createdBy = toId(rec.createdBy);
+      if (rec.user) rec.user = toId(rec.user);
+      if (rec.problem) rec.problem = toId(rec.problem);
+      if (rec.course) rec.course = toId(rec.course);
+      if (rec.post) rec.post = toId(rec.post);
+
+      return {
+        updateOne: {
+          filter: { _id: rec._id },
+          update: { $setOnInsert: rec },
+          upsert: true,
+        },
+      };
+    });
+    const result = await Model.bulkWrite(operations, {
+      ordered: false,
+      timestamps: false,
+    });
+    return {
+      inserted: result.upsertedCount || 0,
+      alreadySeeded: result.matchedCount || 0,
+    };
+  } else {
+    // Sequelize PostgreSQL model
+    let inserted = 0;
+    let alreadySeeded = 0;
+    for (const record of records) {
+      const recordCopy = { ...record };
+      const rawId = recordCopy._id || recordCopy.id;
+      const uuid = rawId ? mongoIdToUuid(rawId) : undefined;
+      if (uuid) recordCopy.id = uuid;
+      delete recordCopy._id;
+
+      if (recordCopy.user) recordCopy.user = mongoIdToUuid(recordCopy.user);
+      if (recordCopy.author) recordCopy.author = mongoIdToUuid(recordCopy.author);
+      if (recordCopy.exam) recordCopy.exam = mongoIdToUuid(recordCopy.exam);
+      if (recordCopy.course) recordCopy.course = String(recordCopy.course);
+      if (recordCopy.problem) recordCopy.problem = String(recordCopy.problem);
+      if (recordCopy.createdBy) recordCopy.createdBy = mongoIdToUuid(recordCopy.createdBy);
+
+      try {
+        const [inst, created] = await Model.findOrCreate({
+          where: { id: recordCopy.id },
+          defaults: recordCopy,
+        });
+        if (created) inserted++;
+        else alreadySeeded++;
+      } catch {
+        alreadySeeded++;
+      }
+    }
+    return { inserted, alreadySeeded };
+  }
 }
 
 async function main() {
-  const parsedUri = new URL(mongoUri);
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(parsedUri.hostname) && !allowRemote) {
+  let isRemote = false;
+  try {
+    const parsedUri = new URL(mongoUri);
+    const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+    isRemote = !localHosts.has(parsedUri.hostname);
+  } catch {
+    isRemote = !mongoUri.includes("localhost") && !mongoUri.includes("127.0.0.1") && !mongoUri.includes("::1");
+  }
+
+  if (isRemote && !allowRemote) {
     throw new Error(
       "Refusing to seed a remote database. Use --allow-remote only if this is an intentional demo database.",
     );
   }
 
-  const serviceConnections = [
-    {
-      name: "auth",
-      require: createRequire(new URL("../auth-service/package.json", import.meta.url)),
-    },
-    {
-      name: "course",
-      require: createRequire(new URL("../course-service/package.json", import.meta.url)),
-    },
-    {
-      name: "enrollment",
-      require: createRequire(new URL("../enrollment-service/package.json", import.meta.url)),
-    },
-    {
-      name: "exam",
-      require: createRequire(new URL("../exam-service/package.json", import.meta.url)),
-    },
-    {
-      name: "coding",
-      require: createRequire(new URL("../coding-service/package.json", import.meta.url)),
-    },
-    {
-      name: "post",
-      require: createRequire(new URL("../post-service/package.json", import.meta.url)),
-    },
-    {
-      name: "notification",
-      require: createRequire(new URL("../notification-service/package.json", import.meta.url)),
-    },
-    {
-      name: "chat",
-      require: createRequire(new URL("../chat-service/package.json", import.meta.url)),
-    },
-  ].map(({ name, require }) => ({ name, mongoose: require("mongoose") }));
+  const mongoServiceNames = ["course", "coding", "post", "notification", "chat"];
+  const serviceConnections = mongoServiceNames.map((name) => ({
+    name,
+    require: createRequire(new URL(`../${name}-service/package.json`, import.meta.url)),
+  })).map(({ name, require }) => ({ name, mongoose: require("mongoose") }));
 
-  console.log(
-    `Connecting to ${parsedUri.hostname}/${parsedUri.pathname.replace(/^\//, "") || "default database"}...`,
-  );
+  console.log("Connecting to MongoDB Atlas cluster for Mongoose services...");
   await Promise.all(
     serviceConnections.map(({ mongoose }) =>
       mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 8000,
         maxPoolSize: 5,
       }),
     ),
@@ -570,20 +607,21 @@ async function main() {
     const comments = makeComments();
 
     const collections = [
-      ["users", AuthUser, users],
-      ["courses", Course, courses],
-      ["enrollments", Enrollment, makeEnrollments()],
-      ["exams", Exam, exams],
-      ["exam attempts", Attempt, makeAttempts()],
-      ["coding problems", CodingProblem, problems],
-      ["coding submissions", CodingSubmission, makeSubmissions()],
-      ["posts", Post, posts],
-      ["comments", Comment, comments],
-      ["notifications", Notification, makeNotifications()],
-      ["messages", Message, makeMessages()],
+      ["users (auth_db)", AuthUser, users],
+      ["user profiles (user_db)", UserProfile, users],
+      ["courses (MongoDB)", Course, courses],
+      ["enrollments (enrollment_db)", Enrollment, makeEnrollments()],
+      ["exams (exam_db)", Exam, exams],
+      ["exam attempts (exam_db)", Attempt, makeAttempts()],
+      ["coding problems (MongoDB)", CodingProblem, problems],
+      ["coding submissions (coding_db)", CodingSubmission, makeSubmissions()],
+      ["posts (MongoDB)", Post, posts],
+      ["comments (MongoDB)", Comment, comments],
+      ["notifications (MongoDB)", Notification, makeNotifications()],
+      ["messages (MongoDB)", Message, makeMessages()],
     ];
 
-    console.log("Adding 20 stable demo records to each collection:");
+    console.log("Adding 20 stable demo records to each collection/table:");
     for (const [label, Model, records] of collections) {
       const result = await upsertDemoRecords(Model, records);
       console.log(
