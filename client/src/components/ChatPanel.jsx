@@ -6,6 +6,8 @@ import CloseIcon from "../assets/circle-xmark-solid-full.svg";
 import PaperPlane from "../assets/paper-plane-solid-full.svg";
 import ImageLogo from "../assets/images-regular-full.svg";
 import ChatBox from "../assets/chat2.jpg";
+import { FiPhone, FiVideo } from "react-icons/fi";
+import CallModal from "./CallModal";
 
 const formatChatTime = (value) => {
   if (!value) return "";
@@ -40,6 +42,7 @@ export default function ChatPanel({ user }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingChat, setLoadingChat] = useState(false);
+  const [activeCall, setActiveCall] = useState(null);
 
   const fileInputRef = useRef(null);
   const selectedRef = useRef(null);
@@ -181,11 +184,22 @@ export default function ChatPanel({ user }) {
       }
     };
 
+    const handleIncomingCall = (payload) => {
+      console.log("[ChatPanel] Incoming call received:", payload);
+      setActiveCall({
+        status: "incoming",
+        targetUser: payload.callerInfo || { id: payload.callerId, _id: payload.callerId, name: "Someone" },
+        callType: payload.callType || "video",
+        isCaller: false,
+      });
+    };
+
     // Register handlers safely
     try {
       s.on("getOnlineUsers", handleOnline);
       s.on("userLastSeen", handleLastSeen);
       s.on("newMessage", handleNewMessage);
+      s.on("call:incoming", handleIncomingCall);
       s.on("connect", requestOnlineUsers);
       if (s.connected) requestOnlineUsers();
     } catch (e) {
@@ -237,6 +251,7 @@ export default function ChatPanel({ user }) {
           sock.off && sock.off("getOnlineUsers", handleOnline);
           sock.off && sock.off("userLastSeen", handleLastSeen);
           sock.off && sock.off("newMessage", handleNewMessage);
+          sock.off && sock.off("call:incoming", handleIncomingCall);
           sock.off && sock.off("connect", requestOnlineUsers);
         } catch (e) {
           console.warn("Unable to remove chat socket listeners:", e);
@@ -246,6 +261,41 @@ export default function ChatPanel({ user }) {
     };
     // Keep the socket lifecycle tied to the stable user ID, not the auth object identity.
   }, [currentUserId, updateConversationFromMessage]);
+
+  /* -------------------------------
+     START CALL (VOICE / VIDEO)
+  --------------------------------*/
+  const startCall = (callType = "video") => {
+    const sel = selectedRef.current;
+    if (!sel) return;
+    const targetUserId = String(sel._id || sel.id);
+    const sock = socketRef.current;
+    if (!sock) {
+      alert("Chat service connection is initializing. Please wait a second.");
+      return;
+    }
+
+    const callerInfo = {
+      id: currentUserId,
+      _id: currentUserId,
+      name: user?.name || user?.username || "Code Campus User",
+      username: user?.username || "",
+      profileImage: user?.profileImage || "",
+    };
+
+    sock.emit("call:initiate", {
+      targetUserId,
+      callType,
+      callerInfo,
+    });
+
+    setActiveCall({
+      status: "outgoing",
+      targetUser: sel,
+      callType,
+      isCaller: true,
+    });
+  };
 
   /* -------------------------------
      OPEN CHAT
@@ -547,19 +597,40 @@ export default function ChatPanel({ user }) {
                   </span>
                 </div>
 
-                <button
-                  onClick={closeChat}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    border: "1px solid var(--cc-border)",
-                    background: "var(--cc-surface-muted)",
-                    cursor: "pointer",
-                    color: "var(--cc-text)",
-                  }}
-                >
-                  <img src={CloseIcon} style={{ width: 18 }} alt="close" />
-                </button>
+                <div className="cc-chat-header-actions">
+                  <button
+                    className="cc-chat-call-btn cc-chat-call-btn--voice"
+                    onClick={() => startCall("audio")}
+                    title={`Voice Call ${selected.name || selected.username || ""}`}
+                    disabled={Boolean(activeCall)}
+                  >
+                    <FiPhone size={17} />
+                  </button>
+
+                  <button
+                    className="cc-chat-call-btn cc-chat-call-btn--video"
+                    onClick={() => startCall("video")}
+                    title={`Video Call ${selected.name || selected.username || ""}`}
+                    disabled={Boolean(activeCall)}
+                  >
+                    <FiVideo size={18} />
+                  </button>
+
+                  <button
+                    onClick={closeChat}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      border: "1px solid var(--cc-border)",
+                      background: "var(--cc-surface-muted)",
+                      cursor: "pointer",
+                      color: "var(--cc-text)",
+                    }}
+                    title="Close Chat"
+                  >
+                    <img src={CloseIcon} style={{ width: 18 }} alt="close" />
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -730,6 +801,16 @@ export default function ChatPanel({ user }) {
             </div>
           )}
         </main>
+      )}
+
+      {/* CALL MODAL (P2P WEBRTC AUDIO & VIDEO CALLS) */}
+      {activeCall && (
+        <CallModal
+          user={user}
+          socket={socketRef.current}
+          activeCall={activeCall}
+          onCloseCall={() => setActiveCall(null)}
+        />
       )}
     </div>
   );

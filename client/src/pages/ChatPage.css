@@ -151,6 +151,52 @@
   background: #fff !important;
 }
 
+.cc-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-chat-call-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--cc-border, #d6dbe1) !important;
+  background: var(--cc-surface-muted, #f8fafc) !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cc-chat-call-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.cc-chat-call-btn--voice {
+  color: #16a34a !important;
+}
+.cc-chat-call-btn--voice:hover:not(:disabled) {
+  background: #dcfce7 !important;
+  border-color: #22c55e !important;
+}
+
+.cc-chat-call-btn--video {
+  color: #0284c7 !important;
+}
+.cc-chat-call-btn--video:hover:not(:disabled) {
+  background: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+}
+
+.cc-chat-call-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .cc-chat-messages {
   padding: 18px !important;
   background: #f4f6f8 !important;
