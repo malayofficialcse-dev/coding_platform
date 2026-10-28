@@ -68,7 +68,7 @@ const getRefreshTokenFromRequest = (req) => {
   return cookie ? cookie.slice(REFRESH_COOKIE_NAME.length + 1) : "";
 };
 
-const serializeUser = (user) => ({
+export const serializeUser = (user) => ({
   id: user.id,
   _id: user.id,
   name: user.name,
@@ -82,9 +82,10 @@ const serializeUser = (user) => ({
   bannerImage: user.bannerImage,
   permissions: user.permissions || {},
   isActive: user.isActive,
+  authProvider: user.authProvider || "local",
 });
 
-const generateAccessToken = (user) => {
+export const generateAccessToken = (user) => {
   const userId = user.id || user._id;
   return jwt.sign(
     {
@@ -141,7 +142,7 @@ export const validateAuthConfiguration = () => {
   getCookieOptions();
 };
 
-const createSession = async (user, req, res) => {
+export const createSession = async (user, req, res) => {
   const now = Date.now();
   const idleExpiry = now + getTtlDays("REFRESH_TOKEN_IDLE_DAYS", 7, 30) * DAY_MS;
   const absoluteExpiry = now + getTtlDays("REFRESH_TOKEN_ABSOLUTE_DAYS", 30, 90) * DAY_MS;
@@ -171,7 +172,7 @@ const revokeUserRefreshSessions = async (userId) => {
   );
 };
 
-const DEFAULT_PERMISSIONS = {
+export const DEFAULT_PERMISSIONS = {
   admin: {
     exams: { create: true, edit: true, delete: true, view: true },
     courses: { create: true, edit: true, delete: true, view: true },

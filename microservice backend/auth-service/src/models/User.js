@@ -63,7 +63,21 @@ User.init(
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
+    },
+    googleId: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: true,
+    },
+    githubId: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: true,
+    },
+    authProvider: {
+      type: DataTypes.STRING,
+      defaultValue: "local",
     },
     role: {
       type: DataTypes.STRING,
@@ -111,6 +125,8 @@ User.init(
     indexes: [
       { unique: true, fields: ["email"] },
       { unique: true, fields: ["username"] },
+      { unique: true, fields: ["googleId"] },
+      { unique: true, fields: ["githubId"] },
     ],
   }
 );

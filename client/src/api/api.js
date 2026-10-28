@@ -2,13 +2,15 @@ import axios from "axios";
 import { clearAccessToken, getAccessToken, setAccessToken } from "./accessToken";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "");
-const apiBaseUrl = configuredApiUrl
+export const apiBaseUrl = configuredApiUrl
   ? configuredApiUrl.endsWith("/v1")
     ? configuredApiUrl
     : configuredApiUrl.endsWith("/api")
       ? `${configuredApiUrl.slice(0, -4)}/v1`
       : `${configuredApiUrl}/v1`
   : "/v1";
+
+export const getOAuthUrl = (provider) => `${apiBaseUrl}/auth/${provider}`;
 
 const api = axios.create({
   baseURL: apiBaseUrl,

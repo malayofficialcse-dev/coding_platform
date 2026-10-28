@@ -6,6 +6,13 @@ import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
 import { register, login, me, changePassword, updateProfileImage, updateBannerImage, verifyToken, setApprovedMentorRole, refreshSession, logout, logoutAll } from "../controllers/auth.controller.js";
+import {
+  initiateGoogleAuth,
+  handleGoogleCallback,
+  handleGoogleCredential,
+  initiateGitHubAuth,
+  handleGitHubCallback,
+} from "../controllers/oauth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
 dotenv.config({
@@ -44,5 +51,12 @@ router.post("/profile-image", protect, upload.single("profileImage"), updateProf
 router.post("/banner-image", protect, upload.single("bannerImage"), updateBannerImage);
 router.post("/update-profile-image", protect, upload.single("image"), updateProfileImage);
 router.get("/verify", verifyToken);
+
+// ── OAuth Routes ───────────────────────────────────────────────────────────
+router.get("/google", initiateGoogleAuth);
+router.get("/google/callback", handleGoogleCallback);
+router.post("/google/credential", handleGoogleCredential);
+router.get("/github", initiateGitHubAuth);
+router.get("/github/callback", handleGitHubCallback);
 
 export default router;

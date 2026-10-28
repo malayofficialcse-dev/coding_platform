@@ -154,6 +154,10 @@ Reference-style flowcharts:
 
 <p align="center"><a href="diagrams/Chat%20Realtime%20Calling%20-%20Flowchart.png"><img src="diagrams/Chat%20Realtime%20Calling%20-%20Flowchart.png" alt="Realtime calling reference-style flowchart" width="100%"></a></p>
 
+### OAuth social login flow
+
+<p align="center"><a href="diagrams/OAuth%20Social%20Login%20Flow.png"><img src="diagrams/OAuth%20Social%20Login%20Flow.png" alt="Google and GitHub OAuth social login flow" width="100%"></a></p>
+
 ### Mentor Service
 
 Covers mentor applications and admin review, role approval through Auth

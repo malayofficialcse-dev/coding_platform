@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2200" viewBox="0 0 1800 2200">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0f172a"/><stop offset="1" stop-color="#111827"/></linearGradient><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0L9 4L0 8z" fill="#94a3b8"/></marker><marker id="d" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0L9 4L0 8z" fill="#10b981"/></marker><style>.node{fill:#1e293b;stroke-width:3}.ft{font:600 18px Arial;fill:#f8fafc}.title{font:700 30px Arial;fill:#f8fafc}.sub{font:700 20px Arial;fill:#cbd5e1}.edge{stroke:#94a3b8;stroke-width:2.5;fill:none;marker-end:url(#a)}.dash{stroke:#10b981;stroke-width:2.5;stroke-dasharray:8 7;fill:none;marker-end:url(#d)}.edgeText{font:600 15px Arial;fill:#cbd5e1}</style></defs>
+<rect width="1800" height="2200" fill="url(#bg)"/>
+<text x="70" y="65" class="title">OAuth Social Login — Google / GitHub</text><text x="70" y="98" class="sub">Authorization Code flow with CSRF state, short-lived JWT access token, and refresh-session cookie</text>
+<!-- architectural boundaries -->
+<rect x="45" y="130" width="420" height="195" rx="18" fill="#172033" stroke="#38bdf8" stroke-width="2"/><text x="70" y="165" class="sub" fill="#38bdf8">CLIENT · React Vite</text>
+<rect x="515" y="130" width="400" height="195" rx="18" fill="#211a35" stroke="#a855f7" stroke-width="2"/><text x="540" y="165" class="sub" fill="#a855f7">GATEWAY · :5000</text>
+<rect x="965" y="130" width="390" height="195" rx="18" fill="#302416" stroke="#f59e0b" stroke-width="2"/><text x="990" y="165" class="sub" fill="#f59e0b">PROVIDER</text>
+<rect x="1405" y="130" width="350" height="195" rx="18" fill="#211a35" stroke="#a855f7" stroke-width="2"/><text x="1430" y="165" class="sub" fill="#a855f7">AUTH SERVICE · :5001</text>
+
+<g text-anchor="middle" class="ft">
+<rect class="node" x="80" y="205" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="248">User on /login or /signup</text>
+<rect class="node" x="555" y="205" width="320" height="70" rx="14" stroke="#a855f7"/><text x="715" y="248">Gateway routes /v1/auth/*</text>
+<rect class="node" x="1000" y="205" width="320" height="70" rx="14" stroke="#f59e0b"/><text x="1160" y="248">OAuth consent &amp; login</text>
+<rect class="node" x="1435" y="205" width="290" height="70" rx="14" stroke="#a855f7"/><text x="1580" y="248">Generate state token</text>
+
+<rect class="node" x="80" y="390" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="433">Continue with Google / GitHub</text>
+<rect class="node" x="555" y="390" width="320" height="70" rx="14" stroke="#a855f7"/><text x="715" y="433">Proxy provider redirect</text>
+<rect class="node" x="1000" y="390" width="320" height="70" rx="14" stroke="#f59e0b"/><text x="1160" y="433">User approves?</text>
+<rect class="node" x="1435" y="390" width="290" height="70" rx="14" stroke="#a855f7"/><text x="1580" y="433">Redirect to provider</text>
+
+<rect class="node" x="80" y="575" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="618">/oauth-callback?token=ACCESS_TOKEN</text>
+<rect class="node" x="555" y="575" width="320" height="70" rx="14" stroke="#a855f7"/><text x="715" y="618">Proxy callback with code/state</text>
+<rect class="node" x="1000" y="575" width="320" height="70" rx="14" stroke="#f59e0b"/><text x="1160" y="618">Return error if No</text>
+<rect class="node" x="1435" y="575" width="290" height="70" rx="14" stroke="#a855f7"/><text x="1580" y="618">Verify state token</text>
+
+<rect class="node" x="1000" y="760" width="320" height="70" rx="14" stroke="#f59e0b"/><text x="1160" y="803">Validate code + secret</text>
+<rect class="node" x="1435" y="760" width="290" height="70" rx="14" stroke="#a855f7"/><text x="1580" y="803">Provider callback</text>
+<rect class="node" x="1000" y="945" width="320" height="70" rx="14" stroke="#f59e0b"/><text x="1160" y="988">Provider token + profile</text>
+<rect class="node" x="1435" y="945" width="290" height="70" rx="14" stroke="#a855f7"/><text x="1580" y="988">User exists?</text>
+
+<rect class="node" x="80" y="760" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="803">Extract access token from URL</text>
+<rect class="node" x="80" y="945" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="988">history.replaceState()</text>
+<rect class="node" x="80" y="1130" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="1173">GET /users/profile + Bearer token</text>
+<rect class="node" x="80" y="1315" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="1358">AuthContext.login(token, user)</text>
+<rect class="node" x="80" y="1500" width="350" height="70" rx="14" stroke="#38bdf8"/><text x="255" y="1543">Navigate to Dashboard /</text>
+
+<rect class="node" x="1030" y="1130" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1180" y="1173">New user?</text>
+<rect class="node" x="610" y="1315" width="300" height="70" rx="14" stroke="#a855f7"/><text x="760" y="1358">Create student user</text>
+<rect class="node" x="1030" y="1315" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1180" y="1358">Fetch existing user</text>
+<rect class="node" x="1410" y="1315" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1560" y="1358">Link providerId</text>
+<rect class="node" x="1030" y="1500" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1180" y="1543">Prepare user record</text>
+<rect class="node" x="610" y="1685" width="300" height="70" rx="14" stroke="#a855f7"/><text x="760" y="1728">Sign JWT accessToken · 10m</text>
+<rect class="node" x="1030" y="1685" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1180" y="1728">Generate refresh secret</text>
+<rect class="node" x="1410" y="1685" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1560" y="1728">302 redirect to callback</text>
+<rect class="node" x="1030" y="1870" width="300" height="70" rx="14" stroke="#a855f7"/><text x="1180" y="1913">HttpOnly + Secure cookie</text>
+<rect class="node" x="610" y="1870" width="300" height="70" rx="14" stroke="#38bdf8"/><text x="760" y="1913">Profile response</text>
+</g>
+<!-- database boundary -->
+<rect x="45" y="1660" width="420" height="370" rx="18" fill="#102a22" stroke="#10b981" stroke-width="2"/><text x="70" y="1695" class="sub" fill="#10b981">POSTGRESQL DATABASE</text>
+<g text-anchor="middle" class="ft"><rect x="90" y="1740" width="330" height="80" rx="18" fill="#1e293b" stroke="#10b981" stroke-width="3"/><text x="255" y="1788">users table</text><rect x="90" y="1870" width="330" height="80" rx="18" fill="#1e293b" stroke="#10b981" stroke-width="3"/><text x="255" y="1918">refresh_sessions table</text></g>
+<!-- edges -->
+<g class="edge">
+<path d="M255 275V390"/><path d="M430 425H555"/><path d="M875 425H1000"/><path d="M1320 425H1435"/><path d="M1435 240H1320"/><path d="M1160 460V575"/><path d="M1435 610H1320V760"/><path d="M1580 645V760"/><path d="M1160 830V945"/><path d="M1320 980H1435"/><path d="M1580 1015V1130"/>
+<path d="M1435 980H1330V1130"/><path d="M1030 1165H910V1315"/><path d="M1030 1165H910V1315"/><path d="M1030 1165H910V1315"/><path d="M1030 1165H910V1315"/>
+<path d="M1030 1165H760V1315"/><path d="M1030 1165H1180V1315"/><path d="M1030 1165H1560V1315"/><path d="M760 1385V1500H1030"/><path d="M1180 1385V1500"/><path d="M1560 1385V1500H1180"/><path d="M1180 1570V1685H1180"/><path d="M1180 1570V1620H760V1685"/><path d="M760 1755V1870"/><path d="M1180 1755V1870"/><path d="M1330 1720H1410"/><path d="M1560 1755V1870H1330"/>
+<path d="M255 645V760"/><path d="M255 830V945"/><path d="M255 1015V1130"/><path d="M255 1200V1315"/><path d="M255 1385V1500"/><path d="M610 1350H430V1780"/><path d="M1030 1350H420V1780"/><path d="M1410 1350H420V1780"/><path d="M1180 1755V1870"/>
+</g>
+<g class="dash"><path d="M1435 980H420V1780"/><path d="M760 1755V1870"/><path d="M1180 1755V1870"/></g>
+<g class="edgeText"><text x="1340" y="445">Yes</text><text x="1180" y="545">No → error</text><text x="1370" y="1115">No / by providerId</text><text x="950" y="1295">Yes</text><text x="1490" y="1295">By email</text><text x="470" y="1760">INSERT / UPDATE</text><text x="1220" y="1835">Set-Cookie</text></g>
+</svg>

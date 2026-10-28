@@ -54,6 +54,20 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    googleId: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: true,
+    },
+    githubId: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: true,
+    },
+    authProvider: {
+      type: DataTypes.STRING,
+      defaultValue: "local",
+    },
     role: {
       type: DataTypes.STRING,
       defaultValue: "student",

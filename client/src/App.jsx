@@ -9,6 +9,7 @@ import PrivateRoute from "./components/PrivateRoute";
 const Dashboard      = lazy(() => import("./pages/Dashboard"));
 const Login          = lazy(() => import("./pages/auth/Login"));
 const Signup         = lazy(() => import("./pages/auth/Signup"));
+const OAuthCallback  = lazy(() => import("./pages/auth/OAuthCallback"));
 const Unauthorized   = lazy(() => import("./pages/auth/Unauthorized"));
 const Profile        = lazy(() => import("./pages/Profile"));
 const ExamList       = lazy(() => import("./pages/exams/ExamList"));
@@ -77,6 +78,7 @@ function App() {
               <Route path="/about"   element={<AboutPage />} />
               <Route path="/login"   element={<Login />} />
               <Route path="/signup"  element={<Signup />} />
+              <Route path="/oauth-callback" element={<OAuthCallback />} />
               <Route path="/unauthorized" element={<PrivateRoute><Unauthorized /></PrivateRoute>} />
 
               {/* ── Authenticated ── */}

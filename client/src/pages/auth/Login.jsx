@@ -4,6 +4,7 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "./AuthLayout";
+import OAuthButtons from "./OAuthButtons";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -85,6 +86,9 @@ export default function Login() {
             {loading ? "Logging in..." : "Sign in"}
           </button>
         </form>
+
+        <OAuthButtons actionText="Sign in" />
+
         <p className="cc-auth-switch">
           Don&apos;t have an account? <Link to="/signup">Create one</Link>
         </p>

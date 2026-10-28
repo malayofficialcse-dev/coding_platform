@@ -4,6 +4,7 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "./AuthLayout";
+import OAuthButtons from "./OAuthButtons";
 
 export default function Signup() {
   const [form, setForm] = useState({ name: "", email: "", password: "", college: "", degree: "", accountType: "student", expertise: "", experienceYears: 0, bio: "" });
@@ -120,6 +121,9 @@ export default function Signup() {
             {loading ? "Creating account…" : form.accountType === "mentor" ? "Create account and apply" : "Create student account"}
           </button>
         </form>
+
+        <OAuthButtons actionText="Sign up" />
+
         <p className="cc-auth-switch">Already have an account? <Link to="/login">Sign in</Link></p>
       </div>
     </AuthLayout>
