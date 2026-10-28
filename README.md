@@ -142,6 +142,18 @@ delivery with Redis support.
 
 <p align="center"><a href="diagrams/Chat%20Service.png"><img src="diagrams/Chat%20Service.png" alt="Chat Service messaging and realtime delivery diagram" width="700"></a></p>
 
+Detailed implementation diagrams:
+
+<p align="center"><a href="diagrams/Chat%20Messaging%20Service%20-%20Detailed%20Flow.png"><img src="diagrams/Chat%20Messaging%20Service%20-%20Detailed%20Flow.png" alt="Detailed Chat Messaging Service message lifecycle" width="100%"></a></p>
+
+<p align="center"><a href="diagrams/Chat%20Realtime%20Calling%20-%20Detailed%20Flow.png"><img src="diagrams/Chat%20Realtime%20Calling%20-%20Detailed%20Flow.png" alt="Detailed realtime calling Socket.IO and WebRTC flow" width="100%"></a></p>
+
+Reference-style flowcharts:
+
+<p align="center"><a href="diagrams/Chat%20Messaging%20Service%20-%20Flowchart.png"><img src="diagrams/Chat%20Messaging%20Service%20-%20Flowchart.png" alt="Chat messaging service reference-style flowchart" width="100%"></a></p>
+
+<p align="center"><a href="diagrams/Chat%20Realtime%20Calling%20-%20Flowchart.png"><img src="diagrams/Chat%20Realtime%20Calling%20-%20Flowchart.png" alt="Realtime calling reference-style flowchart" width="100%"></a></p>
+
 ### Mentor Service
 
 Covers mentor applications and admin review, role approval through Auth

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1900" viewBox="0 0 1500 1900">
+<defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#8a8a8a" stroke-width="1.4"/></marker><style>.box{fill:#e3f1ff;stroke:#c6d7e5;stroke-width:2}.txt{font:600 20px Arial;fill:#3297f5}.small{font:600 17px Arial;fill:#3297f5}.line{stroke:#888;stroke-width:2;fill:none;marker-end:url(#a)}.dot{fill:#f8fbff;stroke:#3297f5;stroke-width:2;stroke-dasharray:5 5}.db{fill:#e3f1ff;stroke:#c6d7e5;stroke-width:2}</style></defs>
+<rect width="1500" height="1900" fill="#fafafa"/>
+<g class="txt" text-anchor="middle">
+<rect class="box" x="480" y="35" width="300" height="72" rx="24"/><text x="630" y="80">React call UI</text>
+<rect class="box" x="525" y="145" width="210" height="72" rx="24"/><text x="630" y="190">API Gateway</text>
+<rect class="box" x="150" y="275" width="330" height="72" rx="24"/><text x="315" y="320">/socket.io proxy</text>
+<rect class="box" x="1020" y="275" width="330" height="72" rx="24"/><text x="1185" y="320">/socket.io proxy</text>
+<rect class="box" x="150" y="405" width="330" height="75" rx="24"/><text x="315" y="450">Caller Socket.IO client</text>
+<rect class="box" x="1020" y="405" width="330" height="75" rx="24"/><text x="1185" y="450">Callee Socket.IO client</text>
+<rect class="box" x="570" y="405" width="330" height="75" rx="24"/><text x="735" y="450">Chat Socket.IO server</text>
+<rect class="box" x="150" y="550" width="330" height="80" rx="24"/><text x="315" y="598">call:initiate</text>
+<rect class="dot" x="570" y="550" width="330" height="80" rx="24"/><text x="735" y="598">Target online?</text>
+<rect class="box" x="1020" y="550" width="330" height="80" rx="24"/><text x="1185" y="598">call:incoming</text>
+<rect class="box" x="100" y="700" width="300" height="80" rx="24"/><text x="250" y="748">call:user-offline</text>
+<rect class="box" x="500" y="700" width="300" height="80" rx="24"/><text x="650" y="748">call:busy</text>
+<rect class="box" x="1020" y="700" width="330" height="80" rx="24"/><text x="1185" y="748">Accept or reject</text>
+<rect class="box" x="1020" y="850" width="330" height="80" rx="24"/><text x="1185" y="898">call:accept</text>
+<rect class="box" x="570" y="850" width="330" height="80" rx="24"/><text x="735" y="898">activeCalls map</text>
+<rect class="box" x="150" y="850" width="300" height="80" rx="24"/><text x="300" y="898">call:reject</text>
+<rect class="box" x="570" y="1000" width="330" height="80" rx="24"/><text x="735" y="1048">WebRTC negotiation</text>
+<rect class="box" x="570" y="1150" width="330" height="80" rx="24"/><text x="735" y="1198">call:signal</text>
+<rect class="box" x="100" y="1300" width="300" height="80" rx="24"/><text x="250" y="1335"><tspan x="250">SDP offer / answer</tspan><tspan x="250" dy="24">ICE candidates</tspan></text>
+<rect class="box" x="1100" y="1300" width="300" height="80" rx="24"/><text x="1250" y="1335"><tspan x="1250">SDP offer / answer</tspan><tspan x="1250" dy="24">ICE candidates</tspan></text>
+<rect class="box" x="500" y="1450" width="470" height="80" rx="24"/><text x="735" y="1498">Direct WebRTC audio / video media</text>
+<rect class="box" x="570" y="1600" width="330" height="80" rx="24"/><text x="735" y="1648">call:end</text>
+<rect class="box" x="1020" y="1600" width="330" height="80" rx="24"/><text x="1185" y="1648">call:ended</text>
+<rect class="box" x="570" y="1750" width="330" height="80" rx="24"/><text x="735" y="1798">Clear activeCalls</text>
+</g>
+<g class="line">
+<path d="M630 107V145"/><path d="M580 217V250H315V275"/><path d="M680 217V250H1185V275"/><path d="M315 347V405"/><path d="M1185 347V405"/><path d="M480 442H570"/>
+<path d="M315 480V550"/><path d="M735 480V550"/><path d="M735 630V700H650"/><path d="M735 630V700H1185"/><path d="M1185 630V700"/>
+<path d="M250 780V850"/><path d="M1185 780V850"/><path d="M1020 890H900"/><path d="M570 890H450"/>
+<path d="M735 930V1000"/><path d="M735 1080V1150"/><path d="M735 1230V1450"/><path d="M735 1230H250V1300"/><path d="M735 1230H1250V1300"/>
+<path d="M735 1530V1600"/><path d="M735 1640H1185V1600"/><path d="M735 1680V1750"/>
+</g>
+<g font-family="Arial" font-size="16" fill="#777"><text x="575" y="670">No</text><text x="770" y="670">Yes</text><text x="100" y="820">declined</text><text x="1120" y="820">accepted</text></g>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2100" viewBox="0 0 1500 2100">
+<defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#8a8a8a" stroke-width="1.4"/></marker><style>.box{fill:#e3f1ff;stroke:#c6d7e5;stroke-width:2}.txt{font:600 20px Arial;fill:#3297f5}.small{font:600 17px Arial;fill:#3297f5}.line{stroke:#888;stroke-width:2;fill:none;marker-end:url(#a)}.dot{fill:#f8fbff;stroke:#3297f5;stroke-width:2;stroke-dasharray:5 5}.db{fill:#e3f1ff;stroke:#c6d7e5;stroke-width:2}</style></defs>
+<rect width="1500" height="2100" fill="#fafafa"/>
+<g class="txt" text-anchor="middle">
+<rect class="box" x="480" y="35" width="300" height="72" rx="24"/><text x="630" y="80">React messages UI</text>
+<rect class="box" x="525" y="145" width="210" height="72" rx="24"/><text x="630" y="190">API Gateway</text>
+<rect class="box" x="140" y="275" width="300" height="72" rx="24"/><text x="290" y="320">/v1/messages</text>
+<rect class="box" x="1050" y="275" width="320" height="72" rx="24"/><text x="1210" y="320">/socket.io proxy</text>
+<rect class="dot" x="125" y="405" width="330" height="75" rx="24"/><text x="290" y="450">Message routes</text>
+<rect class="box" x="1020" y="405" width="380" height="75" rx="24"/><text x="1210" y="450">Socket.IO server</text>
+<rect class="box" x="45" y="540" width="330" height="80" rx="24"/><text x="210" y="588">Get conversation sidebar</text>
+<rect class="box" x="430" y="540" width="300" height="80" rx="24"/><text x="580" y="588">Get messages with user</text>
+<rect class="box" x="790" y="540" width="270" height="80" rx="24"/><text x="925" y="588">Send message</text>
+<rect class="box" x="1130" y="540" width="300" height="80" rx="24"/><text x="1280" y="588">Online users / last seen</text>
+
+<rect class="box" x="20" y="690" width="360" height="80" rx="24"/><text x="200" y="725"><tspan x="200">Ask User Service for</tspan><tspan x="200" dy="24">mutuals / follows</tspan></text>
+<rect class="box" x="450" y="690" width="260" height="80" rx="24"/><text x="580" y="738">Verify JWT</text>
+<rect class="box" x="780" y="690" width="300" height="80" rx="24"/><text x="930" y="725"><tspan x="930">Validate receiver</tspan><tspan x="930" dy="24">and text / image</tspan></text>
+<rect class="dot" x="1160" y="690" width="240" height="80" rx="24"/><text x="1280" y="738">Image supplied?</text>
+<rect class="box" x="20" y="840" width="360" height="80" rx="24"/><text x="200" y="875"><tspan x="200">User Service</tspan><tspan x="200" dy="24">contacts response</tspan></text>
+<rect class="box" x="450" y="840" width="260" height="80" rx="24"/><text x="580" y="888">Load messages</text>
+<rect class="box" x="780" y="840" width="300" height="80" rx="24"/><text x="930" y="875"><tspan x="930">Upload image to</tspan><tspan x="930" dy="24">Cloudinary</tspan></text>
+<rect class="box" x="1160" y="840" width="240" height="80" rx="24"/><text x="1280" y="875"><tspan x="1280">No image:</tspan><tspan x="1280" dy="24">keep text</tspan></text>
+<rect class="box" x="450" y="990" width="260" height="80" rx="24"/><text x="580" y="1038">Conversation history</text>
+<rect class="box" x="780" y="990" width="300" height="80" rx="24"/><text x="930" y="1038">Find / create conversation</text>
+<rect class="box" x="780" y="1140" width="300" height="80" rx="24"/><text x="930" y="1188">Create Message document</text>
+<rect class="db" x="510" y="1270" width="220" height="100" rx="30"/><ellipse class="db" cx="620" cy="1270" rx="110" ry="24"/><text x="620" y="1328">Chat MongoDB</text>
+<rect class="box" x="780" y="1300" width="300" height="80" rx="24"/><text x="930" y="1348">Update lastMessage</text>
+<rect class="box" x="780" y="1450" width="300" height="80" rx="24"/><text x="930" y="1498">Emit newMessage</text>
+<rect class="box" x="1130" y="1450" width="300" height="80" rx="24"/><text x="1280" y="1485"><tspan x="1280">Publish notification</tspan><tspan x="1280" dy="24">event</tspan></text>
+<rect class="db" x="1180" y="1600" width="200" height="95" rx="28"/><ellipse class="db" cx="1280" cy="1600" rx="100" ry="22"/><text x="1280" y="1655">RabbitMQ</text>
+<rect class="box" x="1100" y="1760" width="360" height="80" rx="24"/><text x="1280" y="1808">Notification Service</text>
+<rect class="box" x="520" y="1760" width="300" height="80" rx="24"/><text x="670" y="1808">Recipient chat UI</text>
+<rect class="box" x="520" y="1910" width="300" height="80" rx="24"/><text x="670" y="1958">GET history when needed</text>
+</g>
+<g class="line">
+<path d="M630 107V145"/><path d="M580 217V250H290V275"/><path d="M680 217V250H1210V275"/><path d="M290 347V405"/><path d="M1210 347V405"/>
+<path d="M290 480V540H210"/><path d="M290 480V520H580V540"/><path d="M290 480V510H925V540"/><path d="M1210 480V540"/>
+<path d="M210 620V690"/><path d="M580 620V690"/><path d="M925 620V690"/><path d="M1280 620V690"/>
+<path d="M200 770V840"/><path d="M580 770V840"/><path d="M930 770V840"/><path d="M1280 770V840"/>
+<path d="M580 920V990"/><path d="M930 920V990"/><path d="M930 1070V1140"/><path d="M930 1220V1270H730"/><path d="M930 1220V1300"/><path d="M620 1370V1400H670V1760"/><path d="M930 1380V1450"/><path d="M930 1530V1580H670V1760"/><path d="M1080 1490H1280V1600"/><path d="M1280 1695V1760"/><path d="M670 1840V1910"/>
+</g>
+<g font-family="Arial" font-size="16" fill="#777"><text x="1210" y="820">No</text><text x="1100" y="820">Yes</text><text x="1120" y="1440">async / non-blocking</text></g>
+</svg>
