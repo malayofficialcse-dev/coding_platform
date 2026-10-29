@@ -13,7 +13,7 @@ function getAudioContext() {
     }
   }
   if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => {});
+    audioCtx.resume().catch(() => { });
   }
   return audioCtx;
 }
@@ -27,7 +27,7 @@ export function stopRingtone() {
     try {
       node.stop && node.stop();
       node.disconnect && node.disconnect();
-    } catch (_) {}
+    } catch (_) { }
   });
   activeNodes = [];
 }
@@ -142,5 +142,5 @@ export function playCallEndTone() {
 
     osc.start(now);
     osc.stop(now + 0.25);
-  } catch (_) {}
+  } catch (_) { }
 }
