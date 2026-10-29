@@ -615,7 +615,6 @@ export default function CourseDetail() {
       const response = await api.patch(`/enrollments/${enrollment._id}/progress`, {
         subtopicId: activeSubtopic._id,
         completed: willBeCompleted,
-        totalSubtopics: flatList.length,
       });
       setEnrollment(response.data);
 

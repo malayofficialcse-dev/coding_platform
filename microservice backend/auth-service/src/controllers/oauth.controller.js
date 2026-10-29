@@ -4,6 +4,14 @@ import { createSession, DEFAULT_PERMISSIONS } from "./auth.controller.js";
 
 const STATE_COOKIE_NAME = "oauth_state";
 
+const isAllowedOAuthUrl = (parsed) => {
+  if (parsed.username || parsed.password) return false;
+  if (parsed.protocol === "https:") return true;
+  const isLocalHost = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+  return parsed.protocol === "http:" &&
+    (process.env.NODE_ENV !== "production" || isLocalHost);
+};
+
 const getCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
   return {
@@ -15,38 +23,41 @@ const getCookieOptions = () => {
   };
 };
 
-const getClientUrl = (req) => {
-  if (process.env.CLIENT_URL) {
-    return process.env.CLIENT_URL.replace(/\/+$/, "");
+const getClientUrl = () => {
+  const localClientUrl = "http://localhost:5173";
+  const configuredUrl = process.env.CLIENT_URL || (
+    process.env.NODE_ENV === "production" ? "" : localClientUrl
+  );
+  if (!configuredUrl) return null;
+  try {
+    const parsed = new URL(configuredUrl);
+    if (!isAllowedOAuthUrl(parsed)) return null;
+    return parsed.origin;
+  } catch {
+    return null;
   }
-  const referer = req.get("Referer");
-  if (referer) {
-    try {
-      const parsed = new URL(referer);
-      return parsed.origin;
-    } catch {
-      // ignore
-    }
-  }
-  return "http://localhost:5173";
 };
 
-const getGatewayUrl = (req) => {
+const getGatewayUrl = () => {
   if (process.env.PUBLIC_API_URL) {
-    return process.env.PUBLIC_API_URL.replace(/\/+$/, "");
+    try {
+      const parsed = new URL(process.env.PUBLIC_API_URL);
+      if (isAllowedOAuthUrl(parsed)) return parsed.origin;
+    } catch {
+      return null;
+    }
+    return null;
   }
-  const forwardedProto = req.get("x-forwarded-proto");
-  const forwardedHost = req.get("x-forwarded-host");
-  if (forwardedHost) {
-    const proto = forwardedProto || (req.secure ? "https" : "http");
-    return `${proto}://${forwardedHost}`;
-  }
-  return "http://localhost:5100";
+  return process.env.NODE_ENV === "production" ? null : "http://localhost:5100";
 };
 
-const generateSecureState = (provider) => {
+const getOAuthStateSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  return secret && secret.length >= 64 ? secret : null;
+};
+
+const generateSecureState = (provider, secret) => {
   const nonce = randomBytes(24).toString("base64url");
-  const secret = process.env.JWT_SECRET || "code-campus-oauth-secret";
   const signature = createHmac("sha256", secret).update(`${provider}:${nonce}`).digest("base64url");
   return `${provider}.${nonce}.${signature}`;
 };
@@ -58,13 +69,35 @@ const verifySecureState = (stateString, expectedProvider) => {
   const [provider, nonce, signature] = parts;
   if (provider !== expectedProvider) return false;
 
-  const secret = process.env.JWT_SECRET || "code-campus-oauth-secret";
+  const secret = getOAuthStateSecret();
+  if (!secret) return false;
   const expectedSig = createHmac("sha256", secret).update(`${provider}:${nonce}`).digest("base64url");
   try {
     return timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
   } catch {
     return false;
   }
+};
+
+const getStateCookie = (req) => {
+  const cookie = (req.headers.cookie || "")
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${STATE_COOKIE_NAME}=`));
+  if (!cookie) return "";
+  try {
+    return decodeURIComponent(cookie.slice(STATE_COOKIE_NAME.length + 1));
+  } catch {
+    return "";
+  }
+};
+
+const hasValidBrowserState = (req, state, provider) => {
+  const cookieState = getStateCookie(req);
+  return typeof state === "string" &&
+    Boolean(cookieState) &&
+    cookieState === state &&
+    verifySecureState(state, provider);
 };
 
 /**
@@ -134,11 +167,19 @@ export const initiateGoogleAuth = async (req, res) => {
       details: "Missing GOOGLE_CLIENT_ID environment variable.",
     });
   }
+  const stateSecret = getOAuthStateSecret();
+  if (!stateSecret) {
+    return res.status(503).json({ error: "OAuth state signing is not securely configured." });
+  }
 
+  const gatewayUrl = getGatewayUrl();
+  if (!process.env.GOOGLE_CALLBACK_URL && !gatewayUrl) {
+    return res.status(503).json({ error: "Google OAuth callback URL is not securely configured." });
+  }
   const callbackUrl =
-    process.env.GOOGLE_CALLBACK_URL || `${getGatewayUrl(req)}/v1/auth/google/callback`;
+    process.env.GOOGLE_CALLBACK_URL || `${gatewayUrl}/v1/auth/google/callback`;
 
-  const state = generateSecureState("google");
+  const state = generateSecureState("google", stateSecret);
   res.cookie(STATE_COOKIE_NAME, state, getCookieOptions());
 
   const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -154,8 +195,17 @@ export const initiateGoogleAuth = async (req, res) => {
 };
 
 export const handleGoogleCallback = async (req, res) => {
-  const clientUrl = getClientUrl(req);
+  const clientUrl = getClientUrl();
+  if (!clientUrl) {
+    return res.status(503).json({ error: "OAuth client redirect URL is not securely configured." });
+  }
   const { code, state, error } = req.query;
+
+  const validState = hasValidBrowserState(req, state, "google");
+  res.clearCookie(STATE_COOKIE_NAME, getCookieOptions());
+  if (!validState) {
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Invalid or expired OAuth state (CSRF detected).")}`);
+  }
 
   if (error) {
     return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(`Google sign-in cancelled: ${error}`)}`);
@@ -165,22 +215,15 @@ export const handleGoogleCallback = async (req, res) => {
     return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Missing authorization code from Google.")}`);
   }
 
-  const cookieHeader = req.headers.cookie || "";
-  const cookieMatch = cookieHeader
-    .split(";")
-    .map((e) => e.trim())
-    .find((e) => e.startsWith(`${STATE_COOKIE_NAME}=`));
-  const cookieState = cookieMatch ? cookieMatch.slice(STATE_COOKIE_NAME.length + 1) : "";
-
-  if (!verifySecureState(state, "google") || (cookieState && cookieState !== state)) {
-    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Invalid or expired OAuth state (CSRF detected).")}`);
-  }
-
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const gatewayUrl = getGatewayUrl();
+    if (!process.env.GOOGLE_CALLBACK_URL && !gatewayUrl) {
+      return res.status(503).json({ error: "Google OAuth callback URL is not securely configured." });
+    }
     const callbackUrl =
-      process.env.GOOGLE_CALLBACK_URL || `${getGatewayUrl(req)}/v1/auth/google/callback`;
+      process.env.GOOGLE_CALLBACK_URL || `${gatewayUrl}/v1/auth/google/callback`;
 
     // 1. Exchange authorization code for Google access token
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -226,9 +269,6 @@ export const handleGoogleCallback = async (req, res) => {
 
     // 4. Create local session & refresh cookie
     const session = await createSession(user, req, res);
-
-    // Clear the state cookie
-    res.clearCookie(STATE_COOKIE_NAME, getCookieOptions());
 
     // 5. Redirect to client with the short-lived access token
     return res.redirect(`${clientUrl}/oauth-callback?token=${encodeURIComponent(session.accessToken)}`);
@@ -294,11 +334,19 @@ export const initiateGitHubAuth = async (req, res) => {
       details: "Missing GITHUB_CLIENT_ID environment variable.",
     });
   }
+  const stateSecret = getOAuthStateSecret();
+  if (!stateSecret) {
+    return res.status(503).json({ error: "OAuth state signing is not securely configured." });
+  }
 
+  const gatewayUrl = getGatewayUrl();
+  if (!process.env.GITHUB_CALLBACK_URL && !gatewayUrl) {
+    return res.status(503).json({ error: "GitHub OAuth callback URL is not securely configured." });
+  }
   const callbackUrl =
-    process.env.GITHUB_CALLBACK_URL || `${getGatewayUrl(req)}/v1/auth/github/callback`;
+    process.env.GITHUB_CALLBACK_URL || `${gatewayUrl}/v1/auth/github/callback`;
 
-  const state = generateSecureState("github");
+  const state = generateSecureState("github", stateSecret);
   res.cookie(STATE_COOKIE_NAME, state, getCookieOptions());
 
   const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
@@ -311,8 +359,17 @@ export const initiateGitHubAuth = async (req, res) => {
 };
 
 export const handleGitHubCallback = async (req, res) => {
-  const clientUrl = getClientUrl(req);
+  const clientUrl = getClientUrl();
+  if (!clientUrl) {
+    return res.status(503).json({ error: "OAuth client redirect URL is not securely configured." });
+  }
   const { code, state, error } = req.query;
+
+  const validState = hasValidBrowserState(req, state, "github");
+  res.clearCookie(STATE_COOKIE_NAME, getCookieOptions());
+  if (!validState) {
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Invalid or expired OAuth state (CSRF detected).")}`);
+  }
 
   if (error) {
     return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(`GitHub sign-in cancelled: ${error}`)}`);
@@ -322,15 +379,15 @@ export const handleGitHubCallback = async (req, res) => {
     return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Missing authorization code from GitHub.")}`);
   }
 
-  if (!verifySecureState(state, "github")) {
-    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Invalid or expired OAuth state (CSRF detected).")}`);
-  }
-
   try {
     const clientId = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+    const gatewayUrl = getGatewayUrl();
+    if (!process.env.GITHUB_CALLBACK_URL && !gatewayUrl) {
+      return res.status(503).json({ error: "GitHub OAuth callback URL is not securely configured." });
+    }
     const callbackUrl =
-      process.env.GITHUB_CALLBACK_URL || `${getGatewayUrl(req)}/v1/auth/github/callback`;
+      process.env.GITHUB_CALLBACK_URL || `${gatewayUrl}/v1/auth/github/callback`;
 
     // 1. Exchange code for access token
     const tokenRes = await fetch("https://github.com/login/oauth/access_token", {

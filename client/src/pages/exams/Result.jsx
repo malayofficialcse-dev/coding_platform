@@ -90,23 +90,9 @@ export default function Result() {
   const isPass = score >= passingMarks;
   const percentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(1) : "0";
 
-  // Calculate detailed accuracy stats
-  let answeredCount = 0;
-  let correctCount = 0;
-  let wrongCount = 0;
-
-  questions.forEach((q, i) => {
-    const studentAns = attempt.answers?.[i];
-    if (studentAns) {
-      answeredCount++;
-      if (studentAns === q.answer) {
-        correctCount++;
-      } else {
-        wrongCount++;
-      }
-    }
-  });
-
+  const answeredCount = (attempt.answers || []).filter(Boolean).length;
+  const correctCount = Math.min(score, answeredCount);
+  const wrongCount = Math.max(0, answeredCount - correctCount);
   const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
   return (
@@ -147,7 +133,7 @@ export default function Result() {
           <p>
             {isPass
               ? "Congratulations! You have satisfied the technical competency benchmarks for this assessment."
-              : `Passing threshold requires at least ${passingMarks} marks (${Math.round((passingMarks/totalQuestions)*100)}%). Review the detailed answer breakdown below.`}
+              : `Passing threshold requires at least ${passingMarks} marks (${Math.round((passingMarks/totalQuestions)*100)}%). Review the questions and your submitted responses below.`}
           </p>
           {attempt.autoSubmitted && (
             <div style={{ marginTop: 8, fontSize: 12, color: "#b45309", display: "flex", alignItems: "center", gap: 5 }}>
@@ -208,18 +194,15 @@ export default function Result() {
       <div className="res-questions-list">
         {questions.map((q, idx) => {
           const userChoice = attempt.answers?.[idx];
-          const isCorrect = userChoice === q.answer;
           const isUnattempted = !userChoice;
 
           return (
             <div className="res-question-card" key={q._id || idx}>
               <div className="res-question-head">
                 <span
-                  className={`res-q-badge ${
-                    isCorrect ? "correct" : isUnattempted ? "unanswered" : "wrong"
-                  }`}
+                  className={`res-q-badge ${isUnattempted ? "unanswered" : ""}`}
                 >
-                  Question #{idx + 1} &bull; {isCorrect ? "Correct (+1)" : isUnattempted ? "Unattempted (0)" : "Incorrect (0)"}
+                  Question #{idx + 1} &bull; {isUnattempted ? "Unattempted" : "Response recorded"}
                 </span>
                 <span style={{ fontSize: 11, color: "#697687", fontWeight: 600 }}>
                   1 Point
@@ -230,28 +213,18 @@ export default function Result() {
 
               <div className="res-options-grid">
                 {q.options.map((opt, oi) => {
-                  const isOptionCorrect = opt === q.answer;
                   const isUserSelection = userChoice === opt;
 
                   return (
                     <div
                       key={oi}
-                      className={`res-option-row ${
-                        isOptionCorrect
-                          ? "is-correct"
-                          : isUserSelection
-                          ? "is-user-wrong"
-                          : ""
-                      }`}
+                      className="res-option-row"
                     >
                       <div>
                         <strong>{String.fromCharCode(65 + oi)}.</strong> {opt}
                       </div>
 
                       <div className="res-option-tags">
-                        {isOptionCorrect && (
-                          <span className="res-tag-correct">Correct Answer</span>
-                        )}
                         {isUserSelection && (
                           <span className="res-tag-user">Your Choice</span>
                         )}

@@ -116,6 +116,9 @@ export const createManagedUser = async (req, res) => {
     if (role === "super_admin") {
       return res.status(400).json({ message: "Cannot create another super_admin via this endpoint." });
     }
+    if (role === "admin" && req.user?.role !== "super_admin") {
+      return res.status(403).json({ message: "Only a super_admin can assign the admin role." });
+    }
 
     const cleanEmail = email.toLowerCase().trim();
     const existing = await User.findOne({ where: { email: cleanEmail } });
@@ -165,6 +168,13 @@ export const updateManagedUser = async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.role === "super_admin") {
       return res.status(403).json({ error: "Cannot modify a super_admin." });
+    }
+
+    if (role === "super_admin") {
+      return res.status(403).json({ error: "Super-admin access can only be provisioned through the secure bootstrap process." });
+    }
+    if (role === "admin" && req.user?.role !== "super_admin") {
+      return res.status(403).json({ error: "Only a super_admin can assign the admin role." });
     }
 
     if (role) user.role = role;

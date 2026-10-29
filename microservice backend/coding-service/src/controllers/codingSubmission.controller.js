@@ -324,7 +324,10 @@ export const runCode = async (req, res) => {
 
     // ---- Sample Test Cases (visible only) ----
     const sampleCases = (problem.sampleTestCases || []).filter((tc) => tc.visible !== false);
-    const runCases = sampleCases.length > 0 ? sampleCases : (problem.testCases || []).slice(0, 3);
+    if (sampleCases.length === 0) {
+      return res.status(400).json({ error: "No visible sample test cases are configured for this problem." });
+    }
+    const runCases = sampleCases;
 
     const results = [];
     let passedCount = 0;
@@ -333,6 +336,7 @@ export const runCode = async (req, res) => {
     for (let i = 0; i < runCases.length; i++) {
       const tc = runCases[i];
       const result = await executeOneTestCase(langKey, code, tc.input, tc.output, timeoutMs);
+      const visible = tc.visible !== false;
 
       if (result.verdict === "Compilation Error" && !compileError) {
         compileError = result.compileError || result.stderr;
@@ -343,7 +347,7 @@ export const runCode = async (req, res) => {
           expectedOutput: tc.output,
           actualOutput: "",
           verdict: "Compilation Error",
-          stderr: result.stderr,
+          stderr: visible ? result.stderr : "",
           passed: false,
           visible: tc.visible !== false,
         });
@@ -368,13 +372,13 @@ export const runCode = async (req, res) => {
 
       results.push({
         index: i,
-        input: tc.input,
-        expectedOutput: (tc.output || "").trim(),
-        actualOutput: result.stdout,
+        input: visible ? tc.input : "[Hidden]",
+        expectedOutput: visible ? (tc.output || "").trim() : "[Hidden]",
+        actualOutput: visible ? result.stdout : (passed ? "[Correct]" : "[Wrong]"),
         verdict: result.verdict,
-        stderr: result.stderr,
+        stderr: visible ? result.stderr : "",
         passed,
-        visible: tc.visible !== false,
+        visible,
       });
 
       // Stop early on first Runtime Error (like LeetCode)
@@ -470,30 +474,32 @@ export const submitCode = async (req, res) => {
 
     for (let i = 0; i < allTestCases.length; i++) {
       const tc = allTestCases[i];
+      const visible = tc.visible !== false;
       const result = await executeOneTestCase(langKey, code, tc.input, tc.output, timeoutMs);
 
       if (result.verdict === "Compilation Error" && !compileError) {
         compileError = result.compileError || result.stderr;
         results.push({
           index: i,
-          input: tc.visible ? tc.input : "[Hidden]",
-          expectedOutput: tc.visible ? tc.output : "[Hidden]",
+          input: visible ? tc.input : "[Hidden]",
+          expectedOutput: visible ? tc.output : "[Hidden]",
           actualOutput: "",
           verdict: "Compilation Error",
-          stderr: result.stderr,
+          stderr: visible ? result.stderr : "",
           passed: false,
-          visible: tc.visible !== false,
+          visible,
         });
         for (let j = i + 1; j < allTestCases.length; j++) {
+          const nextVisible = allTestCases[j].visible !== false;
           results.push({
             index: j,
-            input: allTestCases[j].visible ? allTestCases[j].input : "[Hidden]",
-            expectedOutput: allTestCases[j].visible ? allTestCases[j].output : "[Hidden]",
+            input: nextVisible ? allTestCases[j].input : "[Hidden]",
+            expectedOutput: nextVisible ? allTestCases[j].output : "[Hidden]",
             actualOutput: "",
             verdict: "Compilation Error",
             stderr: "",
             passed: false,
-            visible: allTestCases[j].visible !== false,
+            visible: nextVisible,
           });
         }
         break;
@@ -504,18 +510,18 @@ export const submitCode = async (req, res) => {
 
       const entry = {
         index: i,
-        input: tc.visible !== false ? tc.input : "[Hidden]",
-        expectedOutput: tc.visible !== false ? (tc.output || "").trim() : "[Hidden]",
-        actualOutput: tc.visible !== false ? result.stdout : (passed ? "[Correct]" : "[Wrong]"),
+        input: visible ? tc.input : "[Hidden]",
+        expectedOutput: visible ? (tc.output || "").trim() : "[Hidden]",
+        actualOutput: visible ? result.stdout : (passed ? "[Correct]" : "[Wrong]"),
         verdict: result.verdict,
-        stderr: result.stderr,
+        stderr: visible ? result.stderr : "",
         passed,
-        visible: tc.visible !== false,
+        visible,
       };
       results.push(entry);
 
       if (!passed && !firstFailure) {
-        firstFailure = { ...entry, input: tc.input, expectedOutput: tc.output, actualOutput: result.stdout };
+        firstFailure = entry;
       }
 
       // Stop early on TLE or RE (first occurrence)
@@ -554,7 +560,9 @@ export const submitCode = async (req, res) => {
       code,
       language: langKey,
       problem,
-      testCases: allTestCases,
+      testCases: allTestCases.map((testCase) => (
+        testCase.visible === false ? { input: "", output: "" } : testCase
+      )),
       executionResults: results,
       compileError,
       overallVerdict,
@@ -632,7 +640,13 @@ export const submitCode = async (req, res) => {
 export const getSubmissionsByProblem = async (req, res) => {
   try {
     const { id } = req.params;
-    const submissions = await CodingSubmission.find({ problem: id })
+    const userId = req.user?._id || req.user?.id;
+    const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
+    if (!isAdmin && !userId) return res.status(401).json({ error: "Authenticated user is required." });
+    const filter = { problem: id };
+    if (!isAdmin) filter.user = userId;
+
+    const submissions = await CodingSubmission.find(filter)
       .populate("user", "name username")
       .sort({ createdAt: -1 });
     res.json(submissions);
@@ -656,6 +670,12 @@ export const getMySubmissions = async (req, res) => {
 export const getUserSubmissions = async (req, res) => {
   try {
     const { userId } = req.params;
+    const authenticatedUserId = req.user?._id || req.user?.id;
+    const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
+    if (!isAdmin && String(userId) !== String(authenticatedUserId)) {
+      return res.status(403).json({ error: "You can only view your own submissions." });
+    }
+
     const submissions = await CodingSubmission.find({ user: userId })
       .populate("problem", "title difficulty dsaTopic")
       .sort({ createdAt: -1 });

@@ -302,10 +302,7 @@ export function SolveProblem() {
   };
 
   const sampleTestCases = useMemo(() => {
-    const cases = problem?.sampleTestCases?.length
-      ? problem.sampleTestCases
-      : problem?.testCases?.slice(0, 3) || [];
-    return cases.filter((tc) => tc.visible !== false);
+    return (problem?.sampleTestCases || []).filter((tc) => tc.visible !== false);
   }, [problem]);
 
   const currentIndex = allProblems.findIndex((p) => p._id === id);
@@ -1118,7 +1115,7 @@ export function SolveProblem() {
               </button>
             </div>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
-              <strong>Run</strong> tests sample cases · <strong>Submit</strong> judges all {(problem.testCases?.length || 0)} cases
+              <strong>Run</strong> tests sample cases · <strong>Submit</strong> judges all {(problem.testCaseCount ?? problem.testCases?.length ?? 0)} cases
             </span>
           </div>
         </section>

@@ -34,7 +34,7 @@ import {
   createPostAsAdmin,
   getPostDashboardMetrics,
 } from "../controllers/dashboard.controller.js";
-import { protect, requireAdmin, requirePermission, optionalAuth } from "../middleware/auth.middleware.js";
+import { protect, requireAdmin, optionalAuth } from "../middleware/auth.middleware.js";
 
 
 // This module is evaluated before the service entrypoint, so load env values
@@ -64,11 +64,11 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // Dashboard & Analytics (Admin / Post Controller)
-router.get("/dashboard/metrics", protect, requirePermission("feed", "view"), getPostDashboardMetrics);
-router.get("/admin/all", protect, requirePermission("feed", "view"), getAllPostsAdmin);
-router.post("/admin/create", protect, requirePermission("feed", "create"), createPostAsAdmin);
-router.delete("/admin/:postId", protect, requirePermission("feed", "delete"), deleteAnyPost);
-router.put("/admin/:postId", protect, requirePermission("feed", "edit"), updateAnyPost);
+router.get("/dashboard/metrics", protect, requireAdmin, getPostDashboardMetrics);
+router.get("/admin/all", protect, requireAdmin, getAllPostsAdmin);
+router.post("/admin/create", protect, requireAdmin, createPostAsAdmin);
+router.delete("/admin/:postId", protect, requireAdmin, deleteAnyPost);
+router.put("/admin/:postId", protect, requireAdmin, updateAnyPost);
 
 // Core Post Operations
 router.get("/feed", protect, getFeed);
@@ -100,5 +100,4 @@ router.delete("/:postId/comments/:commentId", protect, deleteComment);
 router.delete("/comment/:postId/:commentId", protect, deleteComment);
 
 export default router;
-
 

@@ -50,8 +50,9 @@ export const updateAnyPost = async (req, res) => {
 // 4. Create post as admin
 export const createPostAsAdmin = async (req, res) => {
   try {
-    const { title, text, content, group, author } = req.body;
-    const postAuthor = author || req.user?._id || req.user?.id;
+    const { title, text, content, group } = req.body;
+    const postAuthor = req.user?._id || req.user?.id;
+    if (!postAuthor) return res.status(401).json({ error: "Authenticated user is required." });
 
     const post = new Post({
       author: postAuthor,

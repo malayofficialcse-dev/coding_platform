@@ -23,7 +23,7 @@ const router = express.Router();
 
 // Problem CRUD Routes
 router.get("/problems", getAllProblems);
-router.get("/problems/:id", getProblemById);
+router.get("/problems/:id", optionalAuth, getProblemById);
 router.post("/problems", protect, requirePermission("coding", "create"), createProblem);
 router.put("/problems/:id", protect, requirePermission("coding", "edit"), updateProblem);
 router.delete("/problems/:id", protect, requirePermission("coding", "delete"), deleteProblem);
@@ -42,7 +42,7 @@ router.get("/submissions/my", protect, getMySubmissions);
 router.get("/submissions/leaderboard", protect, getAllStudentsCodingStats);
 router.get("/submissions/academic-analytics", protect, getAcademicCodingAnalytics);
 router.get("/submissions/overall", protect, getOverallCodingAnalytics);
-router.get("/submissions/all", protect, getAllSubmissions);
+router.get("/submissions/all", protect, requireAdmin, getAllSubmissions);
 router.get("/submissions/user/:userId", protect, getUserSubmissions);
 router.get("/problems/:id/submissions", protect, getSubmissionsByProblem);
 

@@ -3,7 +3,8 @@
  * 
  * Run once to create or update the initial super_admin account
  * across PostgreSQL (auth_db, user_db) and MongoDB Atlas.
- * Usage: node scripts/seed-super-admin.js
+ * Usage: set SUPER_ADMIN_EMAIL and a unique SUPER_ADMIN_PASSWORD (16+ characters),
+ * then run node scripts/seed-super-admin.js.
  */
 import path from "path";
 import { createRequire } from "module";
@@ -30,17 +31,12 @@ try {
 // Load microservices root .env
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-import AuthUser from "../auth-service/src/models/User.js";
-import { connectDB as connectAuthDb, sequelize as authSequelize } from "../auth-service/src/config/db.js";
-import UserProfile from "../user-service/src/models/User.js";
-import { connectDB as connectUserDb, sequelize as userSequelize } from "../user-service/src/config/db.js";
-
 const SUPER_ADMIN = {
-  name:     "Super Admin",
-  email:    "maitymalay@gmail.com",
-  password: "000000",
-  username: "super_admin",
-  role:     "super_admin",
+  name: process.env.SUPER_ADMIN_NAME?.trim() || "Super Admin",
+  email: process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase(),
+  password: process.env.SUPER_ADMIN_PASSWORD,
+  username: process.env.SUPER_ADMIN_USERNAME?.trim() || "super_admin",
+  role: "super_admin",
 };
 
 const FULL_PERMISSIONS = {
@@ -77,6 +73,27 @@ if (mongoose) {
 }
 
 async function seed() {
+  if (!SUPER_ADMIN.email || !SUPER_ADMIN.email.includes("@")) {
+    throw new Error("Set SUPER_ADMIN_EMAIL to a valid administrator email before running this script.");
+  }
+  if (!SUPER_ADMIN.password || SUPER_ADMIN.password.length < 16) {
+    throw new Error("Set SUPER_ADMIN_PASSWORD to a unique secret of at least 16 characters before running this script.");
+  }
+
+  const [
+    { default: AuthUser },
+    { connectDB: connectAuthDb, sequelize: authSequelize },
+    { default: RefreshSession },
+    { default: UserProfile },
+    { connectDB: connectUserDb, sequelize: userSequelize },
+  ] = await Promise.all([
+    import("../auth-service/src/models/User.js"),
+    import("../auth-service/src/config/db.js"),
+    import("../auth-service/src/models/RefreshSession.js"),
+    import("../user-service/src/models/User.js"),
+    import("../user-service/src/config/db.js"),
+  ]);
+
   console.log("🚀 Starting Super Admin seeding...\n");
 
   const hashedPassword = await bcrypt.hash(SUPER_ADMIN.password, 12);
@@ -107,8 +124,14 @@ async function seed() {
       });
       console.log("ℹ️  Super Admin updated in auth_db (PostgreSQL)");
     }
+    await RefreshSession.update(
+      { revokedAt: new Date() },
+      { where: { userId: authUser.id, revokedAt: null } }
+    );
+    console.log("✅ Existing super-admin refresh sessions revoked");
   } catch (err) {
     console.error("❌ Error seeding auth_db:", err.message);
+    throw err;
   }
 
   // 2. Seed User Service (PostgreSQL user_db)
@@ -138,6 +161,7 @@ async function seed() {
     }
   } catch (err) {
     console.error("❌ Error seeding user_db:", err.message);
+    throw err;
   }
 
   // 3. Seed MongoDB (for any services/monolith referencing Mongo users)
@@ -179,8 +203,7 @@ async function seed() {
 
   console.log("\n==========================================");
   console.log("🎉 Super Admin setup complete!");
-  console.log("   Email:    ", SUPER_ADMIN.email);
-  console.log("   Password: ", SUPER_ADMIN.password);
+  console.log("   Administrator credentials were read from the environment.");
   console.log("   Role:     ", SUPER_ADMIN.role);
   console.log("==========================================\n");
 

@@ -1,6 +1,53 @@
 import Enrollment from "../models/Enrollment.js";
 import { Op } from "sequelize";
 
+const getCourseById = async (courseId) => {
+  const serviceUrl = (process.env.COURSE_SERVICE_URL || "http://localhost:5005").replace(/\/+$/, "");
+  const baseUrl = serviceUrl.endsWith("/v1") ? `${serviceUrl}/courses` : `${serviceUrl}/v1/courses`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(`${baseUrl}/${encodeURIComponent(courseId)}`, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Course service returned HTTP ${response.status}.`);
+    const course = await response.json();
+    if (!course || !Array.isArray(course.topics)) {
+      throw new Error("Course service returned an invalid course record.");
+    }
+    return course;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const getCourseSubtopicIds = (course) => new Set(
+  course.topics.flatMap((topic) => (Array.isArray(topic.subtopics) ? topic.subtopics : []))
+    .map((subtopic) => String(subtopic._id || subtopic.id || ""))
+    .filter(Boolean)
+);
+
+const calculateProgress = (completedCount, totalCount) => {
+  if (totalCount === 0) return 0;
+  if (completedCount >= totalCount) return 100;
+  return Math.floor((completedCount / totalCount) * 100);
+};
+
+const refreshEnrollmentProgress = (enrollment, subtopicIds) => {
+  const completedIds = new Set(
+    (enrollment.completedSubtopics || [])
+      .map((id) => String(id))
+      .filter((id) => subtopicIds.has(id))
+  );
+  enrollment.completedSubtopics = [...completedIds];
+  enrollment.progress = calculateProgress(completedIds.size, subtopicIds.size);
+  enrollment.completedAt = enrollment.progress === 100
+    ? enrollment.completedAt || new Date()
+    : null;
+};
+
 /**
  * Ensures course details are formatted properly for frontend
  */
@@ -111,8 +158,14 @@ export const getEnrollmentsByUser = async (req, res) => {
 
 export const getUserEnrollments = async (req, res) => {
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ message: "userId query parameter is required" });
+    const authenticatedUserId = req.user?._id || req.user?.id;
+    if (!authenticatedUserId) return res.status(401).json({ error: "User authentication required." });
+    const requestedUserId = req.query.userId;
+    const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
+    if (requestedUserId && String(requestedUserId) !== String(authenticatedUserId) && !isAdmin) {
+      return res.status(403).json({ error: "You can only view your own enrollments." });
+    }
+    const userId = requestedUserId && isAdmin ? requestedUserId : authenticatedUserId;
 
     const enrollments = await Enrollment.findAll({
       where: { user: String(userId) },
@@ -128,9 +181,12 @@ export const getUserEnrollments = async (req, res) => {
 export const updateCourseProgress = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
-    const { subtopicId, completed = true, totalSubtopics } = req.body;
-    if (!subtopicId || !Number.isFinite(Number(totalSubtopics)) || Number(totalSubtopics) < 1) {
-      return res.status(400).json({ error: "subtopicId and totalSubtopics are required" });
+    const { subtopicId, completed = true } = req.body;
+    if (typeof subtopicId !== "string" || !subtopicId.trim()) {
+      return res.status(400).json({ error: "subtopicId is required." });
+    }
+    if (typeof completed !== "boolean") {
+      return res.status(400).json({ error: "completed must be a boolean." });
     }
 
     const enrollment = await Enrollment.findOne({
@@ -142,13 +198,27 @@ export const updateCourseProgress = async (req, res) => {
 
     if (!enrollment) return res.status(404).json({ error: "Enrollment not found" });
 
-    const completedIds = new Set((enrollment.completedSubtopics || []).map((id) => String(id)));
-    if (completed) completedIds.add(String(subtopicId));
-    else completedIds.delete(String(subtopicId));
+    let course;
+    try {
+      course = await getCourseById(enrollment.course);
+    } catch (error) {
+      console.error("[updateCourseProgress] Could not verify course content:", error);
+      return res.status(503).json({ error: "Course content could not be verified. Please try again later." });
+    }
+    const subtopicIds = getCourseSubtopicIds(course);
+    if (!subtopicIds.has(subtopicId)) {
+      return res.status(400).json({ error: "The subtopic does not belong to this course." });
+    }
 
+    refreshEnrollmentProgress(enrollment, subtopicIds);
+    const completedIds = new Set(enrollment.completedSubtopics);
+    if (completed) completedIds.add(subtopicId);
+    else completedIds.delete(subtopicId);
     enrollment.completedSubtopics = [...completedIds];
-    enrollment.progress = Math.min(100, Math.round((completedIds.size / Number(totalSubtopics)) * 100));
-    enrollment.completedAt = enrollment.progress === 100 ? enrollment.completedAt || new Date() : null;
+    enrollment.progress = calculateProgress(completedIds.size, subtopicIds.size);
+    enrollment.completedAt = enrollment.progress === 100
+      ? enrollment.completedAt || new Date()
+      : null;
     await enrollment.save();
 
     res.json(enrollment.toObject());
@@ -171,7 +241,19 @@ export const generateCertificate = async (req, res) => {
     let enrollment = await Enrollment.findOne({ where });
     if (!enrollment) return res.status(404).json({ error: "Enrollment record not found" });
 
-    if (!isAdmin && Number(enrollment.progress) < 100) {
+    if (!isAdmin) {
+      let course;
+      try {
+        course = await getCourseById(enrollment.course);
+      } catch (error) {
+        console.error("[generateCertificate] Could not verify course content:", error);
+        return res.status(503).json({ error: "Course completion could not be verified. Please try again later." });
+      }
+      refreshEnrollmentProgress(enrollment, getCourseSubtopicIds(course));
+      await enrollment.save();
+    }
+
+    if (!isAdmin && enrollment.progress < 100) {
       return res.status(400).json({
         error: "All course lessons must be completed (100% progress) before generating the certificate.",
         currentProgress: enrollment.progress,
@@ -235,6 +317,19 @@ export const getCertificate = async (req, res) => {
     if (!enrollment.certificateNumber) {
       return res.status(404).json({ error: "Certificate has not been generated yet for this enrollment." });
     }
+    if (!isAdmin) {
+      let course;
+      try {
+        course = await getCourseById(enrollment.course);
+      } catch (error) {
+        console.error("[getCertificate] Could not verify course content:", error);
+        return res.status(503).json({ error: "Certificate completion could not be verified. Please try again later." });
+      }
+      refreshEnrollmentProgress(enrollment, getCourseSubtopicIds(course));
+      if (enrollment.progress < 100) {
+        return res.status(404).json({ error: "Certificate is not valid because course completion could not be verified." });
+      }
+    }
 
     let studentName = enrollment.certificateRecipientName || req.user?.name || req.user?.username || "Student Name";
     const [resolved] = attachCourseDetails([enrollment]);
@@ -263,6 +358,22 @@ export const verifyCertificate = async (req, res) => {
     const enrollment = await Enrollment.findOne({ where: { certificateNumber } });
     if (!enrollment) {
       return res.status(404).json({ error: "Invalid certificate number. No record found." });
+    }
+
+    let course;
+    try {
+      course = await getCourseById(enrollment.course);
+    } catch (error) {
+      console.error("[verifyCertificate] Could not verify course content:", error);
+      return res.status(503).json({ error: "Certificate completion could not be verified. Please try again later." });
+    }
+    refreshEnrollmentProgress(enrollment, getCourseSubtopicIds(course));
+    if (enrollment.progress < 100) {
+      return res.status(200).json({
+        valid: false,
+        certificateNumber: enrollment.certificateNumber,
+        status: "Course completion requirements are not met.",
+      });
     }
 
     let studentName = enrollment.certificateRecipientName || "Student Name";

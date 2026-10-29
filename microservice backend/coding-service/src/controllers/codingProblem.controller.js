@@ -36,7 +36,39 @@ export const getProblemById = async (req, res) => {
   try {
     const problem = await CodingProblem.findById(req.params.id);
     if (!problem) return res.status(404).json({ error: "Problem not found" });
-    res.json(problem);
+
+    if (["admin", "super_admin"].includes(req.user?.role)) {
+      return res.json(problem);
+    }
+
+    const problemData = problem.toObject();
+    const publicFields = [
+      "_id",
+      "title",
+      "description",
+      "difficulty",
+      "dsaTopic",
+      "tags",
+      "boilerplateCodes",
+      "hints",
+      "constraints",
+      "timeLimit",
+      "memoryLimit",
+      "acceptanceRate",
+      "createdAt",
+      "updatedAt",
+    ];
+    const publicProblem = Object.fromEntries(
+      publicFields
+        .filter((field) => problemData[field] !== undefined)
+        .map((field) => [field, problemData[field]])
+    );
+    publicProblem.testCaseCount = (problemData.testCases || []).length;
+    publicProblem.sampleTestCases = (problemData.sampleTestCases || [])
+      .filter((testCase) => testCase.visible !== false)
+      .map(({ _id, input, output }) => ({ _id, input, output, visible: true }));
+
+    return res.json(publicProblem);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch problem" });

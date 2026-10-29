@@ -61,7 +61,11 @@ export const getMyAttempts = async (req, res) => {
 
     const enriched = attempts.map((att) => {
       const obj = att.toObject();
-      const examObj = examMap.get(String(att.exam)) || { id: att.exam, title: "Exam", questions: [] };
+      const sourceExam = examMap.get(String(att.exam));
+      const examObj = sourceExam
+        ? sourceExam.toObject()
+        : { id: att.exam, title: "Exam", questions: [] };
+      examObj.questions = (examObj.questions || []).map(({ answer, ...question }) => question);
       obj.exam = examObj;
       // Add total so the frontend can calculate % scores (score / total * 100)
       obj.total = Array.isArray(examObj.questions) ? examObj.questions.length : (examObj.questions?.length ?? 0);
@@ -126,12 +130,22 @@ export const getAttemptById = async (req, res) => {
     const attempt = await Attempt.findByPk(req.params.id);
     if (!attempt) return res.status(404).json({ message: "Attempt not found" });
 
+    const authenticatedUserId = req.user?._id || req.user?.id;
+    const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
+    if (!isAdmin && String(attempt.user) !== String(authenticatedUserId)) {
+      return res.status(404).json({ message: "Attempt not found" });
+    }
+
     const obj = attempt.toObject();
     const exam = await Exam.findByPk(attempt.exam);
     const user = await User.findByPk(attempt.user);
+    const examObject = exam ? exam.toObject() : { id: attempt.exam, title: "Exam" };
+    if (!isAdmin) {
+      examObject.questions = (examObject.questions || []).map(({ answer, ...question }) => question);
+    }
 
-    obj.exam = exam ? exam.toObject() : { id: attempt.exam, title: "Exam" };
-    obj.user = user ? user.toObject() : { id: attempt.user, name: "Student" };
+    obj.exam = examObject;
+    obj.user = user ? { id: user.id, name: user.name } : { id: attempt.user, name: "Student" };
 
     res.json(obj);
   } catch (err) {
