@@ -188,6 +188,10 @@ app.use("/v1/notifications", createServiceProxy(SERVICES.notification));
 app.use("/api/messages", createServiceProxy(SERVICES.chat));
 app.use("/v1/messages", createServiceProxy(SERVICES.chat));
 
+// AI Service — RAG Chatbot
+app.use("/api/ai", createServiceProxy(SERVICES.ai));
+app.use("/v1/ai", createServiceProxy(SERVICES.ai));
+
 // 7. WebSocket Proxy for Socket.IO (/socket.io) to Chat/Socket Service
 const wsProxy = createProxyMiddleware({
   target: SERVICES.chat,
@@ -212,7 +216,7 @@ app.use((req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`=================================================`);
   console.log(` 🚀 Code Campus API Gateway running on port ${PORT}`);
-  console.log(` 🌐 Forwarding requests to 10 microservices`);
+  console.log(` 🔀 Forwarding requests to 11 microservices`);
   console.log(`=================================================`);
 });
 

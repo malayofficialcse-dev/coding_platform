@@ -5,6 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import PrivateRoute from "./components/PrivateRoute";
+import AIChatbot from "./components/AIChatbot/AIChatbot";
 
 const Dashboard      = lazy(() => import("./pages/Dashboard"));
 const Login          = lazy(() => import("./pages/auth/Login"));
@@ -152,6 +153,7 @@ function App() {
           </Suspense>
         </main>
         <Footer />
+        <AIChatbot />
       </BrowserRouter>
     </AuthProvider>
   );

@@ -18,6 +18,7 @@ volumes:
   notification-mongo-data:
   neo4j-data:
   redis-data:
+  ai-chroma-data:
 
 # ========================================================
 # DATABASES
@@ -511,3 +512,41 @@ services:
       - redis
     networks:
       - code-campus-net
+
+  # ========================================================
+  # AI SERVICE — RAG Chatbot (LangGraph + ChromaDB)
+  # ========================================================
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: code-campus-ai
+    restart: always
+    ports:
+      - "5011:5011"
+    environment:
+      - PORT=5011
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-false}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-code-campus-ai}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY:-}
+      - CHROMA_PERSIST_DIR=/app/chroma_db
+      - COURSE_MONGO_URI=mongodb://mongo-course:27018/course_db
+      - CODING_MONGO_URI=mongodb://mongo-coding:27019/coding_problems_db
+      - EXAM_DATABASE_URL=postgres://cc_exam:cc_exam_pass@postgres-exam:5432/exam_db
+      - USER_SERVICE_URL=http://user-service:5002
+      - ENROLLMENT_SERVICE_URL=http://enrollment-service:5006
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
+      - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
+      - CLIENT_ORIGINS=${CLIENT_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    volumes:
+      - ai-chroma-data:/app/chroma_db
+    depends_on:
+      - mongo-course
+      - mongo-coding
+      - user-service
+    networks:
+      - code-campus-net
+

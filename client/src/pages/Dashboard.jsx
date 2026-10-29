@@ -12,6 +12,7 @@ import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic, FaChar
 import { formatDateTime } from "../utils/formatDateTime";
 import { executeGraphQL, GraphQLOperationError } from "../graphql/client";
 import { HOME_DASHBOARD_QUERY } from "../graphql/dashboard/documents";
+import "../styles/dashboard-tailwind.css";
 
 /* ─────────────────────────────────────────────────────────────────────
    GLOBAL PALETTE  (4 colours, used everywhere)
@@ -294,29 +295,81 @@ export default function Dashboard() {
   const DEFAULT_AVA = "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
 
   return (
-    <div style={{ background: C.surface, minHeight: "100vh", fontFamily: "'Segoe UI', Inter, Arial, sans-serif", color: C.ink }}>
+    <div
+      id="dashboard-page"
+      style={{
+        background: C.surface,
+        minHeight: "100vh",
+        fontFamily: "'Segoe UI', Inter, Arial, sans-serif",
+        color: C.ink,
+      }}
+    >
 
-      {/* scrollbar style */}
+      {/* Dashboard layout & scrollbar styles */}
       <style>{`
         .cc-scroll::-webkit-scrollbar { width: 5px; }
         .cc-scroll::-webkit-scrollbar-thumb { background: ${C.primaryMid}; border-radius: 99px; }
         .cc-composer-btn:hover { background: ${C.primaryLight} !important; color: ${C.primary} !important; }
         .cc-people-row:hover { background: ${C.surface} !important; }
-        @media (max-width: 1100px) {
-          .cc-right-aside { display: none !important; }
-          .cc-grid { grid-template-columns: 24% 1fr !important; }
+
+        #dashboard-page .dashboard-grid {
+          display: grid !important;
+          grid-template-columns: 280px minmax(0, 1fr) 300px !important;
+          gap: 1.25rem !important;
+          align-items: start !important;
+          width: 100% !important;
         }
+
+        #dashboard-page .dashboard-left-aside {
+          display: block !important;
+          width: 100% !important;
+          position: sticky !important;
+          top: 85px !important;
+        }
+
+        #dashboard-page .dashboard-right-aside {
+          display: block !important;
+          width: 100% !important;
+          position: sticky !important;
+          top: 85px !important;
+        }
+
+        @media (max-width: 1250px) and (min-width: 992px) {
+          #dashboard-page .dashboard-grid {
+            grid-template-columns: 240px minmax(0, 1fr) 270px !important;
+            gap: 1rem !important;
+          }
+        }
+
+        @media (max-width: 991px) and (min-width: 769px) {
+          #dashboard-page .dashboard-grid {
+            grid-template-columns: 240px minmax(0, 1fr) !important;
+            gap: 1rem !important;
+          }
+          #dashboard-page .dashboard-right-aside {
+            display: none !important;
+          }
+        }
+
         @media (max-width: 768px) {
-          .cc-left-aside { display: none !important; }
-          .cc-grid { grid-template-columns: 1fr !important; }
+          #dashboard-page .dashboard-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1rem !important;
+          }
+          #dashboard-page .dashboard-left-aside,
+          #dashboard-page .dashboard-right-aside {
+            position: static !important;
+            width: 100% !important;
+          }
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 1800, margin: "0 auto", padding: "1.5rem 1.25rem" }}>
-        <div className="cc-grid" style={{ display: "grid", gridTemplateColumns: "minmax(260px, 20%) minmax(0, 1fr) minmax(260px, 20%)", gap: "1.25rem", alignItems: "start" }}>
+      <div className="tw-mx-auto tw-w-full tw-max-w-[1800px] tw-px-5 tw-py-5">
+        <div className="dashboard-grid">
 
-          {/* ══════════════════════════ LEFT SIDEBAR ══════════════════════════ */}
-          <aside className="cc-left-aside" style={{ position: "sticky", top: 90 }}>
+          {/* ══════════════════════════ LEFT SIDEBAR (PROFILE CARD) ══════════════════════════ */}
+          <aside className="cc-left-aside dashboard-left-aside">
             {user ? (
               <>
                 <div style={{ ...card, overflow: "hidden", marginBottom: "1rem" }}>
@@ -398,7 +451,7 @@ export default function Dashboard() {
           </aside>
 
           {/* ══════════════════════════ CENTER FEED ═══════════════════════════ */}
-          <main style={{ minWidth: 0 }}>
+          <main className="tw-min-w-0">
             {dashboardError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
                 <span>{dashboardError}</span>
@@ -470,14 +523,7 @@ export default function Dashboard() {
 
             {/* Feed Filter Navigation Bar */}
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: "1rem",
-                overflowX: "auto",
-                paddingBottom: 4,
-              }}
+              className="tw-mb-4 tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-pb-1"
             >
               {[
                 { id: "all", label: "🌟 All Feed" },
@@ -551,7 +597,7 @@ export default function Dashboard() {
 
             {/* Feed Loading Indicator */}
             {loadingPosts && (
-              <div className="text-center py-2 text-muted small">
+              <div className="tw-py-2 tw-text-center tw-text-sm tw-text-[var(--cc-muted)]">
                 Loading posts…
               </div>
             )}
@@ -567,7 +613,7 @@ export default function Dashboard() {
               </div>
             )}
             {posts.map((post) => (
-              <div key={post._id} style={{ marginBottom: "1.1rem" }}>
+              <div key={post._id} className="tw-mb-4">
                 {renderPost(post)}
               </div>
             ))}
@@ -584,8 +630,8 @@ export default function Dashboard() {
             )}
           </main>
 
-          {/* ══════════════════════════ RIGHT SIDEBAR ═════════════════════════ */}
-          <aside className="cc-right-aside" style={{ position: "sticky", top: 90 }}>
+          {/* ══════════════════════════ RIGHT SIDEBAR (USER RECOMMENDATIONS) ═════════════════════════ */}
+          <aside className="cc-right-aside dashboard-right-aside">
             <div style={{ ...card, overflow: "hidden" }}>
               {/* Header Tabs */}
               <div style={{

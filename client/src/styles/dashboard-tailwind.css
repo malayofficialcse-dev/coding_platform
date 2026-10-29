@@ -1,0 +1,72 @@
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════
+   Dashboard 3-Column Layout:
+   Left: Profile Card (280px)
+   Center: Feed (1fr)
+   Right: User Recommendations (300px)
+   ═══════════════════════════════════════════════════════════ */
+
+#dashboard-page .dashboard-grid {
+  display: grid !important;
+  grid-template-columns: 280px minmax(0, 1fr) 300px !important;
+  gap: 1.25rem !important;
+  align-items: start !important;
+  width: 100% !important;
+}
+
+#dashboard-page .dashboard-left-aside {
+  display: block !important;
+  width: 100% !important;
+  position: sticky !important;
+  top: 85px !important;
+  z-index: 5 !important;
+}
+
+#dashboard-page .dashboard-right-aside {
+  display: block !important;
+  width: 100% !important;
+  position: sticky !important;
+  top: 85px !important;
+  z-index: 5 !important;
+}
+
+#dashboard-page main {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+/* Compact 3 columns for laptop screens (992px to 1280px) */
+@media (max-width: 1280px) and (min-width: 992px) {
+  #dashboard-page .dashboard-grid {
+    grid-template-columns: 240px minmax(0, 1fr) 270px !important;
+    gap: 1rem !important;
+  }
+}
+
+/* Tablets (768px to 991px) */
+@media (max-width: 991px) and (min-width: 769px) {
+  #dashboard-page .dashboard-grid {
+    grid-template-columns: 240px minmax(0, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  #dashboard-page .dashboard-right-aside {
+    display: none !important;
+  }
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 768px) {
+  #dashboard-page .dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  #dashboard-page .dashboard-left-aside,
+  #dashboard-page .dashboard-right-aside {
+    position: static !important;
+    width: 100% !important;
+  }
+}

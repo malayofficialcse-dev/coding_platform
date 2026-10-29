@@ -9,6 +9,7 @@ const SERVICE_CONFIG = Object.freeze({
   notification: ["NOTIFICATION_SERVICE_URL", "http://localhost:5008"],
   chat: ["CHAT_SERVICE_URL", "http://localhost:5009"],
   mentor: ["MENTOR_SERVICE_URL", "http://localhost:5010"],
+  ai: ["AI_SERVICE_URL", "http://localhost:5011"],   // ← AI RAG Service
 });
 
 export const getServiceUrl = (name) => {
