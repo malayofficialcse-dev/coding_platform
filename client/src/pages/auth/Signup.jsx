@@ -9,26 +9,17 @@ import OAuthButtons from "./OAuthButtons";
 export default function Signup() {
   const [form, setForm] = useState({ name: "", email: "", password: "", college: "", degree: "", accountType: "student", expertise: "", experienceYears: 0, bio: "" });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const submit = async (event) => {
     event.preventDefault();
+    setErrorMessage("");
     setLoading(true);
     try {
       const { accountType, expertise, experienceYears, bio, ...account } = form;
-      let authResponse;
-      try {
-        authResponse = await api.post("/auth/register", account);
-      } catch (registerError) {
-        // A previous attempt may have created the account before the mentor service
-        // was available. Let the same person continue only after their password is
-        // verified by the normal login endpoint.
-        const alreadyRegistered = registerError.response?.status === 400 &&
-          /user already exists/i.test(registerError.response?.data?.message || "");
-        if (!alreadyRegistered) throw registerError;
-        authResponse = await api.post("/auth/login", { email: account.email, password: account.password });
-      }
+      const authResponse = await api.post("/auth/register", account);
 
       if (!authResponse.data.accessToken || !authResponse.data.user) throw new Error("Signup did not return an account session.");
       const loggedIn = await login(authResponse.data.accessToken, authResponse.data.user);
@@ -53,13 +44,21 @@ export default function Signup() {
         navigate("/");
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || error.response?.data?.message || error.message || "Signup failed");
+      const responseMessage = error.response?.data?.error || error.response?.data?.message;
+      const message = /user already exists/i.test(responseMessage || "")
+        ? "User already exists. Please sign in instead."
+        : responseMessage || error.message || "Signup failed";
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const set = (key) => (event) => {
+    setErrorMessage("");
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+  };
   return (
     <AuthLayout variant="signup">
       <div className="cc-auth-form">
@@ -70,6 +69,7 @@ export default function Signup() {
         </div>
 
         <form onSubmit={submit}>
+          {errorMessage && <div className="alert alert-danger" role="alert">{errorMessage}</div>}
           <div className="mb-3">
             <label className="form-label" htmlFor="signup-account-type">I want to join as</label>
             <select id="signup-account-type" className="form-select" value={form.accountType} onChange={set("accountType")} disabled={loading}>

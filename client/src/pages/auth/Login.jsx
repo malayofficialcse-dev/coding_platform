@@ -10,14 +10,18 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const { login } = useContext(AuthContext);
   const nav = useNavigate();
 
   const submit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
     
     if (!email || !password) {
-      toast.error("Please fill in all fields");
+      const message = "Please fill in all fields";
+      setErrorMessage(message);
+      toast.error(message);
       return;
     }
 
@@ -38,8 +42,12 @@ export default function Login() {
         nav("/");
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Login failed";
-      toast.error(errorMsg);
+      const responseMessage = err.response?.data?.message || err.response?.data?.error;
+      const message = /invalid credentials/i.test(responseMessage || "")
+        ? "Incorrect email or password. Please try again."
+        : responseMessage || "Login failed";
+      setErrorMessage(message);
+      toast.error(message);
       console.error("Login error:", err);
     } finally {
       setLoading(false);
@@ -56,6 +64,7 @@ export default function Login() {
         </div>
 
         <form onSubmit={submit}>
+          {errorMessage && <div className="alert alert-danger" role="alert">{errorMessage}</div>}
           <div className="mb-3">
             <label className="form-label" htmlFor="login-email">Email address</label>
             <input
@@ -64,7 +73,10 @@ export default function Login() {
               className="form-control"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrorMessage("");
+              }}
               autoComplete="email"
               required
             />
@@ -77,7 +89,10 @@ export default function Login() {
               className="form-control"
               placeholder="Enter your password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrorMessage("");
+              }}
               autoComplete="current-password"
               required
             />
