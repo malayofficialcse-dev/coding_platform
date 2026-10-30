@@ -315,7 +315,7 @@ export default function Dashboard() {
         #dashboard-page .dashboard-grid {
           display: grid !important;
           grid-template-columns: 280px minmax(0, 1fr) 300px !important;
-          gap: 1.25rem !important;
+          gap: 0 !important;
           align-items: start !important;
           width: 100% !important;
         }
@@ -323,6 +323,7 @@ export default function Dashboard() {
         #dashboard-page .dashboard-left-aside {
           display: block !important;
           width: 100% !important;
+          padding-right: 8px !important;
           position: sticky !important;
           top: 85px !important;
         }
@@ -330,24 +331,34 @@ export default function Dashboard() {
         #dashboard-page .dashboard-right-aside {
           display: block !important;
           width: 100% !important;
+          padding-left: 8px !important;
           position: sticky !important;
           top: 85px !important;
+        }
+
+        #dashboard-page main {
+          padding: 0 8px !important;
+          border-right: 1px solid var(--cc-border, #d6dbe1) !important;
+          border-left: 1px solid var(--cc-border, #d6dbe1) !important;
         }
 
         @media (max-width: 1250px) and (min-width: 992px) {
           #dashboard-page .dashboard-grid {
             grid-template-columns: 240px minmax(0, 1fr) 270px !important;
-            gap: 1rem !important;
+            gap: 0 !important;
           }
         }
 
         @media (max-width: 991px) and (min-width: 769px) {
           #dashboard-page .dashboard-grid {
             grid-template-columns: 240px minmax(0, 1fr) !important;
-            gap: 1rem !important;
+            gap: 0 !important;
           }
           #dashboard-page .dashboard-right-aside {
             display: none !important;
+          }
+          #dashboard-page main {
+            border-right: 0 !important;
           }
         }
 
@@ -361,11 +372,16 @@ export default function Dashboard() {
           #dashboard-page .dashboard-right-aside {
             position: static !important;
             width: 100% !important;
+            padding: 0 !important;
+          }
+          #dashboard-page main {
+            padding: 0 !important;
+            border: 0 !important;
           }
         }
       `}</style>
 
-      <div className="tw-mx-auto tw-w-full tw-max-w-[1800px] tw-px-5 tw-py-5">
+      <div className="tw-mx-auto tw-w-full tw-max-w-[1800px] tw-px-2 tw-py-5">
         <div className="dashboard-grid">
 
           {/* ══════════════════════════ LEFT SIDEBAR (PROFILE CARD) ══════════════════════════ */}
