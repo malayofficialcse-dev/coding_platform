@@ -41,6 +41,7 @@ import {
   FaLightbulb,
   FaRocket,
 } from "react-icons/fa";
+import { FaHandsClapping } from "react-icons/fa6";
 
 const LANGUAGES = { javascript, js: javascript, python, py: python, java, sql, cpp, "c++": cpp };
 
@@ -55,11 +56,11 @@ const isLikedByUser = (likes, userId) =>
   likes.some((like) => String(like?._id || like) === String(userId));
 
 const REACTION_CONFIG = [
-  { type: "like", emoji: "❤️", label: "Like", color: "#dc2626" },
-  { type: "fire", emoji: "🔥", label: "Fire", color: "#ea580c" },
-  { type: "insight", emoji: "💡", label: "Insight", color: "#ca8a04" },
-  { type: "rocket", emoji: "🚀", label: "Shipped", color: "#2563eb" },
-  { type: "clap", emoji: "👏", label: "Clap", color: "#16a34a" },
+  { type: "like", Icon: FaHeart, label: "Like", color: "#dc2626" },
+  { type: "fire", Icon: FaFire, label: "Fire", color: "#ea580c" },
+  { type: "insight", Icon: FaLightbulb, label: "Insight", color: "#ca8a04" },
+  { type: "rocket", Icon: FaRocket, label: "Shipped", color: "#2563eb" },
+  { type: "clap", Icon: FaHandsClapping, label: "Clap", color: "#16a34a" },
 ];
 
 export default function PostCard({
@@ -149,6 +150,9 @@ export default function PostCard({
     reactionCounts.like = post.likes.length;
   }
   const totalReactionCount = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
+  const myReactionConfig = REACTION_CONFIG.find((reaction) => reaction.type === myReaction);
+  const MyReactionIcon = myReactionConfig?.Icon || FaHeart;
+  const myReactionColor = myReactionConfig?.color || "#dc2626";
 
   // Handle Developer Reaction
   const handleReaction = async (type) => {
@@ -846,10 +850,10 @@ export default function PostCard({
           {/* POST CONTENT */}
           <PostContent data={post} />
 
-          {/* ACTIVE REACTION PILLS (Shows all emojis that have >= 1 reactions) */}
+          {/* ACTIVE REACTIONS */}
           {totalReactionCount > 0 && (
             <div className="d-flex align-items-center gap-1 mt-3 flex-wrap">
-              {REACTION_CONFIG.map(({ type, emoji }) => {
+              {REACTION_CONFIG.map(({ type, Icon, label, color }) => {
                 const count = reactionCounts[type];
                 if (!count) return null;
                 const isSelected = myReaction === type;
@@ -858,17 +862,17 @@ export default function PostCard({
                     key={type}
                     type="button"
                     onClick={() => handleReaction(type)}
-                    className="btn btn-sm d-inline-flex align-items-center gap-1 border"
+                    className="btn btn-sm d-inline-flex align-items-center gap-1 border-0 bg-transparent shadow-none"
                     style={{
                       fontSize: "0.75rem",
-                      padding: "2px 8px",
-                      borderRadius: 16,
-                      background: isSelected ? "var(--cc-primary-soft, #e6f2fb)" : "var(--cc-surface-muted, #f8fafc)",
-                      borderColor: isSelected ? "var(--cc-primary, #0078d4)" : "var(--cc-border, #cbd5e1)",
+                      padding: "2px 4px",
+                      color: isSelected ? "var(--cc-primary, #0078d4)" : "var(--cc-muted, #64748b)",
                     }}
-                    title={`React with ${emoji}`}
+                    title={`React with ${label}`}
+                    aria-label={`${count} ${label} reactions`}
+                    aria-pressed={isSelected}
                   >
-                    <span>{emoji}</span>
+                    {React.createElement(Icon, { color, "aria-hidden": true })}
                     <span className="fw-bold">{count}</span>
                   </button>
                 );
@@ -897,20 +901,20 @@ export default function PostCard({
                       animation: "fadeIn 0.15s ease",
                     }}
                   >
-                    {REACTION_CONFIG.map(({ type, emoji, label }) => (
+                    {REACTION_CONFIG.map(({ type, Icon, label, color }) => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => handleReaction(type)}
-                        className="btn btn-sm p-1 border-0"
+                        className="btn btn-sm p-1 border-0 bg-transparent shadow-none"
                         style={{
-                          fontSize: 20,
                           transform: myReaction === type ? "scale(1.25)" : "scale(1)",
                           transition: "transform 0.15s ease",
                         }}
                         title={label}
+                        aria-label={`React with ${label}`}
                       >
-                        {emoji}
+                        {React.createElement(Icon, { size: 18, color, "aria-hidden": true })}
                       </button>
                     ))}
                   </div>
@@ -918,34 +922,36 @@ export default function PostCard({
 
                 <button
                   type="button"
-                  className={`btn btn-sm d-flex align-items-center gap-2 border ${myReaction ? "btn-light" : "btn-light"}`}
+                  className="btn btn-sm d-flex align-items-center gap-1 border-0 bg-transparent shadow-none"
                   onClick={() => handleReaction(myReaction || "like")}
                   style={{
-                    borderRadius: 8,
-                    fontWeight: 600,
-                    borderColor: myReaction ? "var(--cc-primary, #0078d4)" : undefined,
+                    padding: "4px 6px",
+                    color: myReaction ? "var(--cc-primary, #0078d4)" : "var(--cc-muted, #64748b)",
                   }}
                   title={user ? "React to post" : "Sign in to react"}
+                  aria-label={user ? "React to post" : "Sign in to react"}
+                  aria-pressed={Boolean(myReaction)}
                 >
                   {myReaction ? (
-                    <span>
-                      {REACTION_CONFIG.find((r) => r.type === myReaction)?.emoji || "❤️"}
-                    </span>
+                    <MyReactionIcon color={myReactionColor} aria-hidden="true" />
                   ) : (
-                    <FaHeart color="#64748b" />
+                    <FaHeart color="#64748b" aria-hidden="true" />
                   )}
-                  <span>{totalReactionCount > 0 ? totalReactionCount : "React"}</span>
+                  {totalReactionCount > 0 && <span>{totalReactionCount}</span>}
                 </button>
               </div>
 
               {/* Comment Button */}
               <button
                 type="button"
-                className="btn btn-sm btn-light border d-flex align-items-center gap-2"
+                className="btn btn-sm border-0 bg-transparent shadow-none d-flex align-items-center gap-1"
                 onClick={() => setShowComments((v) => !v)}
-                style={{ borderRadius: 8, fontWeight: 600 }}
+                style={{ padding: "4px 6px", color: "var(--cc-muted, #64748b)" }}
+                title={showComments ? "Hide comments" : "Show comments"}
+                aria-label={`${showComments ? "Hide" : "Show"} ${comments.length} comments`}
+                aria-expanded={showComments}
               >
-                <FaComment color="#64748b" />
+                <FaComment color="#64748b" aria-hidden="true" />
                 <span>{comments.length}</span>
               </button>
 
@@ -953,13 +959,13 @@ export default function PostCard({
               {user && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-light border d-flex align-items-center gap-2"
+                  className="btn btn-sm border-0 bg-transparent shadow-none d-flex align-items-center"
                   onClick={handleRepost}
-                  style={{ borderRadius: 8, fontWeight: 600 }}
+                  style={{ padding: "4px 6px", color: "var(--cc-muted, #64748b)" }}
                   title="Repost to your feed"
+                  aria-label="Repost to your feed"
                 >
-                  <FaShare color="#64748b" />
-                  <span className="d-none d-sm-inline">Repost</span>
+                  <FaShare color="#64748b" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -968,17 +974,17 @@ export default function PostCard({
             {user && (
               <button
                 type="button"
-                className="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                className="btn btn-sm border-0 bg-transparent shadow-none d-flex align-items-center"
                 onClick={handleBookmark}
                 style={{
-                  borderRadius: 8,
-                  fontWeight: 600,
+                  padding: "4px 6px",
                   color: bookmarked ? "var(--cc-primary, #0078d4)" : "#64748b",
                 }}
                 title={bookmarked ? "Remove from bookmarks" : "Save post to bookmarks"}
+                aria-label={bookmarked ? "Remove from bookmarks" : "Save post to bookmarks"}
+                aria-pressed={bookmarked}
               >
-                {bookmarked ? <FaBookmark color="var(--cc-primary, #0078d4)" /> : <FaRegBookmark />}
-                <span style={{ fontSize: "0.8rem" }}>{bookmarked ? "Saved" : "Save"}</span>
+                {bookmarked ? <FaBookmark color="var(--cc-primary, #0078d4)" aria-hidden="true" /> : <FaRegBookmark aria-hidden="true" />}
               </button>
             )}
           </div>
