@@ -14,11 +14,22 @@ from src.config.settings import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# ── Singleton embedding model ──────────────────────────────────────────────
-embeddings = OpenAIEmbeddings(
-    model=settings.openai_embedding_model,
-    openai_api_key=settings.openai_api_key,
-)
+def _get_embedding_function():
+    if settings.is_groq or settings.openai_embedding_model == "fastembed":
+        try:
+            from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+            logger.info("[Embedder] Using free local FastEmbed (BAAI/bge-small-en-v1.5) ✓")
+            return FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        except Exception as e:
+            logger.warning(f"[Embedder] FastEmbed not available ({e}), falling back to OpenAI")
+
+    return OpenAIEmbeddings(
+        model=settings.openai_embedding_model,
+        openai_api_key=settings.openai_api_key,
+    )
+
+
+embeddings = _get_embedding_function()
 
 # ── Cached vectorstore instance ────────────────────────────────────────────
 _vectorstore: Chroma | None = None

@@ -10,6 +10,7 @@ langchain==0.3.7
 langchain-core==0.3.17
 langchain-community==0.3.7
 langchain-openai==0.2.8
+langchain-text-splitters==0.3.2
 langgraph==0.2.45
 langsmith==0.1.141
 
@@ -20,6 +21,7 @@ chromadb==0.5.18
 # Embeddings + LLM
 openai==1.54.4
 tiktoken==0.8.0
+fastembed==0.3.6
 
 # BM25 for hybrid retrieval
 rank-bm25==0.2.2
@@ -27,7 +29,7 @@ rank-bm25==0.2.2
 # Database drivers
 pymongo==4.10.1
 psycopg2-binary==2.9.10
-sqlalchemy==2.0.36
+sqlalchemy==2.0.35
 
 # HTTP client (for calling other microservices)
 httpx==0.27.2

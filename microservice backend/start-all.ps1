@@ -14,7 +14,8 @@ $services = @(
   @{ Name = "Code-Service";   Dir = "coding-service";       Port = 5007; Tag = "[CODE]   " },
   @{ Name = "Notif-Service";  Dir = "notification-service"; Port = 5008; Tag = "[NOTIF]  " },
   @{ Name = "Chat-Service";   Dir = "chat-service";         Port = 5009; Tag = "[CHAT]   " },
-  @{ Name = "Mentor-Service"; Dir = "mentor-service";       Port = 5010; Tag = "[MENTOR] " }
+  @{ Name = "Mentor-Service"; Dir = "mentor-service";       Port = 5010; Tag = "[MENTOR] " },
+  @{ Name = "AI-Service";     Dir = "..\ai-service";        Port = 5011; Tag = "[AI]     "; Command = "python -m uvicorn src.main:app --host 0.0.0.0 --port 5011 --reload" }
 )
 
 # ── Helpers ──────────────────────────────────────────────
@@ -88,9 +89,10 @@ for ($idx = 0; $idx -lt $total; $idx++) {
 
   Show-Spinner "Preparing $($svc.Name)..."
 
+  $cmd = if ($svc.Command) { $svc.Command } else { "node src/index.js" }
   Start-Process powershell `
     -ArgumentList "-NoExit", "-Command", `
-      "`$host.UI.RawUI.WindowTitle = '$($svc.Name) | Port $($svc.Port)'; Set-Location '$serviceDir'; node src/index.js" `
+      "`$host.UI.RawUI.WindowTitle = '$($svc.Name) | Port $($svc.Port)'; Set-Location '$serviceDir'; $cmd" `
     -WindowStyle Normal
 
   Show-ProgressBar ($idx + 1) $total "$($svc.Tag) $($svc.Name)  ->  :$($svc.Port)"

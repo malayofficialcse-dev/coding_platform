@@ -1,6 +1,8 @@
 // client/src/components/AIChatbot/AIChatbot.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAccessToken } from '../../api/accessToken';
+import { apiBaseUrl } from '../../api/api';
 import './AIChatbot.css';
 
 // Generate a stable session ID per browser tab
@@ -14,7 +16,7 @@ const WELCOME_MESSAGE = {
 };
 
 export default function AIChatbot() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [isOpen, setIsOpen]       = useState(false);
   const [messages, setMessages]   = useState([WELCOME_MESSAGE]);
   const [input, setInput]         = useState('');
@@ -61,18 +63,29 @@ export default function AIChatbot() {
     abortRef.current = controller;
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiBase}/api/ai/chat`, {
+      const authToken = getAccessToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const res = await fetch(`${apiBaseUrl}/ai/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text, session_id: SESSION_ID }),
+        headers,
+        body: JSON.stringify({
+          message: text,
+          session_id: SESSION_ID,
+          user_token: authToken || undefined,
+        }),
         signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Please log in to chat with CodeBot.');
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
 
       const reader  = res.body.getReader();
       const decoder = new TextDecoder();
@@ -126,10 +139,13 @@ export default function AIChatbot() {
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
+        const errorMsg = err.message?.startsWith('Please')
+          ? `⚠️ ${err.message}`
+          : '⚠️ Connection error. Please try again.';
         setMessages(prev =>
           prev.map(m =>
             m.streaming
-              ? { ...m, streaming: false, content: '⚠️ Connection error. Please try again.' }
+              ? { ...m, streaming: false, content: errorMsg }
               : m
           )
         );
@@ -138,7 +154,7 @@ export default function AIChatbot() {
       setIsStreaming(false);
       setIntentLabel('');
     }
-  }, [input, isStreaming, token]);
+  }, [input, isStreaming]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {

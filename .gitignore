@@ -1,5 +1,20 @@
 .env
+*.env
 node_modules
 dist
 !client/.env.example
 !microservice backend/.env.example
+
+# Python & Virtual Environments
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# AI Service Vector Store & Cache
+chroma_db/
+fastembed_cache/
+
+# Logs
+*.log
+logs/

@@ -14,10 +14,32 @@ class Settings(BaseSettings):
     # Server
     port: int = 5011
 
-    # OpenAI
+    # OpenAI / Groq
     openai_api_key: str
+    openai_api_base: str = ""
+    openai_base_url: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+
+    @property
+    def is_groq(self) -> bool:
+        return self.openai_api_key.startswith("gsk_") or "groq.com" in (self.openai_base_url or self.openai_api_base)
+
+    @property
+    def effective_base_url(self) -> str | None:
+        if self.openai_base_url:
+            return self.openai_base_url
+        if self.openai_api_base:
+            return self.openai_api_base
+        if self.is_groq:
+            return "https://api.groq.com/openai/v1"
+        return None
+
+    @property
+    def effective_model(self) -> str:
+        if self.is_groq and self.openai_model in ("gpt-4o-mini", "gpt-4o"):
+            return "qwen/qwen3.8-27b"
+        return self.openai_model
 
     # LangSmith
     langchain_tracing_v2: str = "true"
@@ -31,11 +53,16 @@ class Settings(BaseSettings):
     chroma_collection_name: str = "code_campus_knowledge"
 
     # MongoDB
+    mongo_uri: str = ""
     course_mongo_uri: str = "mongodb://localhost:27018/course_db"
     coding_mongo_uri: str = "mongodb://localhost:27019/coding_problems_db"
 
     # PostgreSQL
-    exam_database_url: str = ""
+    user_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/user_db"
+    auth_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/auth_db"
+    exam_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/exam_db"
+    enrollment_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/enrollment_db"
+    coding_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/coding_db"
 
     # Internal Services
     user_service_url: str = "http://localhost:5002"

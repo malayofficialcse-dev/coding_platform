@@ -50,7 +50,12 @@ class CourseLoader:
         docs: list[Document] = []
         try:
             client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
-            db = client.get_database()          # uses DB from URI
+            try:
+                db = client.get_default_database()
+            except Exception:
+                db = None
+            if db is None:
+                db = client["course_db"]
             courses = list(db.courses.find({}))
             logger.info(f"[CourseLoader] Found {len(courses)} courses")
 
@@ -115,7 +120,12 @@ class CodingProblemLoader:
         docs: list[Document] = []
         try:
             client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
-            db = client.get_database()
+            try:
+                db = client.get_default_database()
+            except Exception:
+                db = None
+            if db is None:
+                db = client["coding_problems_db"]
             problems = list(db.codingproblems.find({}))
             logger.info(f"[CodingLoader] Found {len(problems)} problems")
 
