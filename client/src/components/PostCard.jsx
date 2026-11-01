@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import CommentSection from "./CommentSection";
@@ -81,6 +81,54 @@ export default function PostCard({
     (isLikedByUser(post.likes, currentUserId) ? "like" : null);
   const [myReaction, setMyReaction] = useState(userReaction);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const reactionContainerRef = useRef(null);
+  const reactionTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        reactionContainerRef.current &&
+        !reactionContainerRef.current.contains(e.target)
+      ) {
+        setShowReactionPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (reactionTimeoutRef.current) {
+        clearTimeout(reactionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleReactionMouseEnter = () => {
+    if (!user) return;
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current);
+      reactionTimeoutRef.current = null;
+    }
+    setShowReactionPicker(true);
+  };
+
+  const handleReactionMouseLeave = () => {
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current);
+    }
+    reactionTimeoutRef.current = setTimeout(() => {
+      setShowReactionPicker(false);
+    }, 350);
+  };
+
+  const handleReactionButtonClick = (e) => {
+    e.stopPropagation();
+    if (!user) return;
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current);
+      reactionTimeoutRef.current = null;
+    }
+    setShowReactionPicker((prev) => !prev);
+  };
 
   // Poll
   const [poll, setPoll] = useState(post.poll || null);
@@ -157,8 +205,12 @@ export default function PostCard({
   // Handle Developer Reaction
   const handleReaction = async (type) => {
     if (!user) return;
+    if (reactionTimeoutRef.current) {
+      clearTimeout(reactionTimeoutRef.current);
+      reactionTimeoutRef.current = null;
+    }
+    setShowReactionPicker(false);
     try {
-      setShowReactionPicker(false);
       const res = await api.post(`/posts/react/${post._id}`, { type });
       setReactions(res.data.reactions || []);
       setMyReaction(res.data.myReaction);
@@ -885,45 +937,66 @@ export default function PostCard({
             <div className="d-flex align-items-center gap-2 position-relative">
               {/* Developer Reaction Button & Popover */}
               <div
+                ref={reactionContainerRef}
                 className="position-relative"
-                onMouseEnter={() => setShowReactionPicker(true)}
-                onMouseLeave={() => setShowReactionPicker(false)}
+                onMouseEnter={handleReactionMouseEnter}
+                onMouseLeave={handleReactionMouseLeave}
               >
                 {/* Floating Reaction Popover */}
                 {showReactionPicker && user && (
                   <div
-                    className="position-absolute d-flex align-items-center gap-2 p-2 bg-white rounded-pill shadow-lg border"
+                    className="position-absolute"
                     style={{
                       bottom: "100%",
                       left: 0,
-                      marginBottom: 8,
+                      paddingBottom: 8,
                       zIndex: 30,
-                      animation: "fadeIn 0.15s ease",
                     }}
+                    onMouseEnter={handleReactionMouseEnter}
+                    onMouseLeave={handleReactionMouseLeave}
                   >
-                    {REACTION_CONFIG.map(({ type, Icon, label, color }) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => handleReaction(type)}
-                        className="btn btn-sm p-1 border-0 bg-transparent shadow-none"
-                        style={{
-                          transform: myReaction === type ? "scale(1.25)" : "scale(1)",
-                          transition: "transform 0.15s ease",
-                        }}
-                        title={label}
-                        aria-label={`React with ${label}`}
-                      >
-                        {React.createElement(Icon, { size: 18, color, "aria-hidden": true })}
-                      </button>
-                    ))}
+                    <div
+                      className="d-flex align-items-center gap-2 p-2 bg-white rounded-pill shadow-lg border"
+                      style={{
+                        animation: "fadeIn 0.15s ease",
+                      }}
+                    >
+                      {REACTION_CONFIG.map(({ type, Icon, label, color }) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReaction(type);
+                          }}
+                          className="btn btn-sm p-1 border-0 bg-transparent shadow-none reaction-option-btn"
+                          style={{
+                            transform: myReaction === type ? "scale(1.25)" : "scale(1)",
+                            transition: "transform 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (myReaction !== type) {
+                              e.currentTarget.style.transform = "scale(1.3)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform =
+                              myReaction === type ? "scale(1.25)" : "scale(1)";
+                          }}
+                          title={label}
+                          aria-label={`React with ${label}`}
+                        >
+                          {React.createElement(Icon, { size: 18, color, "aria-hidden": true })}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 <button
                   type="button"
                   className="btn btn-sm d-flex align-items-center gap-1 border-0 bg-transparent shadow-none"
-                  onClick={() => handleReaction(myReaction || "like")}
+                  onClick={handleReactionButtonClick}
                   style={{
                     padding: "4px 6px",
                     color: myReaction ? "var(--cc-primary, #0078d4)" : "var(--cc-muted, #64748b)",
