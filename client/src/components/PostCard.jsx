@@ -680,7 +680,37 @@ export default function PostCard({
               getLanguageExtension(data.codeBlocks[codeIndex].language),
               EditorView.theme({
                 "&": { fontSize: "13.5px" },
-                ".cm-scroller": { overflow: "auto" },
+                ".cm-scroller": {
+                  overflow: "auto",
+                  scrollbarWidth: "thin",
+                  scrollbarColor:
+                    theme === "dark"
+                      ? "rgba(255, 255, 255, 0.22) transparent"
+                      : "rgba(100, 116, 139, 0.35) transparent",
+                  "&::-webkit-scrollbar": {
+                    width: "5px",
+                    height: "5px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background:
+                      theme === "dark"
+                        ? "rgba(255, 255, 255, 0.22)"
+                        : "rgba(100, 116, 139, 0.35)",
+                    borderRadius: "99px",
+                  },
+                  "&::-webkit-scrollbar-thumb:hover": {
+                    background:
+                      theme === "dark"
+                        ? "rgba(255, 255, 255, 0.45)"
+                        : "rgba(100, 116, 139, 0.6)",
+                  },
+                  "&::-webkit-scrollbar-corner": {
+                    background: "transparent",
+                  },
+                },
               }),
             ]}
             theme={theme === "dark" ? "dark" : "light"}

@@ -244,3 +244,75 @@ select:focus {
   color: var(--cc-text) !important;
   border-color: var(--cc-border) !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   THIN PROFESSIONAL SCROLLBAR FOR CODING SECTIONS & CODEMIRROR
+───────────────────────────────────────────────────────────────────── */
+.cm-editor,
+.cm-scroller,
+.cc-code-block,
+pre,
+code {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.cm-editor ::-webkit-scrollbar,
+.cm-scroller::-webkit-scrollbar,
+.cc-code-block::-webkit-scrollbar,
+pre::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.cm-editor ::-webkit-scrollbar-track,
+.cm-scroller::-webkit-scrollbar-track,
+.cc-code-block::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.cm-editor ::-webkit-scrollbar-thumb,
+.cm-scroller::-webkit-scrollbar-thumb,
+.cc-code-block::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  transition: background 0.15s ease-in-out;
+}
+
+.cm-editor ::-webkit-scrollbar-thumb:hover,
+.cm-scroller::-webkit-scrollbar-thumb:hover,
+.cc-code-block::-webkit-scrollbar-thumb:hover,
+pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.65);
+}
+
+.cm-editor ::-webkit-scrollbar-corner,
+.cm-scroller::-webkit-scrollbar-corner,
+pre::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+[data-theme="dark"] .cm-editor,
+[data-theme="dark"] .cm-scroller,
+.dark .cm-editor,
+.dark .cm-scroller {
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+[data-theme="dark"] .cm-editor ::-webkit-scrollbar-thumb,
+[data-theme="dark"] .cm-scroller::-webkit-scrollbar-thumb,
+.dark .cm-editor ::-webkit-scrollbar-thumb,
+.dark .cm-scroller::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="dark"] .cm-editor ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .cm-scroller::-webkit-scrollbar-thumb:hover,
+.dark .cm-editor ::-webkit-scrollbar-thumb:hover,
+.dark .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
