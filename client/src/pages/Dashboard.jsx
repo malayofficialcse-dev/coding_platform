@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../contexts/AuthContext";
@@ -9,6 +9,7 @@ import UsersLogo from "../assets/users-solid-full.svg";
 import UserPlus from "../assets/user-plus-regular-full.svg";
 import UserMinus from "../assets/user-minus-solid-full.svg";
 import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic, FaChartBar, FaQuestionCircle, FaBookmark, FaTimes } from "react-icons/fa";
+import { LuSparkles, LuCode, LuChartBar, LuCircleHelp, LuBookmark } from "react-icons/lu";
 import { formatDateTime } from "../utils/formatDateTime";
 import { executeGraphQL, GraphQLOperationError } from "../graphql/client";
 import { HOME_DASHBOARD_QUERY } from "../graphql/dashboard/documents";
@@ -94,6 +95,19 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [dashboardRefresh]);
 
+  const sentinelRef = useRef(null);
+  const loadingPostsRef = useRef(loadingPosts);
+  const hasMorePostsRef = useRef(hasMorePosts);
+  const loadMorePostsRef = useRef(null);
+
+  useEffect(() => {
+    loadingPostsRef.current = loadingPosts;
+  }, [loadingPosts]);
+
+  useEffect(() => {
+    hasMorePostsRef.current = hasMorePosts;
+  }, [hasMorePosts]);
+
   const fetchFilteredPosts = async (tab = feedTab, tag = activeTag) => {
     setLoadingPosts(true);
     setDashboardError("");
@@ -107,9 +121,14 @@ export default function Dashboard() {
       if (tag) params.tag = tag;
 
       const res = await api.get("/posts", { params });
-      setPosts(res.data || []);
+      const newPosts = res.data || [];
+      setPosts(newPosts);
       setPostsPage(1);
-      setHasMorePosts(res.headers["x-has-more"] === "true");
+      const hasMore =
+        res.headers?.["x-has-more"] === "true" ||
+        res.headers?.["X-Has-More"] === "true" ||
+        (Array.isArray(newPosts) && newPosts.length === 20);
+      setHasMorePosts(Boolean(hasMore));
     } catch (err) {
       console.error("Filter posts error:", err);
       setDashboardError("Failed to filter posts. Please try again.");
@@ -140,6 +159,7 @@ export default function Dashboard() {
   };
 
   const loadMorePosts = async () => {
+    if (loadingPostsRef.current || !hasMorePostsRef.current) return;
     const nextPage = postsPage + 1;
     setLoadingPosts(true);
     try {
@@ -151,13 +171,71 @@ export default function Dashboard() {
       if (feedTab !== "all") params.type = feedTab;
       if (activeTag) params.tag = activeTag;
       const res = await api.get("/posts", { params });
-      setPosts((current) => [...current, ...(res.data || [])]);
-      setPostsPage(nextPage);
-      setHasMorePosts(res.headers["x-has-more"] === "true");
+      const newPosts = res.data || [];
+      if (newPosts.length > 0) {
+        setPosts((current) => {
+          const existingIds = new Set(current.map((p) => String(p._id || p.id)));
+          const uniqueNewPosts = newPosts.filter(
+            (p) => !existingIds.has(String(p._id || p.id))
+          );
+          return [...current, ...uniqueNewPosts];
+        });
+        setPostsPage(nextPage);
+      }
+      const hasMore =
+        res.headers?.["x-has-more"] === "true" ||
+        res.headers?.["X-Has-More"] === "true" ||
+        (Array.isArray(newPosts) && newPosts.length === 20);
+      setHasMorePosts(Boolean(hasMore));
+    } catch (err) {
+      console.error("Load more posts error:", err);
     } finally {
       setLoadingPosts(false);
     }
   };
+
+  useEffect(() => {
+    loadMorePostsRef.current = loadMorePosts;
+  });
+
+  // Infinite Scroll Trigger via IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMorePostsRef.current && !loadingPostsRef.current) {
+          loadMorePostsRef.current?.();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "350px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [posts.length, hasMorePosts]);
+
+  // Window scroll fallback
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loadingPostsRef.current || !hasMorePostsRef.current) return;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+      if (scrollTop + clientHeight >= scrollHeight - 350) {
+        loadMorePostsRef.current?.();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const handleUpdatePost = (up) => setPosts((prev) => prev.map((p) => (p._id === up._id ? up : p)));
   const handleDeletePost = (postId) => setPosts((prev) => prev.filter((p) => p._id !== postId));
 
@@ -542,12 +620,12 @@ export default function Dashboard() {
               className="tw-mb-4 tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-pb-1"
             >
               {[
-                { id: "all", label: "🌟 All Feed" },
-                { id: "code", label: "💻 Code Snippets" },
-                { id: "poll", label: "📊 Polls" },
-                { id: "question", label: "❓ Questions" },
-                ...(user ? [{ id: "saved", label: "🔖 Saved Posts" }] : []),
-              ].map(({ id, label }) => {
+                { id: "all", label: "All Feed", Icon: LuSparkles },
+                { id: "code", label: "Code Snippets", Icon: LuCode },
+                { id: "poll", label: "Polls", Icon: LuChartBar },
+                { id: "question", label: "Questions", Icon: LuCircleHelp },
+                ...(user ? [{ id: "saved", label: "Saved Posts", Icon: LuBookmark }] : []),
+              ].map(({ id, label, Icon }) => {
                 const active = feedTab === id;
                 return (
                   <button
@@ -566,9 +644,13 @@ export default function Dashboard() {
                       whiteSpace: "nowrap",
                       transition: "all 0.15s ease",
                       boxShadow: active ? "0 2px 6px rgba(0, 120, 212, 0.12)" : "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
                     }}
                   >
-                    {label}
+                    <Icon size={14} style={{ color: active ? C.primary : C.inkMuted, flexShrink: 0 }} />
+                    <span>{label}</span>
                   </button>
                 );
               })}
@@ -629,21 +711,42 @@ export default function Dashboard() {
               </div>
             )}
             {posts.map((post) => (
-              <div key={post._id} className="tw-mb-4">
+              <div key={post._id || post.id} className="tw-mb-4">
                 {renderPost(post)}
               </div>
             ))}
-            {hasMorePosts && (
-              <button
-                type="button"
-                className="cc-btn cc-btn-secondary"
-                onClick={loadMorePosts}
-                disabled={loadingPosts}
-                style={{ width: "100%", marginBottom: "1rem" }}
-              >
-                {loadingPosts ? "Loading…" : "Load more posts"}
-              </button>
-            )}
+
+            {/* Infinite Scroll Sentinel & Loading Indicator */}
+            <div ref={sentinelRef} className="w-100 py-3 text-center">
+              {loadingPosts && (
+                <div
+                  className="d-flex align-items-center justify-content-center gap-2 py-3"
+                  style={{ color: "var(--cc-muted, #64748b)" }}
+                >
+                  <div
+                    className="spinner-border spinner-border-sm text-primary"
+                    role="status"
+                    style={{ width: "1.2rem", height: "1.2rem" }}
+                  />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>
+                    Loading more campus posts…
+                  </span>
+                </div>
+              )}
+
+              {!loadingPosts && !hasMorePosts && posts.length > 0 && (
+                <div
+                  className="py-3 text-muted"
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--cc-muted, #64748b)",
+                    opacity: 0.85,
+                  }}
+                >
+                  🎉 You’re all caught up with the latest posts!
+                </div>
+              )}
+            </div>
           </main>
 
           {/* ══════════════════════════ RIGHT SIDEBAR (USER RECOMMENDATIONS) ═════════════════════════ */}

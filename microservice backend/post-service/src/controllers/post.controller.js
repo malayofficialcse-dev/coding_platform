@@ -41,6 +41,7 @@ const getPagination = (req) => {
 
 const sendPaginated = (res, posts, total, page, limit) => {
   res.set({
+    "Access-Control-Expose-Headers": "X-Page, X-Page-Size, X-Total-Count, X-Has-More, x-page, x-page-size, x-total-count, x-has-more",
     "X-Page": String(page),
     "X-Page-Size": String(limit),
     "X-Total-Count": String(total),

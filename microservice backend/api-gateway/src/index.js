@@ -72,7 +72,17 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["API-Version"],
+    exposedHeaders: [
+      "API-Version",
+      "X-Has-More",
+      "X-Total-Count",
+      "X-Page",
+      "X-Page-Size",
+      "x-has-more",
+      "x-total-count",
+      "x-page",
+      "x-page-size",
+    ],
   })
 );
 
