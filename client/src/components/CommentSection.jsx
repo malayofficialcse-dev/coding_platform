@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { FaPaperPlane } from "react-icons/fa";
 
-const DEFAULT_AVATAR =
-  "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
+const DEFAULT_AVATAR = "/default-avatar.svg";
 
 function timeAgo(dateString) {
   if (!dateString) return "";
@@ -40,20 +39,48 @@ export default function CommentSection({ comments = [], onComment, user }) {
       {/* Comments List */}
       <div className="d-flex flex-column gap-2 mb-3">
         {comments.map((c, idx) => {
-          const authorName =
-            c.author?.name || c.author?.username || "Code Campus Member";
-          const authorImage = c.author?.profileImage || DEFAULT_AVATAR;
           const authorId =
             typeof c.author === "string"
               ? c.author
               : c.author?._id || c.author?.id || "";
 
+          const authorName =
+            (typeof c.author === "object" && (c.author?.name || c.author?.username)) ||
+            (typeof c.author === "string" && c.author) ||
+            "Code Campus Member";
+
+          const isCurrentUser =
+            user &&
+            (String(user._id || user.id) === String(authorId) ||
+              user.name === authorName ||
+              user.username === authorName);
+
+          const rawAuthorImage =
+            (typeof c.author === "object" &&
+              (c.author?.profileImage ||
+                c.author?.avatar ||
+                c.author?.profilePicture ||
+                c.author?.image)) ||
+            c.authorImage ||
+            c.profileImage ||
+            (isCurrentUser ? user?.profileImage : null);
+
+          const authorImage = rawAuthorImage || DEFAULT_AVATAR;
+
           return (
             <div key={c._id || idx} className="d-flex align-items-start gap-2">
-              {/* User Avatar */}
+              {/* User Avatar with explicit square wrapper to prevent squishing */}
               <Link
                 to={authorId ? `/profile/${authorId}` : "#"}
-                className="flex-shrink-0 text-decoration-none"
+                className="flex-shrink-0 text-decoration-none d-inline-flex"
+                style={{
+                  width: 34,
+                  height: 34,
+                  minWidth: 34,
+                  minHeight: 34,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                }}
               >
                 <img
                   src={optimizedImageUrl(authorImage, 80)}
@@ -61,11 +88,18 @@ export default function CommentSection({ comments = [], onComment, user }) {
                   style={{
                     width: 34,
                     height: 34,
+                    minWidth: 34,
+                    minHeight: 34,
+                    maxWidth: 34,
+                    maxHeight: 34,
                     borderRadius: "50%",
                     objectFit: "cover",
+                    aspectRatio: "1 / 1",
+                    display: "block",
                     border: "1.5px solid var(--cc-border, rgba(255, 255, 255, 0.12))",
                   }}
                   onError={(e) => {
+                    e.currentTarget.onerror = null;
                     e.currentTarget.src = DEFAULT_AVATAR;
                   }}
                 />
@@ -106,7 +140,7 @@ export default function CommentSection({ comments = [], onComment, user }) {
                   </div>
                 </div>
 
-                {/* Meta details (e.g. timestamp) */}
+                {/* Meta details (timestamp) */}
                 {c.createdAt && (
                   <div
                     className="ps-2 mt-1"
@@ -130,22 +164,40 @@ export default function CommentSection({ comments = [], onComment, user }) {
           onSubmit={handleSubmit}
           className="d-flex align-items-center gap-2 mt-2"
         >
-          {/* Current User Avatar */}
-          <img
-            src={optimizedImageUrl(user?.profileImage || DEFAULT_AVATAR, 80)}
-            alt={user?.name || user?.username || "You"}
+          {/* Current User Avatar with consistent 34x34 circle wrapper */}
+          <div
+            className="flex-shrink-0 d-inline-flex"
             style={{
               width: 34,
               height: 34,
+              minWidth: 34,
+              minHeight: 34,
               borderRadius: "50%",
-              objectFit: "cover",
-              flexShrink: 0,
-              border: "1.5px solid var(--cc-border, rgba(255, 255, 255, 0.12))",
+              overflow: "hidden",
             }}
-            onError={(e) => {
-              e.currentTarget.src = DEFAULT_AVATAR;
-            }}
-          />
+          >
+            <img
+              src={optimizedImageUrl(user?.profileImage || DEFAULT_AVATAR, 80)}
+              alt={user?.name || user?.username || "You"}
+              style={{
+                width: 34,
+                height: 34,
+                minWidth: 34,
+                minHeight: 34,
+                maxWidth: 34,
+                maxHeight: 34,
+                borderRadius: "50%",
+                objectFit: "cover",
+                aspectRatio: "1 / 1",
+                display: "block",
+                border: "1.5px solid var(--cc-border, rgba(255, 255, 255, 0.12))",
+              }}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = DEFAULT_AVATAR;
+              }}
+            />
+          </div>
 
           {/* Input field with Post button inside */}
           <div className="position-relative flex-grow-1 d-flex align-items-center">

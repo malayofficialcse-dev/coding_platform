@@ -258,8 +258,23 @@ export default function PostCard({
 
   const handleComment = async (text) => {
     const res = await api.post(`/posts/comment/${post._id}`, { text });
-    setComments([...comments, res.data]);
-    onUpdate?.({ ...post, comments: [...comments, res.data] });
+    const newComment = {
+      ...res.data,
+      author:
+        res.data?.author && typeof res.data.author === "object"
+          ? {
+              ...res.data.author,
+              profileImage: res.data.author.profileImage || user?.profileImage || "",
+            }
+          : {
+              _id: currentUserId,
+              name: user?.name || user?.username || "Code Campus Member",
+              username: user?.username || "",
+              profileImage: user?.profileImage || "",
+            },
+    };
+    setComments([...comments, newComment]);
+    onUpdate?.({ ...post, comments: [...comments, newComment] });
   };
 
   const handleRepost = async () => {
