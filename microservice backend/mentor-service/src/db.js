@@ -1,12 +1,27 @@
 import pg from "pg";
 
 const { Pool } = pg;
+
+const connectionString = (
+  process.env.MENTOR_DATABASE_URL ||
+  "postgresql://postgres:malay21@127.0.0.1:5432/mentor_db"
+).replace(/^"|"$/g, "");
+
+const isNeon = connectionString.includes("neon.tech");
+
 export const pool = new Pool({
-  connectionString: process.env.MENTOR_DATABASE_URL || "postgresql://postgres:malay21@127.0.0.1:5432/mentor_db",
-  ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
+  connectionString,
+  ssl: isNeon ? { rejectUnauthorized: false } : undefined,
   max: Number(process.env.DB_POOL_MAX || 15),
   idleTimeoutMillis: 30000,
 });
+
+// Set schema search_path for every new connection from the pool
+if (isNeon) {
+  pool.on("connect", (client) => {
+    client.query("SET search_path TO mentor_schema, public").catch(console.error);
+  });
+}
 
 export async function initializeDatabase() {
   let connected = false;
@@ -65,4 +80,5 @@ export async function initializeDatabase() {
       option_index integer NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(poll_id,user_id)
     );
   `);
+  console.log("[Mentor Service] PostgreSQL connected — Neon (mentor_schema)");
 }

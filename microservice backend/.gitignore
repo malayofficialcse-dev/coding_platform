@@ -7,3 +7,4 @@ dist/
 Thumbs.db
 !.env.example
 .env.example
+.neon

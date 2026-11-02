@@ -1,18 +1,29 @@
 import { Sequelize } from "sequelize";
 
-const dbUrl =
+const dbUrl = (
   process.env.ENROLLMENT_DATABASE_URL ||
   process.env.DATABASE_URL ||
-  "postgresql://postgres:malay21@127.0.0.1:5432/enrollment_db";
+  "postgresql://postgres:malay21@127.0.0.1:5432/enrollment_db"
+).replace(/^"|"$/g, "");
+
+const isNeon = dbUrl.includes("neon.tech");
 
 export const sequelize = new Sequelize(dbUrl, {
   dialect: "postgres",
+  dialectOptions: {
+    ssl: isNeon ? { require: true, rejectUnauthorized: false } : false,
+  },
   logging: false,
   pool: {
     max: 10,
     min: 0,
     acquire: 30000,
     idle: 10000,
+    afterCreate: isNeon
+      ? (conn, done) => {
+          conn.query("SET search_path TO enrollment_schema, public", (err) => done(err, conn));
+        }
+      : undefined,
   },
 });
 
@@ -20,7 +31,7 @@ export const connectDB = async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
-    console.log("[Enrollment Service] PostgreSQL connected — enrollment_db");
+    console.log("[Enrollment Service] PostgreSQL connected — Neon (enrollment_schema)");
   } catch (err) {
     console.error(`[Enrollment Service DB Error]: ${err.message}`);
   }
