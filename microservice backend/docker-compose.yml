@@ -267,7 +267,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5001
-      - AUTH_DATABASE_URL=postgres://cc_auth:cc_auth_pass@postgres-auth:5432/auth_db
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in microservice backend .env}
+      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL:-10m}
       - REFRESH_TOKEN_IDLE_DAYS=${REFRESH_TOKEN_IDLE_DAYS:-7}
@@ -307,7 +308,7 @@ services:
     environment:
       - PORT=5002
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - USER_DATABASE_URL=postgres://cc_user:cc_user_pass@postgres-user:5433/user_db
+      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=cc_neo4j_pass
@@ -359,7 +360,7 @@ services:
     environment:
       - PORT=5004
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - EXAM_DATABASE_URL=postgres://cc_exam:cc_exam_pass@postgres-exam:5435/exam_db
+      - EXAM_DATABASE_URL=${EXAM_DATABASE_URL:?Set EXAM_DATABASE_URL in microservice backend .env}
     depends_on:
       - postgres-exam
     networks:
@@ -402,7 +403,7 @@ services:
     environment:
       - PORT=5006
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - ENROLLMENT_DATABASE_URL=postgres://cc_enrollment:cc_enrollment_pass@postgres-enrollment:5434/enrollment_db
+      - ENROLLMENT_DATABASE_URL=${ENROLLMENT_DATABASE_URL:?Set ENROLLMENT_DATABASE_URL in microservice backend .env}
       - COURSE_SERVICE_URL=http://course-service:5005
     depends_on:
       - postgres-enrollment
@@ -423,7 +424,7 @@ services:
     environment:
       - PORT=5007
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - CODING_DATABASE_URL=postgres://cc_coding:cc_coding_pass@postgres-coding:5436/coding_db
+      - CODING_DATABASE_URL=${CODING_DATABASE_URL:?Set CODING_DATABASE_URL in microservice backend .env}
       - CODING_MONGO_URI=mongodb://mongo-coding:27019/coding_problems_db
       - ENABLE_LOCAL_EXEC=${ENABLE_LOCAL_EXEC}
       - PISTON_URL=${PISTON_URL}
@@ -497,7 +498,7 @@ services:
     restart: always
     environment:
       - PORT=5010
-      - MENTOR_DATABASE_URL=postgres://cc_mentor:cc_mentor_pass@postgres-mentor:5432/mentor_db
+      - MENTOR_DATABASE_URL=${MENTOR_DATABASE_URL:?Set MENTOR_DATABASE_URL in microservice backend .env}
       - AUTH_SERVICE_URL=http://auth-service:5001
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - REDIS_URL=redis://redis:6379
@@ -535,7 +536,12 @@ services:
       - CHROMA_PERSIST_DIR=/app/chroma_db
       - COURSE_MONGO_URI=mongodb://mongo-course:27018/course_db
       - CODING_MONGO_URI=mongodb://mongo-coding:27019/coding_problems_db
-      - EXAM_DATABASE_URL=postgres://cc_exam:cc_exam_pass@postgres-exam:5432/exam_db
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in microservice backend .env}
+      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
+      - ENROLLMENT_DATABASE_URL=${ENROLLMENT_DATABASE_URL:?Set ENROLLMENT_DATABASE_URL in microservice backend .env}
+      - CODING_DATABASE_URL=${CODING_DATABASE_URL:?Set CODING_DATABASE_URL in microservice backend .env}
+      - MENTOR_DATABASE_URL=${MENTOR_DATABASE_URL:?Set MENTOR_DATABASE_URL in microservice backend .env}
+      - EXAM_DATABASE_URL=${EXAM_DATABASE_URL:?Set EXAM_DATABASE_URL in microservice backend .env}
       - USER_SERVICE_URL=http://user-service:5002
       - ENROLLMENT_SERVICE_URL=http://enrollment-service:5006
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}

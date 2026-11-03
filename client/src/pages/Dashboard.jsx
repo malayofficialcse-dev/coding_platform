@@ -12,7 +12,7 @@ import { FaAlignLeft, FaCode, FaImage, FaUserFriends, FaCompass, FaMagic, FaChar
 import { LuSparkles, LuCode, LuChartBar, LuCircleHelp, LuBookmark } from "react-icons/lu";
 import { formatDateTime } from "../utils/formatDateTime";
 import { executeGraphQL, GraphQLOperationError } from "../graphql/client";
-import { HOME_DASHBOARD_QUERY } from "../graphql/dashboard/documents";
+import { HOME_DASHBOARD_QUERY, VIEWER_FOLLOWERS_QUERY } from "../graphql/dashboard/documents";
 import "../styles/dashboard-tailwind.css";
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [dashboardError, setDashboardError] = useState("");
   const [dashboardRefresh, setDashboardRefresh] = useState(0);
+  const [followerCount, setFollowerCount] = useState(null);
 
   // Social Feed Tabs & Tag Filtering
   const [feedTab, setFeedTab] = useState("all"); // "all" | "code" | "poll" | "question" | "saved"
@@ -66,6 +67,29 @@ export default function Dashboard() {
 
   const { user } = useContext(AuthContext);
   const activeGroup = "General Feed";
+
+  useEffect(() => {
+    const userId = user?._id || user?.id;
+    if (!userId) {
+      setFollowerCount(null);
+      return;
+    }
+
+    let cancelled = false;
+    executeGraphQL(VIEWER_FOLLOWERS_QUERY, { id: String(userId) }, "ViewerFollowers")
+      .then(({ myProfilePage }) => {
+        if (!cancelled) {
+          setFollowerCount(myProfilePage?.profile?.followersCount ?? 0);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) console.error("Failed to load follower count:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -496,7 +520,7 @@ export default function Dashboard() {
                       <span style={{
                         background: C.secondaryLight, color: C.secondary,
                         borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: 700,
-                      }}>{(user.followers || []).length} Followers</span>
+                      }}>{followerCount ?? (user.followers || []).length} Followers</span>
                     </div>
                     <Link
                       to="/profile"
