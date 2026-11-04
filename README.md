@@ -359,6 +359,12 @@ variables, so redeploy the Static Site after changing them. Add a rewrite rule
 from `/*` to `/index.html` so direct navigation and refreshes on React routes
 work.
 
+For Vercel, set the Project Root Directory to `client`, Build Command to
+`npm run build`, and Output Directory to `dist`. The checked-in
+[`client/vercel.json`](client/vercel.json) also declares `dist` and the SPA
+route fallback, so it avoids Vercel looking for Create React App's `build`
+directory.
+
 The optional Python AI service is a **Web Service** with Root Directory
 `ai-service`, Runtime **Docker**, and Dockerfile Path `./Dockerfile`. It honors
 Render's `PORT`. If it uses Chroma's local store, attach a persistent disk at
