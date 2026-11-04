@@ -10,12 +10,50 @@ Write-Host "===============================================" -ForegroundColor Cy
 Write-Host "  Code Campus AI Service Launcher" -ForegroundColor Yellow
 Write-Host "===============================================" -ForegroundColor Cyan
 
-# Check if virtual environment exists
-if (Test-Path "$scriptRoot\venv\Scripts\activate.ps1") {
-    Write-Host "Activating virtual environment..." -ForegroundColor Green
-    & "$scriptRoot\venv\Scripts\Activate.ps1"
-} else {
-    Write-Host "No venv detected in ai-service/venv. Using global Python environment." -ForegroundColor Gray
+# Use the project's supported local Python version instead of silently falling
+# back to a global interpreter that may not have the service dependencies.
+$venvPath = Join-Path $scriptRoot ".venv"
+$venvPython = Join-Path $venvPath "Scripts\python.exe"
+$legacyVenvPython = Join-Path $scriptRoot "venv\Scripts\python.exe"
+
+if (Test-Path $legacyVenvPython) {
+    $venvPython = $legacyVenvPython
+} elseif (-not (Test-Path $venvPython)) {
+    $launcher = Get-Command py.exe -ErrorAction SilentlyContinue
+    if (-not $launcher) {
+        throw "Python 3.12 or 3.11 is required. Install Python and the Windows py launcher, then run this script again."
+    }
+
+    $createdVenv = $false
+    foreach ($version in @("3.12", "3.11")) {
+        & $launcher.Source "-$version" --version *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Creating .venv with Python $version..." -ForegroundColor Green
+            & $launcher.Source "-$version" -m venv $venvPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not create the virtual environment with Python $version."
+            }
+            $createdVenv = $true
+            break
+        }
+    }
+
+    if (-not $createdVenv) {
+        throw "Python 3.12 or 3.11 was not found. Install one of these versions, then run this script again."
+    }
+}
+
+$pythonVersion = & $venvPython --version
+if ($pythonVersion -notmatch "Python 3\.(11|12)\.") {
+    throw "The AI service uses Python 3.11 or 3.12. Found '$pythonVersion' at '$venvPython'. Remove or rename that venv, then run this script again."
+}
+
+Write-Host "Installing/checking AI service dependencies..." -ForegroundColor Green
+& $venvPython -m pip install -r (Join-Path $scriptRoot "requirements.txt")
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "On Windows, chroma-hnswlib may need Microsoft C++ Build Tools (Desktop development with C++)." -ForegroundColor Yellow
+    Write-Host "Alternatively, start Docker Desktop and run the AI service from its Dockerfile." -ForegroundColor Yellow
+    throw "Dependency installation failed. Resolve the pip error above, then run this script again."
 }
 
 # Check if OPENAI_API_KEY is configured
@@ -44,4 +82,4 @@ if ($staleConns) {
 }
 
 Write-Host "Starting AI Service on port 5011 (http://localhost:5011)..." -ForegroundColor Cyan
-python -m uvicorn src.main:app --host 0.0.0.0 --port 5011 --reload
+& $venvPython -m uvicorn src.main:app --host 0.0.0.0 --port 5011 --reload

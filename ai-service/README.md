@@ -65,19 +65,33 @@ ai-service/
 
 ```bash
 cd ai-service
-python -m venv venv
+```
 
-# Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
+Use Python 3.11 or 3.12. The Docker image uses Python 3.11; older pinned
+dependencies in `requirements.txt` are not tested with Python 3.14.
+On Windows, `chroma-hnswlib` may need Microsoft C++ Build Tools with the
+**Desktop development with C++** workload to compile. If you do not want to
+install those build tools, start Docker Desktop and run the Docker image
+instead.
 
-# Linux / macOS
-source venv/bin/activate
+On Windows (PowerShell):
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+On Linux/macOS:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 3. Configure `.env`
@@ -101,6 +115,10 @@ python scripts/ingest.py
 # Development mode with hot-reload
 python -m uvicorn src.main:app --host 0.0.0.0 --port 5011 --reload
 ```
+
+On Windows, run `.\Start-ai.ps1` from this folder. It creates or reuses a
+Python 3.11/3.12 virtual environment, installs the requirements, and starts
+the app with that environment's Python.
 
 Health check:
 - Visit: `http://localhost:5011/health`
