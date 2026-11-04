@@ -7,5 +7,6 @@ dist/
 Thumbs.db
 !.env.example
 .env.example
+!api-gateway/.env.example
 .neon
 *deployed_urls.txt

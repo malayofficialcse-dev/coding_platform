@@ -327,6 +327,16 @@ service settings. If your Render plan does not include Private Services, the
 domain services will need to be public Web Services; do not rely on CORS alone
 to protect them.
 
+The gateway defaults to local service URLs for local development. In Render,
+set `APP_ENV=production` and set each standard `*_SERVICE_URL` variable below
+to that service's Render **private** URL. Never use `localhost` for a deployed
+service URL. Older mixed-case URL names in local `.env` files are supported
+only as a migration fallback; use the standard uppercase variable names in
+Render. The current mixed-case `User_Service` entry appears to point to a
+Post Service host; the gateway refuses to use a localhost URL for a service in
+production. Provide the actual User Service private URL as `USER_SERVICE_URL`
+in Render rather than copying that entry.
+
 | Render service | Type | Root Directory | Health Check Path |
 |---|---|---|---|
 | `cc-api-gateway` | Web Service | `microservice backend/api-gateway` | `/health` |
@@ -365,7 +375,9 @@ internal URLs shown in each Render service:
 - `AUTH_SERVICE_URL`, `USER_SERVICE_URL`, `POST_SERVICE_URL`,
   `EXAM_SERVICE_URL`, `COURSE_SERVICE_URL`, `ENROLLMENT_SERVICE_URL`,
   `CODING_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`, `CHAT_SERVICE_URL`,
-  `MENTOR_SERVICE_URL`, and `AI_SERVICE_URL` (if deploying AI).
+  `MENTOR_SERVICE_URL`, and `AI_SERVICE_URL`. The gateway requires all of
+  these URLs at startup in production because it registers routes for every
+  service.
 - `CLIENT_ORIGINS` set to the exact Static Site origin (no trailing slash).
 - `JWT_SECRET` set to the same random secret in the gateway and every service
   that validates JWTs. Keep it at least 64 characters.
