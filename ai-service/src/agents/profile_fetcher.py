@@ -23,8 +23,8 @@ settings = get_settings()
 # Service base URLs (direct — bypassing the gateway for performance)
 USER_SERVICE_URL       = settings.user_service_url          # http://localhost:5002
 ENROLLMENT_SERVICE_URL = settings.enrollment_service_url    # http://localhost:5006
-EXAM_SERVICE_URL       = "http://localhost:5004"
-CODING_SERVICE_URL     = "http://localhost:5007"
+EXAM_SERVICE_URL       = settings.exam_service_url
+CODING_SERVICE_URL     = settings.coding_service_url
 
 TIMEOUT = 6.0  # seconds per call
 

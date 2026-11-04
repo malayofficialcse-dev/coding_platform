@@ -310,6 +310,112 @@ For the full backend deployment and token lifecycle guidance, see
 [microservice backend/README.md](microservice%20backend/README.md) and
 [AUTH_TOKEN_FLOW.md](microservice%20backend/AUTH_TOKEN_FLOW.md).
 
+## Deploying on Render
+
+This repository does not include a Render Blueprint. Create the services
+individually from the same Git repository. Deploy PostgreSQL, MongoDB, Redis,
+Neo4j, and RabbitMQ first; Render does not provide managed MongoDB, Neo4j, or
+RabbitMQ, so use compatible external providers for those dependencies.
+
+### Create the Render services
+
+Create the gateway as a **Web Service**, and create the domain services as
+**Private Services** so clients reach them only through the gateway. Use the
+listed Root Directory, Build Command `npm install`, and Start Command
+`npm start`. Render sets `PORT` automatically; do not hard-code a port in
+service settings. If your Render plan does not include Private Services, the
+domain services will need to be public Web Services; do not rely on CORS alone
+to protect them.
+
+| Render service | Type | Root Directory | Health Check Path |
+|---|---|---|---|
+| `cc-api-gateway` | Web Service | `microservice backend/api-gateway` | `/health` |
+| `cc-auth` | Private Service | `microservice backend/auth-service` | `/health` |
+| `cc-user` | Private Service | `microservice backend/user-service` | `/health` |
+| `cc-post` | Private Service | `microservice backend/post-service` | `/health` |
+| `cc-exam` | Private Service | `microservice backend/exam-service` | `/health` |
+| `cc-course` | Private Service | `microservice backend/course-service` | `/health` |
+| `cc-enrollment` | Private Service | `microservice backend/enrollment-service` | `/health` |
+| `cc-coding` | Private Service | `microservice backend/coding-service` | `/health` |
+| `cc-notification` | Private Service | `microservice backend/notification-service` | `/health` |
+| `cc-chat` | Private Service | `microservice backend/chat-service` | `/health` |
+| `cc-mentor` | Private Service | `microservice backend/mentor-service` | `/health` |
+
+Create the `client` as a **Static Site** with Build Command `npm install &&
+npm run build`, Publish Directory `dist`, and Root Directory `client`. Set
+`VITE_API_URL` to `https://<gateway-public-host>/v1` and
+`VITE_SOCKET_URL` to `https://<gateway-public-host>`. These are build-time
+variables, so redeploy the Static Site after changing them. Add a rewrite rule
+from `/*` to `/index.html` so direct navigation and refreshes on React routes
+work.
+
+The optional Python AI service is a **Web Service** with Root Directory
+`ai-service`, Runtime **Docker**, and Dockerfile Path `./Dockerfile`. It honors
+Render's `PORT`. If it uses Chroma's local store, attach a persistent disk at
+`/app/chroma_db` and set `CHROMA_PERSIST_DIR=/app/chroma_db`; otherwise its
+index is lost when the service restarts. Prefer a **Private Service** for AI if
+the Render plan supports it.
+
+### Configure environment variables
+
+Use Render's private service addresses for internal calls, and keep only the
+gateway and frontend public. Add these gateway variables, using the matching
+internal URLs shown in each Render service:
+
+- `AUTH_SERVICE_URL`, `USER_SERVICE_URL`, `POST_SERVICE_URL`,
+  `EXAM_SERVICE_URL`, `COURSE_SERVICE_URL`, `ENROLLMENT_SERVICE_URL`,
+  `CODING_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`, `CHAT_SERVICE_URL`,
+  `MENTOR_SERVICE_URL`, and `AI_SERVICE_URL` (if deploying AI).
+- `CLIENT_ORIGINS` set to the exact Static Site origin (no trailing slash).
+- `JWT_SECRET` set to the same random secret in the gateway and every service
+  that validates JWTs. Keep it at least 64 characters.
+- `TRUST_PROXY=true` on the gateway and Auth service.
+- `REDIS_URL` for the gateway and the services that use Redis. Mentor requires
+  it when `NODE_ENV=production`; set `NODE_ENV=production` on Mentor.
+- Set service-to-service URLs where used: `USER_SERVICE_URL` on Post and Chat,
+  `COURSE_SERVICE_URL` on Enrollment, `AUTH_SERVICE_URL` on Mentor, and
+  `CHAT_SERVICE_URL` on Notification. Use the private addresses from Render.
+
+Configure each database with its own service-specific connection string:
+
+- PostgreSQL: `AUTH_DATABASE_URL`, `USER_DATABASE_URL`,
+  `EXAM_DATABASE_URL`, `ENROLLMENT_DATABASE_URL`, `CODING_DATABASE_URL`, and
+  `MENTOR_DATABASE_URL`.
+- MongoDB: `POST_MONGO_URI`, `COURSE_MONGO_URI`, `CODING_MONGO_URI`,
+  `CHAT_MONGO_URI`, and `NOTIFICATION_MONGO_URI`.
+- User Service graph storage: `NEO4J_URI`, `NEO4J_USER`, and
+  `NEO4J_PASSWORD`.
+- Event delivery: `RABBITMQ_URL` on the producer and notification services.
+
+Also set `INTERNAL_SERVICE_TOKEN` consistently for Auth, Mentor, Chat,
+Notification, and AI if deployed,
+`CLIENT_URL` and `PUBLIC_API_URL` for Auth, and
+`REFRESH_COOKIE_SAME_SITE=none`, `REFRESH_COOKIE_SECURE=true`, and
+those providers. Add OAuth callback URLs only if using those providers. Never
+put database credentials, JWT secrets, or provider secrets in `VITE_*`
+variables.
+
+If deploying the AI service, configure its required `OPENAI_API_KEY` and
+`JWT_SECRET`, database URLs, `USER_SERVICE_URL`, `ENROLLMENT_SERVICE_URL`,
+`EXAM_SERVICE_URL`, `CODING_SERVICE_URL`, `INTERNAL_SERVICE_TOKEN`, and
+`CLIENT_ORIGINS` as appropriate. The AI service's outbound URLs must be the
+private addresses of those backend services, not `localhost`.
+
+### After deployment
+
+1. Deploy databases and broker first, then the domain services, AI service if
+   needed, and the API Gateway after its downstream URLs are available.
+2. Deploy the Static Site with the gateway's public URL, then set the exact
+   frontend origin in `CLIENT_ORIGINS` on the gateway, Auth, Mentor, and AI
+   services. Update OAuth provider redirect URLs to the deployed Auth callback
+   URLs.
+3. Open each service's `/health` endpoint and the gateway's `/health`. The
+   gateway should report the correct internal service URLs. Check Render logs
+   for database/authentication failures before testing the UI.
+4. Test signup, login and refresh after correcting browser CORS errors if any;
+   then test posts, courses, notifications, and both chat and mentor
+   WebSockets. The API Gateway proxies `/socket.io` and `/mentor-socket.io`.
+
 ## Maintainer
 
 Malay Maity

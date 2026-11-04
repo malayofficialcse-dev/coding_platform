@@ -17,7 +17,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config();
 
 const app = express();
-const PORT = process.env.API_GATEWAY_PORT || 5100;
+const PORT = process.env.PORT || process.env.API_GATEWAY_PORT || 5100;
 
 const SERVICES = getServices();
 app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
