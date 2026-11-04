@@ -328,14 +328,14 @@ domain services will need to be public Web Services; do not rely on CORS alone
 to protect them.
 
 The gateway defaults to local service URLs for local development. In Render,
-set `APP_ENV=production` and set each standard `*_SERVICE_URL` variable below
-to that service's Render **private** URL. Never use `localhost` for a deployed
-service URL. Older mixed-case URL names in local `.env` files are supported
-only as a migration fallback; use the standard uppercase variable names in
-Render. The current mixed-case `User_Service` entry appears to point to a
-Post Service host; the gateway refuses to use a localhost URL for a service in
-production. Provide the actual User Service private URL as `USER_SERVICE_URL`
-in Render rather than copying that entry.
+the gateway detects Render's `RENDER=true` environment variable and requires
+each standard `*_SERVICE_URL` variable below to point to a deployed service.
+You can also set `APP_ENV=production` explicitly. Never use `localhost` for a
+deployed service URL. Older mixed-case URL names in local `.env` files are
+supported only as a migration fallback; use the standard uppercase variable
+names in Render. The current mixed-case `User_Service` entry points to an
+invalid Post Service host; the gateway intentionally ignores it. Set the
+verified User Service URL as `USER_SERVICE_URL` in Render.
 
 | Render service | Type | Root Directory | Health Check Path |
 |---|---|---|---|

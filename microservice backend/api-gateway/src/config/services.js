@@ -13,6 +13,7 @@ const SERVICE_CONFIG = Object.freeze({
 });
 
 const isProduction = () =>
+  process.env.RENDER === "true" ||
   (process.env.APP_ENV || process.env.NODE_ENV || "local").toLowerCase() === "production";
 
 export const getServiceUrl = (name) => {
