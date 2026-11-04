@@ -53,6 +53,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || [
   "https://code-campus-malay1.onrender.com",
   "https://code-campus-htg4.vercel.app",
   "https://coding-platform-bsrk.vercel.app/",
+  "https://codecampus-eosin.vercel.app/",
   "https://coding-platform-bsrk-rczw8coba-malaymaity1s-projects.vercel.app"
 ].join(",")).split(",").map((origin) => origin.trim()).filter(Boolean);
 
