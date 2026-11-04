@@ -391,7 +391,9 @@ internal URLs shown in each Render service:
 - `CLIENT_ORIGINS` set to the exact Static Site origin (no trailing slash).
 - `JWT_SECRET` set to the same random secret in the gateway and every service
   that validates JWTs. Keep it at least 64 characters.
-- `TRUST_PROXY=true` on the gateway and Auth service.
+- The gateway and Auth service trust one proxy hop automatically on Render.
+  Set `TRUST_PROXY=true` only when running behind a trusted reverse proxy
+  outside Render.
 - `REDIS_URL` for the gateway and the services that use Redis. Mentor requires
   it when `NODE_ENV=production`; set `NODE_ENV=production` on Mentor.
 - Set service-to-service URLs where used: `USER_SERVICE_URL` on Post and Chat,

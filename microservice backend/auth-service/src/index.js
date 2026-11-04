@@ -30,7 +30,8 @@ const isAllowedOrigin = (origin) => {
   return false;
 };
 
-app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
+const trustProxy = process.env.TRUST_PROXY === "true" || process.env.RENDER === "true";
+app.set("trust proxy", trustProxy ? 1 : false);
 app.use(cors({
   origin(origin, callback) {
     if (isAllowedOrigin(origin)) return callback(null, true);

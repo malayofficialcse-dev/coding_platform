@@ -72,5 +72,5 @@ sequenceDiagram
 2. Set exact frontend origins in `CLIENT_ORIGINS`. Do not use wildcard origins with credentialed cookies.
 3. The Docker auth service runs in production mode and defaults to `SameSite=None; Secure`. Require HTTPS. For same-site development outside Docker, `lax` is appropriate.
 4. Prefer serving the API and UI from the same site. Some browsers block third-party cookies even when `SameSite=None` is configured.
-5. Keep auth and domain services private behind the gateway in production. The auth service has no published host port in Docker Compose. Configure proxy trust only when the service is behind a known proxy (`TRUST_PROXY=true`) on both the gateway and auth service.
+5. Keep auth and domain services private behind the gateway in production. The auth service has no published host port in Docker Compose. The gateway and auth service trust one proxy hop automatically on Render; set `TRUST_PROXY=true` only when running behind a known reverse proxy outside Render.
 6. The auth service creates the `refresh_sessions` table when absent without altering existing tables. Where startup DDL is prohibited, apply a reviewed schema migration before deployment.

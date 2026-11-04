@@ -20,7 +20,8 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_GATEWAY_PORT || 5100;
 
 const SERVICES = getServices();
-app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
+const trustProxy = process.env.TRUST_PROXY === "true" || process.env.RENDER === "true";
+app.set("trust proxy", trustProxy ? 1 : false);
 
 // ---- Redis Client (graceful: works without Redis too) ----
 let redis = null;
