@@ -363,7 +363,11 @@ For Vercel, set the Project Root Directory to `client`, Build Command to
 `npm run build`, and Output Directory to `dist`. The checked-in
 [`client/vercel.json`](client/vercel.json) also declares `dist` and the SPA
 route fallback, so it avoids Vercel looking for Create React App's `build`
-directory.
+directory. Set the Vercel production environment variable `VITE_API_URL` to
+the public Render API Gateway URL ending in `/v1` (for example,
+`https://<gateway-public-host>/v1`) and `VITE_SOCKET_URL` to the gateway origin.
+Never set these to `localhost`. The Vercel build now fails with a clear message
+if `VITE_API_URL` is missing or points to localhost.
 
 The optional Python AI service is a **Web Service** with Root Directory
 `ai-service`, Runtime **Docker**, and Dockerfile Path `./Dockerfile`. It honors

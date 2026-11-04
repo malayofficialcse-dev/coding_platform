@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useMemo } from "react";
+import React, { useEffect, useState, useContext, useMemo, useCallback } from "react";
 import api from "../../api/api";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../../contexts/AuthContext";
@@ -18,7 +18,9 @@ import "./Courses.css";
 
 export default function CourseList() {
   const [courses, setCourses] = useState([]);
+  const [coursesError, setCoursesError] = useState("");
   const [enrollments, setEnrollments] = useState([]);
+  const [enrollmentsError, setEnrollmentsError] = useState("");
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // "all" | "enrolled" | "unenrolled"
   const { user } = useContext(AuthContext);
@@ -28,27 +30,60 @@ export default function CourseList() {
   useEffect(() => {
     api
       .get("/courses")
-      .then((res) => setCourses(res.data || []))
-      .catch(() => {});
+      .then((res) => {
+        if (!Array.isArray(res.data)) {
+          setCourses([]);
+          setCoursesError("The API returned an unexpected course response. Check the API Gateway URL and service logs.");
+          return;
+        }
+        setCourses(res.data);
+        setCoursesError("");
+      })
+      .catch((error) => {
+        setCourses([]);
+        const status = error.response?.status;
+        setCoursesError(
+          status
+            ? `Could not load courses (HTTP ${status}). Check the deployed API Gateway URL and CORS settings.`
+            : "Could not reach the API Gateway. Check the deployed API URL and try again."
+        );
+      });
   }, []);
 
   useEffect(() => {
     if (!user) {
       setEnrollments([]);
+      setEnrollmentsError("");
       return;
     }
     api
       .get("/enrollments/my")
-      .then((res) => setEnrollments(res.data || []))
-      .catch(() => setEnrollments([]));
+      .then((res) => {
+        if (!Array.isArray(res.data)) {
+          setEnrollments([]);
+          setEnrollmentsError("Enrollment data was returned in an unexpected format.");
+          return;
+        }
+        setEnrollments(res.data);
+        setEnrollmentsError("");
+      })
+      .catch((error) => {
+        setEnrollments([]);
+        const status = error.response?.status;
+        setEnrollmentsError(
+          status
+            ? `Could not load enrollments (HTTP ${status}).`
+            : "Could not reach the API Gateway to load enrollments."
+        );
+      });
   }, [user]);
 
-  const getEnrollmentForCourse = (courseId) => {
+  const getEnrollmentForCourse = useCallback((courseId) => {
     return enrollments.find((e) => {
       const cId = e.course?._id || e.course;
       return String(cId) === String(courseId);
     });
-  };
+  }, [enrollments]);
 
   const filtered = useMemo(() => {
     return courses.filter((c) => {
@@ -63,7 +98,7 @@ export default function CourseList() {
       if (activeTab === "unenrolled") return !enr;
       return true;
     });
-  }, [courses, search, activeTab, enrollments]);
+  }, [courses, search, activeTab, getEnrollmentForCourse]);
 
   const completedModulesCount = useMemo(() => {
     return enrollments.reduce((sum, enr) => sum + (enr.completedSubtopics?.length || 0), 0);
@@ -127,6 +162,12 @@ export default function CourseList() {
         </div>
       </div>
 
+      {enrollmentsError && (
+        <p role="alert" className="text-danger">
+          {enrollmentsError}
+        </p>
+      )}
+
       {/* ── Filter and Search Bar ── */}
       <div className="cc-courses-filter-bar">
         <div className="cc-courses-search-wrap">
@@ -167,7 +208,12 @@ export default function CourseList() {
       </div>
 
       {/* ── Courses Grid ── */}
-      {filtered.length === 0 ? (
+      {coursesError ? (
+        <div className="cc-courses-card text-center py-5" role="alert">
+          <h3 style={{ fontWeight: 800 }}>Courses are temporarily unavailable</h3>
+          <p style={{ color: "var(--cc-muted)" }}>{coursesError}</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="cc-courses-card text-center py-5">
           <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🔍</div>
           <h3 style={{ fontWeight: 800 }}>No courses found</h3>
