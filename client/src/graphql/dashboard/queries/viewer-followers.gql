@@ -1,0 +1,7 @@
+query ViewerFollowers($id: ID!) {
+  myProfilePage(id: $id) {
+    profile {
+      followersCount
+    }
+  }
+}
