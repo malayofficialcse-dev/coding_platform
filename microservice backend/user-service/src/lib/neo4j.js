@@ -12,6 +12,7 @@ dotenv.config();
 const uri = process.env.NEO4J_URI || "bolt://127.0.0.1:7687";
 const user = process.env.NEO4J_USER || "neo4j";
 const password = process.env.NEO4J_PASSWORD || "cc_neo4j_pass";
+const database = process.env.NEO4J_DATABASE;
 
 let driver;
 try {
@@ -24,7 +25,7 @@ export const runCypher = async (query, params = {}) => {
   if (!driver) {
     throw new Error("Neo4j driver is not initialized");
   }
-  const session = driver.session();
+  const session = driver.session(database ? { database } : undefined);
   try {
     return await session.run(query, params);
   } finally {

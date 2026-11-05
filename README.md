@@ -314,8 +314,9 @@ For the full backend deployment and token lifecycle guidance, see
 
 This repository does not include a Render Blueprint. Create the services
 individually from the same Git repository. Deploy PostgreSQL, MongoDB, Redis,
-Neo4j, and RabbitMQ first; Render does not provide managed MongoDB, Neo4j, or
-RabbitMQ, so use compatible external providers for those dependencies.
+and RabbitMQ first. Render does not provide managed MongoDB or RabbitMQ, so
+use compatible external providers. The User Service graph database can use
+Neo4j Aura or another externally hosted Neo4j provider.
 
 ### Create the Render services
 
@@ -407,8 +408,11 @@ Configure each database with its own service-specific connection string:
   `MENTOR_DATABASE_URL`.
 - MongoDB: `POST_MONGO_URI`, `COURSE_MONGO_URI`, `CODING_MONGO_URI`,
   `CHAT_MONGO_URI`, and `NOTIFICATION_MONGO_URI`.
-- User Service graph storage: `NEO4J_URI`, `NEO4J_USER`, and
-  `NEO4J_PASSWORD`.
+- User Service graph storage on the `cc-user` service: `NEO4J_URI`,
+  `NEO4J_USER`, `NEO4J_PASSWORD`, and `NEO4J_DATABASE`. In Render, open
+  **cc-user → Environment** and add these values there. Do not add them to the
+  gateway or frontend. `NEO4J_USER` is the Neo4j driver variable name for the
+  Aura username.
 - Event delivery: `RABBITMQ_URL` on the producer and notification services.
 
 Also set `INTERNAL_SERVICE_TOKEN` consistently for Auth, Mentor, Chat,

@@ -16,7 +16,6 @@ volumes:
   coding-mongo-data:
   chat-mongo-data:
   notification-mongo-data:
-  neo4j-data:
   redis-data:
   ai-chroma-data:
 
@@ -183,23 +182,6 @@ services:
     networks:
       - code-campus-net
 
-  # ---- Neo4j (Social Graph) ----
-  neo4j:
-    image: neo4j:5-community
-    container_name: cc-neo4j
-    restart: always
-    environment:
-      NEO4J_AUTH: neo4j/cc_neo4j_pass
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_dbms_security_procedures_unrestricted: apoc.*
-    ports:
-      - "7474:7474"   # Browser UI
-      - "7687:7687"   # Bolt protocol
-    volumes:
-      - neo4j-data:/data
-    networks:
-      - code-campus-net
-
   # ---- Redis (Cache + Rate Limiting + Socket.IO) ----
   redis:
     image: redis:7-alpine
@@ -309,14 +291,14 @@ services:
       - PORT=5002
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=cc_neo4j_pass
+      - NEO4J_URI=${NEO4J_URI:?Set NEO4J_URI in microservice backend .env}
+      - NEO4J_USER=${NEO4J_USER:?Set NEO4J_USER in microservice backend .env}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in microservice backend .env}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:?Set NEO4J_DATABASE in microservice backend .env}
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://codecamp:codecamp-dev-password@host.docker.internal:5672}
     depends_on:
       - postgres-user
-      - neo4j
       - redis
     networks:
       - code-campus-net
@@ -555,4 +537,3 @@ services:
       - user-service
     networks:
       - code-campus-net
-

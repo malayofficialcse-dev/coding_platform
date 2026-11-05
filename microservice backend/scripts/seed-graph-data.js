@@ -26,7 +26,11 @@ const driver = neo4j.driver(
 );
 
 async function seedGraph() {
-  const session = driver.session();
+  const session = driver.session(
+    process.env.NEO4J_DATABASE
+      ? { database: process.env.NEO4J_DATABASE }
+      : undefined
+  );
   try {
     console.log("Connecting to PostgreSQL user_db and Neo4j graph...");
     await userSequelize.authenticate();
