@@ -22,6 +22,13 @@ This service owns mentor applications, super admin decisions, session schedules,
 
 For local development, `MENTOR_DATABASE_URL` defaults to the same PostgreSQL server used by the other services (`127.0.0.1:5432`) and a separate `mentor_db` database. Docker Compose supplies its own private database URL. The service API listens on `5010`. Set the production `REDIS_URL` to the Redis connection URL (for Upstash, use the `rediss://` TLS URL), not the `redis-cli` command. The service also accepts the `redis-cli --tls -u <url>` form and converts it to a TLS URL. In production, keep the mentor database private, use managed LiveKit or a correctly deployed SFU/TURN topology, set exact `CLIENT_ORIGINS`, and replace all development secrets.
 
+## Render deployment checks
+
+- Set `INTERNAL_SERVICE_TOKEN` on both the Mentor Service and Auth Service to the same long random value. If it is missing from Mentor, approving an application returns `503` and does not change the application status.
+- Set Mentor Service's `AUTH_SERVICE_URL` to the deployed Auth Service base URL (for example, `https://<auth-service>.onrender.com`). The default `localhost` URL is only suitable for local development.
+- Set Auth Service's `CLIENT_ORIGINS` to a comma-separated list of the exact frontend origins, including `https://codecampus-eosin.vercel.app` if that is the deployed frontend. Auth rejects refresh requests with `403` when the request's `Origin` is not in this list. For cross-site refresh cookies, also set `REFRESH_COOKIE_SAME_SITE=none` and `REFRESH_COOKIE_SECURE=true`.
+- The frontend's general `/socket.io` connection is routed to Chat Service, not Mentor Service. A `502` on that path means the Gateway cannot reach its configured `CHAT_SERVICE_URL`; check that service's Render deployment and URL. Mentor room sockets use `/mentor-socket.io` and require `MENTOR_SERVICE_URL` to point to the deployed Mentor Service.
+
 ## Endpoints
 
 - `GET/POST /v1/mentor/applications` and `GET /v1/mentor/me`

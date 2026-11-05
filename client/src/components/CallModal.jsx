@@ -52,10 +52,12 @@ export default function CallModal({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const modalContainerRef = useRef(null);
 
   const pcRef = useRef(null);
@@ -107,6 +109,8 @@ export default function CallModal({
       pcRef.current = null;
     }
 
+    remoteStreamRef.current = null;
+    setRemoteStream(null);
     iceCandidatesQueueRef.current = [];
   }, []);
 
@@ -143,16 +147,13 @@ export default function CallModal({
 
       // Remote track handling
       pc.ontrack = (event) => {
-        console.log("[Call WebRTC] Remote track received:", event.streams);
-        const remoteStream = event.streams && event.streams[0];
-        if (remoteStream) {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream;
-          }
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = remoteStream;
-          }
+        console.log("[Call WebRTC] Remote track received:", event.track.kind);
+        const stream = event.streams[0] || remoteStreamRef.current || new MediaStream();
+        if (!event.streams[0] && !stream.getTracks().includes(event.track)) {
+          stream.addTrack(event.track);
         }
+        remoteStreamRef.current = stream;
+        setRemoteStream(stream);
       };
 
       pc.onconnectionstatechange = () => {
@@ -174,6 +175,27 @@ export default function CallModal({
     },
     [socket, targetUserId]
   );
+
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    const audio = remoteAudioRef.current;
+
+    if (callType === "video" && callStatus === "connected" && video) {
+      video.srcObject = remoteStream;
+      if (audio) audio.srcObject = null;
+      video.play().catch((error) => {
+        console.warn("[Call WebRTC] Remote video playback was blocked:", error.message);
+      });
+    } else if (audio) {
+      audio.srcObject = remoteStream;
+      if (video) video.srcObject = null;
+      if (remoteStream) {
+        audio.play().catch((error) => {
+          console.warn("[Call WebRTC] Remote audio playback was blocked:", error.message);
+        });
+      }
+    }
+  }, [remoteStream, callStatus, callType]);
 
   /* --------------------------------------------------------------------------
      ACQUIRE LOCAL USER MEDIA
