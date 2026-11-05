@@ -3,7 +3,7 @@
  * 
  * Run once to create or update the initial super_admin account
  * across PostgreSQL (auth_db, user_db) and MongoDB Atlas.
- * Usage: set SUPER_ADMIN_EMAIL and a unique SUPER_ADMIN_PASSWORD (16+ characters),
+ * Usage: set SUPER_ADMIN_EMAIL and a unique SUPER_ADMIN_PASSWORD (6+ characters),
  * then run node scripts/seed-super-admin.js.
  */
 import path from "path";
@@ -76,8 +76,8 @@ async function seed() {
   if (!SUPER_ADMIN.email || !SUPER_ADMIN.email.includes("@")) {
     throw new Error("Set SUPER_ADMIN_EMAIL to a valid administrator email before running this script.");
   }
-  if (!SUPER_ADMIN.password || SUPER_ADMIN.password.length < 16) {
-    throw new Error("Set SUPER_ADMIN_PASSWORD to a unique secret of at least 16 characters before running this script.");
+  if (!SUPER_ADMIN.password || SUPER_ADMIN.password.length < 6) {
+    throw new Error("Set SUPER_ADMIN_PASSWORD to a unique secret of at least 6 characters before running this script.");
   }
 
   const [
