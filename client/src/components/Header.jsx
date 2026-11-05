@@ -158,7 +158,7 @@ export default function Header() {
         borderBottom: "1px solid var(--cc-border)",
         position: "sticky",
         top: 0,
-        zIndex: 500,
+        zIndex: 1000,
         display: "flex",
         alignItems: "center",
         padding: "0 18px",
@@ -167,6 +167,7 @@ export default function Header() {
     >
       <Link
         to="/"
+        className="cc-header-brand"
         style={{
           display: "flex",
           alignItems: "center",
@@ -221,10 +222,10 @@ export default function Header() {
         )}
       </nav>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginLeft: "auto" }}>
+      <div className="cc-header-actions" style={{ display: "flex", alignItems: "center", gap: 14, marginLeft: "auto" }}>
         <button
           type="button"
-          className="btn btn-sm d-flex align-items-center justify-content-center"
+          className="btn btn-sm d-flex align-items-center justify-content-center cc-header-theme"
           onClick={toggleTheme}
           title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
           style={{
@@ -239,7 +240,7 @@ export default function Header() {
           {theme === "light" ? <FaMoon size={16} /> : <FaSun size={16} />}
         </button>
 
-        <div style={{ position: "relative" }}>
+        <div className="cc-header-search" style={{ position: "relative" }}>
           <button
             type="button"
             className="btn btn-light btn-sm"
@@ -326,17 +327,17 @@ export default function Header() {
                 logout();
                 setMenuOpen(false);
               }}
-              className="btn btn-outline-danger btn-sm"
+              className="btn btn-outline-danger btn-sm cc-header-logout"
             >
               Logout
             </button>
           </>
         ) : (
           <>
-            <Link to="/login" className="btn btn-primary btn-sm">
+            <Link to="/login" className="btn btn-primary btn-sm cc-header-login">
               Login
             </Link>
-            <Link to="/signup" className="btn btn-outline-secondary btn-sm">
+            <Link to="/signup" className="btn btn-outline-secondary btn-sm cc-header-signup">
               Signup
             </Link>
           </>
@@ -344,7 +345,7 @@ export default function Header() {
 
         <button
           type="button"
-          className="btn btn-light d-lg-none"
+          className="btn btn-light d-lg-none cc-header-menu-toggle"
           onClick={() => setMenuOpen(true)}
           title="Open menu"
         >
@@ -376,6 +377,44 @@ export default function Header() {
               <FaTimes />
             </button>
             <div style={{ clear: "both", paddingTop: 18 }}>
+              {user && (
+                <NavLink
+                  to="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="nav-link d-flex align-items-center gap-2 py-2"
+                >
+                  <img src={profileImage} alt="" className="cc-mobile-menu-avatar" />
+                  My Profile
+                </NavLink>
+              )}
+              {!user && (
+                <>
+                  <NavLink to="/login" onClick={() => setMenuOpen(false)} className="nav-link d-flex align-items-center gap-2 py-2">
+                    Login
+                  </NavLink>
+                  <NavLink to="/signup" onClick={() => setMenuOpen(false)} className="nav-link d-flex align-items-center gap-2 py-2">
+                    Signup
+                  </NavLink>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSearchOpen(true);
+                }}
+                className="nav-link d-flex align-items-center gap-2 py-2 w-100 border-0 bg-transparent text-start"
+              >
+                <FaSearch /> Search users
+              </button>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="nav-link d-flex align-items-center gap-2 py-2 w-100 border-0 bg-transparent text-start"
+              >
+                {theme === "light" ? <FaMoon /> : <FaSun />}
+                {theme === "light" ? "Dark mode" : "Light mode"}
+              </button>
               {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
@@ -420,6 +459,18 @@ export default function Header() {
                 >
                   <FaUserShield /> My Dashboard
                 </NavLink>
+              )}
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="nav-link d-flex align-items-center gap-2 py-2 w-100 border-0 bg-transparent text-start text-danger"
+                >
+                  Logout
+                </button>
               )}
             </div>
           </div>

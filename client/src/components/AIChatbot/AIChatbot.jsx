@@ -202,7 +202,14 @@ export default function AIChatbot() {
 
       {/* Chat window */}
       {isOpen && (
-        <div id="ai-chatbot-window" className="ai-chatbot-window" role="dialog" aria-label="CodeBot AI Tutor">
+        <>
+          <button
+            type="button"
+            className="ai-chatbot-backdrop"
+            onClick={() => setIsOpen(false)}
+            aria-label="Close CodeBot"
+          />
+          <div id="ai-chatbot-window" className="ai-chatbot-window" role="dialog" aria-modal="true" aria-label="CodeBot AI Tutor">
           {/* Header */}
           <div className="ai-chat-header">
             <div className="ai-header-info">
@@ -280,7 +287,8 @@ export default function AIChatbot() {
             )}
           </div>
           <p className="ai-disclaimer">AI responses may be inaccurate. Always verify important information.</p>
-        </div>
+          </div>
+        </>
       )}
     </>
   );

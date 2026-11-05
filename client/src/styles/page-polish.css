@@ -1,7 +1,7 @@
 /* Shared page shell: the same restrained, Microsoft-inspired workspace on every route. */
 .cc-site-main{width:100%;max-width:none;margin:0;padding:0 0 40px;display:block;min-height:calc(100vh - 68px)}
 .cc-site-main>.container,.cc-site-main>.container-fluid{max-width:1240px;margin-inline:auto}
-.cc-site-header{backdrop-filter:blur(12px);}
+.cc-site-header{backdrop-filter:none;}
 .cc-site-header .nav-link{color:var(--cc-text)!important;font-size:13px;padding:9px 4px!important;border-bottom:2px solid transparent;transition:color .16s ease,border-color .16s ease}
 .cc-site-header .nav-link:hover,.cc-site-header .nav-link.active{color:var(--cc-primary)!important;border-bottom-color:var(--cc-primary)}
 .cc-header-avatar{border-radius:50%!important;border-color:var(--cc-border)!important}
@@ -38,6 +38,61 @@
 
 @media (max-width:992px){.cc-site-header{padding-inline:12px!important}.cc-site-header nav.d-lg-flex{display:none!important}.cc-site-header>a{margin-right:12px!important}.cc-site-header>a span{font-size:18px!important}.cc-site-main .container,.cc-site-main .container-fluid{padding-inline:16px}}
 @media (max-width:576px){.cc-site-header{min-height:60px!important}.cc-site-header>a img{width:40px!important;height:40px!important}.cc-site-main .container.py-4,.cc-site-main .container.py-5{padding-top:18px!important}.cc-site-footer .container{padding-inline:20px}.cc-page-heading{align-items:flex-start;flex-direction:column}.cc-page-heading h1{font-size:24px}.cc-page-count{align-self:flex-start}}
+
+@media (max-width:576px) {
+  .cc-site-header {
+    gap: 8px;
+    padding-inline: 10px !important;
+  }
+
+  .cc-site-header .cc-header-brand {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 7px;
+    margin-right: 0 !important;
+  }
+
+  .cc-site-header .cc-header-brand img {
+    flex: 0 0 34px;
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .cc-site-header .cc-header-brand span {
+    overflow: hidden;
+    font-size: 15px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cc-site-header .cc-header-actions {
+    flex: 0 0 auto;
+    gap: 6px !important;
+  }
+
+  .cc-site-header .cc-header-theme,
+  .cc-site-header .cc-header-logout,
+  .cc-site-header .cc-header-login,
+  .cc-site-header .cc-header-signup {
+    display: none !important;
+  }
+
+  .cc-site-header .cc-header-avatar {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .cc-site-header .cc-header-menu-toggle {
+    padding: 6px 8px;
+  }
+
+  .cc-mobile-menu-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
 
 /* Shared professional chrome aligned with the profile workspace. */
 .cc-site-header {
@@ -188,4 +243,127 @@
 [data-theme="dark"] .cc-site-header .nav-link:hover,
 [data-theme="dark"] .cc-site-header .nav-link.active {
   color: #58a6ff !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE HEADER FIX — solid background, no overlap, no transparency
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Force solid, opaque background on header at all sizes */
+.cc-site-header {
+  background: var(--cc-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+}
+
+[data-theme="dark"] .cc-site-header {
+  background: #161b22 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Mobile: compact, solid, non-overlapping header */
+@media (max-width: 576px) {
+  .cc-site-header {
+    min-height: 56px !important;
+    height: 56px !important;
+    padding: 0 10px !important;
+    gap: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+    /* Absolutely solid — no transparency */
+    background: var(--cc-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  [data-theme="dark"] .cc-site-header {
+    background: #161b22 !important;
+  }
+
+  /* Logo link: flex but don't grow too large */
+  .cc-site-header .cc-header-brand,
+  .cc-site-header > a {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-right: 0 !important;
+    text-decoration: none !important;
+  }
+
+  .cc-site-header .cc-header-brand img,
+  .cc-site-header > a img {
+    width: 32px !important;
+    height: 32px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .cc-site-header .cc-header-brand span,
+  .cc-site-header > a span {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100px !important;
+  }
+
+  /* Desktop nav: always hidden on mobile */
+  .cc-site-header nav,
+  .cc-site-header .d-lg-flex {
+    display: none !important;
+  }
+
+  /* Actions group: pushed to the right */
+  .cc-site-header .cc-header-actions {
+    margin-left: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Hide non-essential buttons on mobile — only avatar + hamburger visible */
+  .cc-site-header .cc-header-theme,
+  .cc-site-header .cc-header-logout,
+  .cc-site-header .cc-header-login,
+  .cc-site-header .cc-header-signup,
+  .cc-site-header .cc-header-search {
+    display: none !important;
+  }
+
+  /* Avatar size */
+  .cc-site-header .cc-header-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+  }
+
+  /* Hamburger button */
+  .cc-site-header .cc-header-menu-toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 8px !important;
+    min-width: 36px !important;
+  }
+
+  /* Notification bell compact */
+  .cc-site-header .cc-notification-bell {
+    font-size: 18px !important;
+  }
+
+  /* Page body must not go behind the header */
+  .cc-site-main {
+    min-height: calc(100vh - 56px) !important;
+  }
 }
