@@ -238,8 +238,13 @@ export function createMentorRouter(io) {
 }
 
 export async function configureRealtime(io) {
-  if (process.env.REDIS_URL) {
-    const pubClient = createClient({ url: process.env.REDIS_URL });
+  const configuredRedisUrl = process.env.REDIS_URL?.trim();
+  if (configuredRedisUrl) {
+    const cliUrl = /^redis-cli\s+--tls\s+-u\s+(\S+)$/i.exec(configuredRedisUrl)?.[1];
+    const redisUrl = cliUrl
+      ? cliUrl.replace(/^redis:\/\//i, "rediss://")
+      : configuredRedisUrl;
+    const pubClient = createClient({ url: redisUrl });
     const subClient = pubClient.duplicate();
     pubClient.on("error", (error) => console.error("Mentor Redis publisher error:", error.message));
     subClient.on("error", (error) => console.error("Mentor Redis subscriber error:", error.message));

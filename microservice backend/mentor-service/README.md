@@ -20,7 +20,7 @@ This service owns mentor applications, super admin decisions, session schedules,
 - **LiveKit access token:** the service mints a 15-minute token scoped to a single room, with publishing grants based on participant role and session format.
 - **Webhook signature verification:** LiveKit webhooks are verified with the LiveKit server credentials before attendance and session state are updated.
 
-For local development, `MENTOR_DATABASE_URL` defaults to the same PostgreSQL server used by the other services (`127.0.0.1:5432`) and a separate `mentor_db` database. Docker Compose supplies its own private database URL. The service API listens on `5010`. In production, keep the mentor database private, use managed LiveKit or a correctly deployed SFU/TURN topology, set exact `CLIENT_ORIGINS`, and replace all development secrets.
+For local development, `MENTOR_DATABASE_URL` defaults to the same PostgreSQL server used by the other services (`127.0.0.1:5432`) and a separate `mentor_db` database. Docker Compose supplies its own private database URL. The service API listens on `5010`. Set the production `REDIS_URL` to the Redis connection URL (for Upstash, use the `rediss://` TLS URL), not the `redis-cli` command. The service also accepts the `redis-cli --tls -u <url>` form and converts it to a TLS URL. In production, keep the mentor database private, use managed LiveKit or a correctly deployed SFU/TURN topology, set exact `CLIENT_ORIGINS`, and replace all development secrets.
 
 ## Endpoints
 
