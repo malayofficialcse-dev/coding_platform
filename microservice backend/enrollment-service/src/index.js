@@ -6,6 +6,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import enrollmentRoutes from "./routes/enrollment.routes.js";
 import { connectDB } from "./config/db.js";
+import { syncEnrollmentModels } from "./models/Enrollment.js";
+import { syncCertificateDirectory } from "./models/CertificateDirectory.js";
+import { getDatabaseHealth } from "./database/health.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -24,13 +27,21 @@ app.get("/health", (req, res) => {
   res.json({ service: "Enrollment Service", status: "UP", port: PORT });
 });
 
+app.get("/health/database", async (req, res) => {
+  const health = await getDatabaseHealth();
+  const ok = health.shards.every((shard) => shard.primary.status === "UP");
+  res.status(ok ? 200 : 503).json(health);
+});
+
 app.use("/api/enrollments", enrollmentRoutes);
 app.use("/v1/enrollments", enrollmentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  await syncEnrollmentModels();
+  await syncCertificateDirectory();
   app.listen(PORT, () => {
     console.log(`[Enrollment Service] Running on port ${PORT}`);
   });
