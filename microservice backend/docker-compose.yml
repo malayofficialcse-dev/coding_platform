@@ -242,15 +242,17 @@ services:
   # ========================================================
   auth-service:
     build:
-      context: ./auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: auth-service/Dockerfile
     container_name: code-campus-auth
     restart: always
     environment:
       - NODE_ENV=production
       - PORT=5001
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in microservice backend .env}
-      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
+      - USER_DATABASE_URL=${USER_DATABASE_URL:-}
+      - USER_SHARD_0_DATABASE_URL=${USER_SHARD_0_DATABASE_URL:?Set USER_SHARD_0_DATABASE_URL in microservice backend .env}
+      - USER_SHARD_1_DATABASE_URL=${USER_SHARD_1_DATABASE_URL:?Set USER_SHARD_1_DATABASE_URL in microservice backend .env}
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
       - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL:-10m}
       - REFRESH_TOKEN_IDLE_DAYS=${REFRESH_TOKEN_IDLE_DAYS:-7}
@@ -281,8 +283,8 @@ services:
   # ========================================================
   user-service:
     build:
-      context: ./user-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: user-service/Dockerfile
     container_name: code-campus-user
     restart: always
     ports:
@@ -290,7 +292,9 @@ services:
     environment:
       - PORT=5002
       - JWT_SECRET=${JWT_SECRET:?Set a random JWT_SECRET of at least 64 characters in the microservice backend .env file}
-      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
+      - USER_DATABASE_URL=${USER_DATABASE_URL:-}
+      - USER_SHARD_0_DATABASE_URL=${USER_SHARD_0_DATABASE_URL:?Set USER_SHARD_0_DATABASE_URL in microservice backend .env}
+      - USER_SHARD_1_DATABASE_URL=${USER_SHARD_1_DATABASE_URL:?Set USER_SHARD_1_DATABASE_URL in microservice backend .env}
       - NEO4J_URI=${NEO4J_URI:?Set NEO4J_URI in microservice backend .env}
       - NEO4J_USER=${NEO4J_USER:?Set NEO4J_USER in microservice backend .env}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in microservice backend .env}
@@ -519,7 +523,7 @@ services:
       - COURSE_MONGO_URI=mongodb://mongo-course:27018/course_db
       - CODING_MONGO_URI=mongodb://mongo-coding:27019/coding_problems_db
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in microservice backend .env}
-      - USER_DATABASE_URL=${USER_DATABASE_URL:?Set USER_DATABASE_URL in microservice backend .env}
+      - USER_DATABASE_URL=${USER_DATABASE_URL:-}
       - ENROLLMENT_DATABASE_URL=${ENROLLMENT_DATABASE_URL:?Set ENROLLMENT_DATABASE_URL in microservice backend .env}
       - CODING_DATABASE_URL=${CODING_DATABASE_URL:?Set CODING_DATABASE_URL in microservice backend .env}
       - MENTOR_DATABASE_URL=${MENTOR_DATABASE_URL:?Set MENTOR_DATABASE_URL in microservice backend .env}

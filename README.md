@@ -403,7 +403,9 @@ internal URLs shown in each Render service:
 
 Configure each database with its own service-specific connection string:
 
-- PostgreSQL: `AUTH_DATABASE_URL`, `USER_DATABASE_URL`,
+- PostgreSQL: `AUTH_DATABASE_URL`, `USER_SHARD_0_DATABASE_URL`,
+  `USER_SHARD_1_DATABASE_URL` (and temporary legacy `USER_DATABASE_URL` only
+  when migrating existing user profiles),
   `EXAM_DATABASE_URL`, `ENROLLMENT_DATABASE_URL`, `CODING_DATABASE_URL`, and
   `MENTOR_DATABASE_URL`.
 - MongoDB: `POST_MONGO_URI`, `COURSE_MONGO_URI`, `CODING_MONGO_URI`,

@@ -77,10 +77,20 @@ The initial super-admin script has no built-in password. On Windows, run
 and email from `.env`, prompts for a unique password of at least 6 characters
 without echoing it, and invokes the seed script. Longer passwords are safer,
 especially for a super-admin account. The seeder creates or updates the account
-in both configured PostgreSQL databases and revokes active refresh sessions for
-that account. Do not commit credentials to source control.
+in the Auth database and its assigned User database shard, and revokes active
+refresh sessions for that account. Do not commit credentials to source control.
 
 RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
+
+The User Service stores profiles across `USER_SHARD_0_DATABASE_URL` and
+`USER_SHARD_1_DATABASE_URL`. User IDs are assigned to a shard using a stable
+hash, and directory/search/count reads combine results from both shards. Keep
+the previous `USER_DATABASE_URL` configured temporarily as the source for
+existing profile data, then run `node scripts/shard-user-db.js` once before
+switching the services over. The script copies profiles into their assigned
+shards and leaves the source database unchanged. For Docker Compose, configure
+both shard URLs in the backend `.env`; the service images receive only those
+URLs and do not include local environment files.
 
 ### 3. Local Development (All Services in 1 Command)
 From the root folder:

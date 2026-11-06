@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import User, { Op } from "../models/User.js";
-import { sequelize } from "../config/db.js";
 
 const MODULES = ["exams", "courses", "feed", "coding", "users", "analytics"];
 
@@ -293,14 +292,17 @@ export const updateUserPermissions = async (req, res) => {
 
 export const getRbacStats = async (req, res) => {
   try {
-    const roleStats = await User.findAll({
+    const roleUsers = await User.findAll({
       where: { role: { [Op.ne]: "super_admin" } },
-      attributes: ["role", [sequelize.fn("COUNT", sequelize.col("id")), "count"]],
-      group: ["role"],
+      attributes: ["role"],
       raw: true,
     });
 
-    const roleCounts = roleStats.map((r) => ({ _id: r.role, count: parseInt(r.count, 10) }));
+    const countsByRole = roleUsers.reduce((counts, user) => {
+      counts.set(user.role, (counts.get(user.role) || 0) + 1);
+      return counts;
+    }, new Map());
+    const roleCounts = Array.from(countsByRole, ([_id, count]) => ({ _id, count }));
     const total = await User.count({ where: { role: { [Op.ne]: "super_admin" } } });
     const active = await User.count({
       where: { role: { [Op.ne]: "super_admin" }, isActive: true },

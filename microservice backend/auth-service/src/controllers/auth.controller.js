@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import User from "../models/User.js";
 import RefreshSession from "../models/RefreshSession.js";
 import { sequelize } from "../config/db.js";
+import { getUserShardIndex, getUserShardUrls } from "../../../shared/userSharding.js";
 
 const ACCESS_TOKEN_ISSUER = "code-campus-auth";
 const ACCESS_TOKEN_AUDIENCE = "code-campus-api";
@@ -295,7 +296,21 @@ export const setApprovedMentorRole = async (req, res) => {
     try {
       const { Sequelize } = await import("sequelize");
       const userDbUrl = process.env.USER_DATABASE_URL || "postgresql://postgres:malay21@127.0.0.1:5432/user_db";
-      const uSeq = new Sequelize(userDbUrl, { dialect: "postgres", logging: false });
+      const userDbUrls = getUserShardUrls();
+      const shardUrl = userDbUrls[getUserShardIndex(String(user.id), userDbUrls.length)];
+      const isNeon = shardUrl.includes("neon.tech");
+      const uSeq = new Sequelize(shardUrl, {
+        dialect: "postgres",
+        dialectOptions: {
+          ssl: isNeon ? { require: true, rejectUnauthorized: false } : false,
+        },
+        logging: false,
+        pool: isNeon ? {
+          afterCreate: (conn, done) => {
+            conn.query("SET search_path TO user_schema, public", (err) => done(err, conn));
+          },
+        } : undefined,
+      });
       await uSeq.query('UPDATE "users" SET role = :role, "updatedAt" = now() WHERE id = :id', {
         replacements: { role: req.body.role, id: user.id }
       });

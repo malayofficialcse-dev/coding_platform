@@ -15,7 +15,8 @@ const { Pool } = pg;
 
 const SERVICES = [
   { name: "auth-service", env: "AUTH_DATABASE_URL", schema: "auth_schema" },
-  { name: "user-service", env: "USER_DATABASE_URL", schema: "user_schema" },
+  { name: "user-service shard 0", env: "USER_SHARD_0_DATABASE_URL", schema: "user_schema" },
+  { name: "user-service shard 1", env: "USER_SHARD_1_DATABASE_URL", schema: "user_schema" },
   { name: "enrollment-service", env: "ENROLLMENT_DATABASE_URL", schema: "enrollment_schema" },
   { name: "exam-service", env: "EXAM_DATABASE_URL", schema: "exam_schema" },
   { name: "coding-service", env: "CODING_DATABASE_URL", schema: "coding_schema" },

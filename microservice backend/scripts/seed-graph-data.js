@@ -7,15 +7,9 @@ const userRequire = createRequire(
   new URL("../user-service/package.json", import.meta.url)
 );
 const dotenv = userRequire("dotenv");
-const { Sequelize } = userRequire("sequelize");
 const neo4j = userRequire("neo4j-driver");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
-
-const userSequelize = new Sequelize(
-  process.env.USER_DATABASE_URL || "postgresql://postgres:malay21@localhost:5432/user_db",
-  { dialect: "postgres", logging: false }
-);
 
 const driver = neo4j.driver(
   process.env.NEO4J_URI || "bolt://127.0.0.1:7687",
@@ -26,50 +20,58 @@ const driver = neo4j.driver(
 );
 
 async function seedGraph() {
+  const [
+    { default: User },
+    { connectDB, closeDB },
+  ] = await Promise.all([
+    import("../user-service/src/models/User.js"),
+    import("../user-service/src/config/db.js"),
+  ]);
   const session = driver.session(
     process.env.NEO4J_DATABASE
       ? { database: process.env.NEO4J_DATABASE }
       : undefined
   );
-  try {
-    console.log("Connecting to PostgreSQL user_db and Neo4j graph...");
-    await userSequelize.authenticate();
-    await session.run("RETURN 1");
-    console.log("Connected to both databases.");
 
-    const [users] = await userSequelize.query('SELECT * FROM "users"');
+  try {
+    console.log("Connecting to PostgreSQL user shards and Neo4j graph...");
+    await connectDB();
+    await session.run("RETURN 1");
+    console.log("Connected to all user database shards and Neo4j.");
+
+    const users = await User.findAll({ raw: true });
     console.log(`Syncing ${users.length} users into Neo4j...`);
 
-    for (const u of users) {
+    for (const user of users) {
       await session.run(
         `MERGE (u:User {id: $id})
          SET u.name = $name, u.username = $username, u.role = $role`,
         {
-          id: String(u.id),
-          name: u.name || "User",
-          username: u.username || "",
-          role: u.role || "student",
+          id: String(user.id),
+          name: user.name || "User",
+          username: user.username || "",
+          role: user.role || "student",
         }
       );
 
-      const collegeName = u.college && u.college.trim() ? u.college.trim() : "Code Campus University";
+      const collegeName = user.college && user.college.trim()
+        ? user.college.trim()
+        : "Code Campus University";
       await session.run(
         `MATCH (u:User {id: $id})
          MERGE (c:College {name: $college})
          MERGE (u)-[:STUDIES_AT]->(c)`,
-        { id: String(u.id), college: collegeName }
+        { id: String(user.id), college: collegeName }
       );
     }
 
     console.log("✅ Synced all users and colleges into Neo4j graph!");
 
-    // Create a few realistic follow relationships so that 1st, 2nd, and 3rd degree connections exist
-    // Super Admin <-> teacher <-> exam_coordinator <-> student
     if (users.length >= 3) {
-      const superAdmin = users.find((u) => u.role === "super_admin") || users[0];
-      const teacher = users.find((u) => u.role === "teacher") || users[1];
-      const student = users.find((u) => u.email === "abc@gmail.com") || users[users.length - 1];
-      const coordinator = users.find((u) => u.role?.includes("coordinator")) || users[2];
+      const superAdmin = users.find((user) => user.role === "super_admin") || users[0];
+      const teacher = users.find((user) => user.role === "teacher") || users[1];
+      const student = users.find((user) => user.email === "abc@gmail.com") || users[users.length - 1];
+      const coordinator = users.find((user) => user.role?.includes("coordinator")) || users[2];
 
       const sampleFollows = [
         [superAdmin.id, teacher.id],
@@ -79,27 +81,26 @@ async function seedGraph() {
         [coordinator.id, superAdmin.id],
       ];
 
-      for (const [a, b] of sampleFollows) {
-        if (a && b && a !== b) {
+      for (const [fromId, toId] of sampleFollows) {
+        if (fromId && toId && fromId !== toId) {
           await session.run(
-            `MATCH (a:User {id: $a}), (b:User {id: $b})
+            `MATCH (a:User {id: $fromId}), (b:User {id: $toId})
              MERGE (a)-[r:FOLLOWS]->(b)
              ON CREATE SET r.createdAt = datetime()`,
-            { a: String(a), b: String(b) }
+            { fromId: String(fromId), toId: String(toId) }
           );
         }
       }
       console.log("✅ Seeded sample graph connections!");
     }
-
-    process.exit(0);
-  } catch (err) {
-    console.error("❌ Seed error:", err);
-    process.exit(1);
   } finally {
     await session.close();
     await driver.close();
+    await closeDB();
   }
 }
 
-seedGraph();
+seedGraph().catch((err) => {
+  console.error("❌ Seed error:", err);
+  process.exitCode = 1;
+});

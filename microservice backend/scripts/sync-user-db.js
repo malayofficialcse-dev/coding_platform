@@ -7,123 +7,88 @@ const authRequire = createRequire(
   new URL("../auth-service/package.json", import.meta.url)
 );
 const dotenv = authRequire("dotenv");
-const { Sequelize } = authRequire("sequelize");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const authSequelize = new Sequelize(
-  process.env.AUTH_DATABASE_URL || "postgresql://postgres:malay21@localhost:5432/auth_db",
-  { dialect: "postgres", logging: false }
-);
+const profileFields = [
+  "id",
+  "name",
+  "username",
+  "email",
+  "password",
+  "role",
+  "college",
+  "degree",
+  "yearOfPassing",
+  "profileImage",
+  "bannerImage",
+  "isActive",
+  "createdBy",
+  "permissions",
+  "googleId",
+  "githubId",
+  "authProvider",
+  "createdAt",
+  "updatedAt",
+];
 
-const userSequelize = new Sequelize(
-  process.env.USER_DATABASE_URL || "postgresql://postgres:malay21@localhost:5432/user_db",
-  { dialect: "postgres", logging: false }
-);
+const syncDatabases = async () => {
+  const [
+    { default: AuthUser },
+    { connectDB: connectAuthDb, sequelize: authSequelize },
+    { default: UserProfile },
+    { connectDB: connectUserDb, closeDB: closeUserDb },
+  ] = await Promise.all([
+    import("../auth-service/src/models/User.js"),
+    import("../auth-service/src/config/db.js"),
+    import("../user-service/src/models/User.js"),
+    import("../user-service/src/config/db.js"),
+  ]);
 
-async function syncDatabases() {
   try {
-    console.log("Connecting to auth_db and user_db...");
-    await authSequelize.authenticate();
-    await userSequelize.authenticate();
-    console.log("Connected to both databases.");
+    await connectAuthDb();
+    await connectUserDb();
 
-    const [authUsers] = await authSequelize.query('SELECT * FROM "users"');
-    const [userDbUsers] = await userSequelize.query('SELECT * FROM "users"');
+    const [authUsers, profileUsers] = await Promise.all([
+      AuthUser.findAll({ raw: true }),
+      UserProfile.findAll({ raw: true }),
+    ]);
 
-    console.log(`Found ${authUsers.length} users in auth_db, ${userDbUsers.length} users in user_db.`);
-
-    for (const u of authUsers) {
-      console.log(`Auth user: ${u.email} (id: ${u.id}, username: ${u.username})`);
-      const existingByEmail = userDbUsers.find(
-        (x) => x.email.toLowerCase() === u.email.toLowerCase()
+    for (const authUser of authUsers) {
+      const profileData = profileUsers.find(
+        (profile) => profile.email.toLowerCase() === authUser.email.toLowerCase()
       );
-      if (existingByEmail) {
-        if (existingByEmail.id !== u.id) {
-          console.log(`Updating user_db user ${u.email} ID from ${existingByEmail.id} to ${u.id}...`);
-          await userSequelize.query(
-            'UPDATE "users" SET id = :newId, password = :pwd, username = :uname, permissions = :perms WHERE id = :oldId',
-            {
-              replacements: {
-                newId: u.id,
-                pwd: u.password,
-                uname: u.username,
-                perms: JSON.stringify(u.permissions || {}),
-                oldId: existingByEmail.id,
-              },
-            }
-          );
-        } else {
-          console.log(`User ${u.email} has matching ID ${u.id}.`);
-        }
-      } else {
-        console.log(`Inserting ${u.email} into user_db...`);
-        await userSequelize.query(
-          `INSERT INTO "users" (id, name, username, email, password, role, college, degree, "yearOfPassing", "profileImage", "bannerImage", "isActive", "createdBy", permissions, "createdAt", "updatedAt")
-           VALUES (:id, :name, :username, :email, :password, :role, :college, :degree, :yearOfPassing, :profileImage, :bannerImage, :isActive, :createdBy, :permissions, :createdAt, :updatedAt)`,
-          {
-            replacements: {
-              id: u.id,
-              name: u.name,
-              username: u.username,
-              email: u.email,
-              password: u.password,
-              role: u.role || "student",
-              college: u.college || "",
-              degree: u.degree || "",
-              yearOfPassing: u.yearOfPassing || "",
-              profileImage: u.profileImage || "",
-              bannerImage: u.bannerImage || "",
-              isActive: u.isActive !== false,
-              createdBy: u.createdBy || null,
-              permissions: JSON.stringify(u.permissions || {}),
-              createdAt: u.createdAt || new Date(),
-              updatedAt: u.updatedAt || new Date(),
-            },
-          }
-        );
+
+      if (!profileData) {
+        await UserProfile.create(authUser);
+      } else if (profileData.id !== authUser.id) {
+        const profile = await UserProfile.findByPk(profileData.id);
+        await UserProfile.relocate(profile, authUser);
       }
     }
 
-    for (const u of userDbUsers) {
-      const existingInAuth = authUsers.find(
-        (x) => x.email.toLowerCase() === u.email.toLowerCase()
+    for (const profile of profileUsers) {
+      const authUser = authUsers.find(
+        (user) => user.email.toLowerCase() === profile.email.toLowerCase()
       );
-      if (!existingInAuth) {
-        console.log(`Syncing user ${u.email} (${u.role}) into auth_db...`);
-        await authSequelize.query(
-          `INSERT INTO "users" (id, name, username, email, password, role, college, degree, "yearOfPassing", "profileImage", "bannerImage", "isActive", "createdBy", permissions, "createdAt", "updatedAt")
-           VALUES (:id, :name, :username, :email, :password, :role, :college, :degree, :yearOfPassing, :profileImage, :bannerImage, :isActive, :createdBy, :permissions, :createdAt, :updatedAt)`,
-          {
-            replacements: {
-              id: u.id,
-              name: u.name,
-              username: u.username,
-              email: u.email,
-              password: u.password,
-              role: u.role || "student",
-              college: u.college || "",
-              degree: u.degree || "",
-              yearOfPassing: u.yearOfPassing || "",
-              profileImage: u.profileImage || "",
-              bannerImage: u.bannerImage || "",
-              isActive: u.isActive !== false,
-              createdBy: u.createdBy || null,
-              permissions: JSON.stringify(u.permissions || {}),
-              createdAt: u.createdAt || new Date(),
-              updatedAt: u.updatedAt || new Date(),
-            },
-          }
+      if (!authUser) {
+        const values = Object.fromEntries(
+          profileFields
+            .filter((field) => profile[field] !== undefined)
+            .map((field) => [field, profile[field]])
         );
+        await AuthUser.create(values);
       }
     }
 
-    console.log("✅ Databases fully synchronized!");
-    process.exit(0);
-  } catch (err) {
-    console.error("❌ Sync error:", err);
-    process.exit(1);
+    console.log(`User databases synchronized: ${authUsers.length} auth records, ${profileUsers.length} profile records.`);
+  } finally {
+    await authSequelize.close();
+    await closeUserDb();
   }
-}
+};
 
-syncDatabases();
+syncDatabases().catch((err) => {
+  console.error("User database synchronization failed:", err.message);
+  process.exitCode = 1;
+});

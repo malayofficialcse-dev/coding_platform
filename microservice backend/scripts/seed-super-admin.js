@@ -85,7 +85,7 @@ async function seed() {
     { connectDB: connectAuthDb, sequelize: authSequelize },
     { default: RefreshSession },
     { default: UserProfile },
-    { connectDB: connectUserDb, sequelize: userSequelize },
+    { connectDB: connectUserDb, closeDB: closeUserDb },
   ] = await Promise.all([
     import("../auth-service/src/models/User.js"),
     import("../auth-service/src/config/db.js"),
@@ -208,7 +208,7 @@ async function seed() {
   console.log("==========================================\n");
 
   await authSequelize.close();
-  await userSequelize.close();
+  await closeUserDb();
   process.exit(0);
 }
 
