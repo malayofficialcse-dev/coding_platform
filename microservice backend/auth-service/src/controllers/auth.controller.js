@@ -4,7 +4,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import User from "../models/User.js";
 import RefreshSession from "../models/RefreshSession.js";
 import { sequelize } from "../config/db.js";
-import { getUserShardIndex, getUserShardUrls } from "../../../shared/userSharding.js";
+import { getUserShardIndex, getUserShardUrls } from "../utils/userSharding.js";
 
 const ACCESS_TOKEN_ISSUER = "code-campus-auth";
 const ACCESS_TOKEN_AUDIENCE = "code-campus-api";

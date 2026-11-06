@@ -242,8 +242,8 @@ services:
   # ========================================================
   auth-service:
     build:
-      context: .
-      dockerfile: auth-service/Dockerfile
+      context: ./auth-service
+      dockerfile: Dockerfile
     container_name: code-campus-auth
     restart: always
     environment:
@@ -283,8 +283,8 @@ services:
   # ========================================================
   user-service:
     build:
-      context: .
-      dockerfile: user-service/Dockerfile
+      context: ./user-service
+      dockerfile: Dockerfile
     container_name: code-campus-user
     restart: always
     ports:

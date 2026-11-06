@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DataTypes, Model, Op } from "sequelize";
 import { userShardSequelize } from "../config/db.js";
-import { getUserShardIndex } from "../../../shared/userSharding.js";
+import { getUserShardIndex } from "../config/userSharding.js";
 
 export const ROLES = [
   "student",
