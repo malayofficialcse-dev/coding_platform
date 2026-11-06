@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { optimizedImageUrl } from "../utils/imageUrl";
-import { FaPaperPlane } from "react-icons/fa";
+import { FaThumbsUp, FaRegThumbsUp, FaImage, FaSmile } from "react-icons/fa";
 
 const DEFAULT_AVATAR = "/default-avatar.svg";
 
@@ -25,19 +25,26 @@ function timeAgo(dateString) {
 
 export default function CommentSection({ comments = [], onComment, user }) {
   const [text, setText] = useState("");
+  const [likedComments, setLikedComments] = useState({});
+  const [focused, setFocused] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (text.trim()) {
       onComment(text.trim());
       setText("");
+      setFocused(false);
     }
   };
 
+  const toggleLike = (id) => {
+    setLikedComments((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
-    <div className="mt-2">
-      {/* Comments List */}
-      <div className="d-flex flex-column gap-2 mb-3">
+    <div style={{ padding: "0 0 4px 0" }}>
+      {/* ── Comments List ── */}
+      <div className="d-flex flex-column" style={{ gap: 12 }}>
         {comments.map((c, idx) => {
           const authorId =
             typeof c.author === "string"
@@ -45,9 +52,13 @@ export default function CommentSection({ comments = [], onComment, user }) {
               : c.author?._id || c.author?.id || "";
 
           const authorName =
-            (typeof c.author === "object" && (c.author?.name || c.author?.username)) ||
+            (typeof c.author === "object" &&
+              (c.author?.name || c.author?.username)) ||
             (typeof c.author === "string" && c.author) ||
             "Code Campus Member";
+
+          const authorRole =
+            (typeof c.author === "object" && c.author?.role) || "";
 
           const isCurrentUser =
             user &&
@@ -66,37 +77,35 @@ export default function CommentSection({ comments = [], onComment, user }) {
             (isCurrentUser ? user?.profileImage : null);
 
           const authorImage = rawAuthorImage || DEFAULT_AVATAR;
+          const commentId = c._id || idx;
+          const isLiked = likedComments[commentId];
 
           return (
-            <div key={c._id || idx} className="d-flex align-items-start gap-2">
-              {/* User Avatar with explicit square wrapper to prevent squishing */}
+            <div key={commentId} className="d-flex align-items-start gap-2">
+              {/* Avatar */}
               <Link
                 to={authorId ? `/profile/${authorId}` : "#"}
-                className="flex-shrink-0 text-decoration-none d-inline-flex"
+                className="flex-shrink-0 text-decoration-none"
                 style={{
-                  width: 34,
-                  height: 34,
-                  minWidth: 34,
-                  minHeight: 34,
+                  width: 38,
+                  height: 38,
+                  minWidth: 38,
+                  minHeight: 38,
                   borderRadius: "50%",
                   overflow: "hidden",
+                  display: "inline-flex",
+                  border: "1.5px solid var(--cc-border, rgba(0,0,0,0.12))",
                 }}
               >
                 <img
                   src={optimizedImageUrl(authorImage, 80)}
                   alt={authorName}
                   style={{
-                    width: 34,
-                    height: 34,
-                    minWidth: 34,
-                    minHeight: 34,
-                    maxWidth: 34,
-                    maxHeight: 34,
-                    borderRadius: "50%",
+                    width: 38,
+                    height: 38,
                     objectFit: "cover",
-                    aspectRatio: "1 / 1",
+                    borderRadius: "50%",
                     display: "block",
-                    border: "1.5px solid var(--cc-border, rgba(255, 255, 255, 0.12))",
                   }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -105,92 +114,148 @@ export default function CommentSection({ comments = [], onComment, user }) {
                 />
               </Link>
 
-              {/* Comment Bubble (FB / Insta Format) */}
-              <div style={{ maxWidth: "calc(100% - 44px)" }}>
+              {/* Bubble */}
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
-                  className="rounded-4 px-3 py-2"
                   style={{
-                    backgroundColor: "var(--cc-surface-muted, rgba(255, 255, 255, 0.05))",
-                    border: "1px solid var(--cc-border, rgba(255, 255, 255, 0.07))",
+                    backgroundColor: "var(--cc-surface-muted, rgba(255,255,255,0.06))",
+                    border: "1px solid var(--cc-border, rgba(0,0,0,0.08))",
+                    borderRadius: 10,
+                    padding: "8px 12px",
                     display: "inline-block",
+                    maxWidth: "100%",
                     wordBreak: "break-word",
                   }}
                 >
-                  <Link
-                    to={authorId ? `/profile/${authorId}` : "#"}
-                    className="fw-bold text-decoration-none d-block"
-                    style={{
-                      color: "var(--cc-text, inherit)",
-                      fontSize: "0.85rem",
-                      lineHeight: 1.25,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {authorName}
-                  </Link>
+                  {/* Name + headline */}
+                  <div className="d-flex align-items-center flex-wrap gap-2">
+                    <Link
+                      to={authorId ? `/profile/${authorId}` : "#"}
+                      className="text-decoration-none fw-semibold"
+                      style={{
+                        color: "var(--cc-text, inherit)",
+                        fontSize: "0.84rem",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {authorName}
+                    </Link>
+                    {authorRole && (
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--cc-muted, #94a3b8)",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        · {authorRole}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Comment text */}
                   <div
                     style={{
                       color: "var(--cc-text, inherit)",
-                      fontSize: "0.88rem",
+                      fontSize: "0.875rem",
                       whiteSpace: "pre-wrap",
-                      lineHeight: 1.35,
+                      lineHeight: 1.45,
+                      marginTop: 2,
                     }}
                   >
                     {c.text}
                   </div>
                 </div>
 
-                {/* Meta details (timestamp) */}
-                {c.createdAt && (
-                  <div
-                    className="ps-2 mt-1"
+                {/* Actions row: timestamp · Like · Reply */}
+                <div
+                  className="d-flex align-items-center gap-2 ps-1 mt-1"
+                  style={{ fontSize: "0.75rem", color: "var(--cc-muted, #64748b)" }}
+                >
+                  {c.createdAt && (
+                    <span style={{ fontSize: "0.72rem" }}>{timeAgo(c.createdAt)}</span>
+                  )}
+
+                  {/* Like action */}
+                  <button
+                    type="button"
+                    onClick={() => toggleLike(commentId)}
+                    className="border-0 bg-transparent p-0 d-flex align-items-center gap-1"
                     style={{
-                      fontSize: "0.72rem",
-                      color: "var(--cc-muted, #94a3b8)",
+                      cursor: "pointer",
+                      color: isLiked
+                        ? "var(--cc-primary, #0a66c2)"
+                        : "var(--cc-muted, #64748b)",
+                      fontWeight: isLiked ? 700 : 600,
+                      fontSize: "0.75rem",
+                      transition: "color 0.15s",
                     }}
+                    title={isLiked ? "Unlike" : "Like"}
                   >
-                    {timeAgo(c.createdAt)}
-                  </div>
-                )}
+                    {isLiked ? (
+                      <FaThumbsUp size={11} />
+                    ) : (
+                      <FaRegThumbsUp size={11} />
+                    )}
+                    Like
+                  </button>
+
+                  <span style={{ color: "var(--cc-border, #cbd5e1)" }}>·</span>
+
+                  {/* Reply action (visual only) */}
+                  <button
+                    type="button"
+                    className="border-0 bg-transparent p-0"
+                    style={{
+                      cursor: "pointer",
+                      color: "var(--cc-muted, #64748b)",
+                      fontWeight: 600,
+                      fontSize: "0.75rem",
+                    }}
+                    onClick={() =>
+                      setText((prev) =>
+                        prev.startsWith(`@${authorName} `)
+                          ? prev
+                          : `@${authorName} ` + prev
+                      )
+                    }
+                  >
+                    Reply
+                  </button>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Input Box (FB / Insta style) */}
+      {/* ── Comment Input (LinkedIn style) ── */}
       {user ? (
         <form
           onSubmit={handleSubmit}
-          className="d-flex align-items-center gap-2 mt-2"
+          className="d-flex align-items-start gap-2 mt-3"
         >
-          {/* Current User Avatar with consistent 34x34 circle wrapper */}
+          {/* Current user avatar */}
           <div
-            className="flex-shrink-0 d-inline-flex"
+            className="flex-shrink-0"
             style={{
-              width: 34,
-              height: 34,
-              minWidth: 34,
-              minHeight: 34,
+              width: 38,
+              height: 38,
+              minWidth: 38,
               borderRadius: "50%",
               overflow: "hidden",
+              border: "1.5px solid var(--cc-border, rgba(0,0,0,0.12))",
             }}
           >
             <img
               src={optimizedImageUrl(user?.profileImage || DEFAULT_AVATAR, 80)}
               alt={user?.name || user?.username || "You"}
               style={{
-                width: 34,
-                height: 34,
-                minWidth: 34,
-                minHeight: 34,
-                maxWidth: 34,
-                maxHeight: 34,
-                borderRadius: "50%",
+                width: 38,
+                height: 38,
                 objectFit: "cover",
-                aspectRatio: "1 / 1",
+                borderRadius: "50%",
                 display: "block",
-                border: "1.5px solid var(--cc-border, rgba(255, 255, 255, 0.12))",
               }}
               onError={(e) => {
                 e.currentTarget.onerror = null;
@@ -199,34 +264,104 @@ export default function CommentSection({ comments = [], onComment, user }) {
             />
           </div>
 
-          {/* Input field with Post button inside */}
-          <div className="position-relative flex-grow-1 d-flex align-items-center">
-            <input
-              type="text"
-              className="form-control form-control-sm rounded-pill pe-5 py-2 px-3"
+          {/* Input container */}
+          <div
+            style={{
+              flex: 1,
+              borderRadius: 20,
+              border: focused
+                ? "1.5px solid var(--cc-primary, #0a66c2)"
+                : "1.5px solid var(--cc-border, rgba(0,0,0,0.2))",
+              backgroundColor: "var(--cc-surface-muted, transparent)",
+              transition: "border-color 0.2s",
+              overflow: "hidden",
+            }}
+          >
+            {/* Textarea */}
+            <textarea
+              rows={focused ? 2 : 1}
+              className="form-control border-0 bg-transparent shadow-none"
               style={{
-                backgroundColor: "var(--cc-surface-muted, rgba(255, 255, 255, 0.05))",
-                borderColor: "var(--cc-border, rgba(255, 255, 255, 0.1))",
-                color: "var(--cc-text, inherit)",
+                resize: "none",
+                borderRadius: 0,
                 fontSize: "0.875rem",
+                color: "var(--cc-text, inherit)",
+                padding: "9px 14px",
+                lineHeight: 1.4,
+                outline: "none",
               }}
-              placeholder="Write a comment..."
+              placeholder="Add a comment…"
               value={text}
+              onFocus={() => setFocused(true)}
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (text.trim()) handleSubmit(e);
+                }
+              }}
             />
-            {text.trim() && (
-              <button
-                type="submit"
-                className="btn btn-sm position-absolute end-0 me-2 p-1 border-0 bg-transparent text-primary fw-bold d-flex align-items-center gap-1"
-                style={{
-                  color: "var(--cc-primary, #0078d4)",
-                  fontSize: "0.82rem",
-                }}
-                title="Post comment"
+
+            {/* Bottom toolbar: emoji + image + Post button */}
+            {focused && (
+              <div
+                className="d-flex align-items-center justify-content-between px-3 pb-2"
+                style={{ gap: 8 }}
               >
-                <span>Post</span>
-                <FaPaperPlane size={11} />
-              </button>
+                {/* Left icons */}
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="border-0 bg-transparent p-0 d-flex align-items-center"
+                    style={{
+                      color: "var(--cc-muted, #64748b)",
+                      cursor: "pointer",
+                      fontSize: 16,
+                    }}
+                    title="Emoji"
+                    tabIndex={-1}
+                  >
+                    <FaSmile size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="border-0 bg-transparent p-0 d-flex align-items-center"
+                    style={{
+                      color: "var(--cc-muted, #64748b)",
+                      cursor: "pointer",
+                    }}
+                    title="Attach image"
+                    tabIndex={-1}
+                  >
+                    <FaImage size={16} />
+                  </button>
+                </div>
+
+                {/* Post button */}
+                <button
+                  type="submit"
+                  disabled={!text.trim()}
+                  style={{
+                    background: text.trim()
+                      ? "var(--cc-primary, #0a66c2)"
+                      : "transparent",
+                    color: text.trim()
+                      ? "#fff"
+                      : "var(--cc-muted, #94a3b8)",
+                    border: text.trim()
+                      ? "none"
+                      : "1.5px solid var(--cc-border, #cbd5e1)",
+                    borderRadius: 20,
+                    padding: "4px 16px",
+                    fontSize: "0.82rem",
+                    fontWeight: 700,
+                    cursor: text.trim() ? "pointer" : "default",
+                    transition: "background 0.2s, color 0.2s",
+                  }}
+                >
+                  Post
+                </button>
+              </div>
             )}
           </div>
         </form>
@@ -235,7 +370,7 @@ export default function CommentSection({ comments = [], onComment, user }) {
           <Link
             to="/login"
             className="fw-semibold text-decoration-none"
-            style={{ color: "var(--cc-primary, #0078d4)" }}
+            style={{ color: "var(--cc-primary, #0a66c2)" }}
           >
             Sign in
           </Link>{" "}
