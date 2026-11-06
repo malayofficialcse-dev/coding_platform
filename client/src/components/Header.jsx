@@ -133,12 +133,35 @@ export default function Header() {
   }, [user]);
 
   useEffect(() => {
-    api.get("/users").then((res) => setUsers(res.data || []));
+    api
+      .get("/users")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : res.data?.users || [];
+        setUsers(list);
+      })
+      .catch((err) => console.error("Error loading users for search:", err));
   }, []);
 
-  const filtered = users.filter((u) =>
-    (u.name || u.username || "").toLowerCase().includes(query.trim().toLowerCase())
-  );
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? users.filter((u) =>
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q)
+      )
+    : users.slice(0, 8);
 
   const profileImage = user?.profileImage || ProfileIcon;
 
@@ -240,76 +263,16 @@ export default function Header() {
           {theme === "light" ? <FaMoon size={16} /> : <FaSun size={16} />}
         </button>
 
-        <div className="cc-header-search" style={{ position: "relative" }}>
+        <div className="cc-header-search">
           <button
             type="button"
             className="btn btn-light btn-sm"
-            onClick={() => setSearchOpen((v) => !v)}
+            onClick={() => setSearchOpen(true)}
             title="Search users"
             style={{ background: "var(--cc-surface-muted)", color: "var(--cc-text)", border: "1px solid var(--cc-border)" }}
           >
             <FaSearch />
           </button>
-
-          {searchOpen && (
-            <div
-              style={{
-                position: "absolute",
-                top: 42,
-                right: 0,
-                width: 300,
-                background: "var(--cc-surface)",
-                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.16)",
-                padding: 12,
-                border: "1px solid var(--cc-border)",
-                borderRadius: 3,
-                zIndex: 999,
-              }}
-            >
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search users..."
-                className="form-control mb-2"
-                style={{ background: "var(--cc-surface)", color: "var(--cc-text)" }}
-              />
-              <div style={{ maxHeight: 250, overflowY: "auto" }}>
-                {filtered.length === 0 && (
-                  <div style={{ padding: 8, color: "var(--cc-muted)" }}>No users found</div>
-                )}
-                {filtered.map((u) => (
-                  <button
-                    type="button"
-                    key={u._id}
-                    onClick={() => {
-                      closeAndNavigate(`/profile/${u._id}`);
-                      setQuery("");
-                    }}
-                    className="w-100 border-0 text-start d-flex align-items-center"
-                    style={{ padding: "8px 6px", gap: 10, background: "var(--cc-surface)", color: "var(--cc-text)" }}
-                  >
-                    <img
-                      src={
-                        u.profileImage ||
-                        "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png"
-                      }
-                      alt=""
-                      style={{ width: 34, height: 34, objectFit: "cover" }}
-                    />
-                    <span>
-                      <span style={{ display: "block", fontWeight: 600 }}>
-                        {u.name || u.username}
-                      </span>
-                      <span style={{ display: "block", fontSize: 12, color: "var(--cc-muted)" }}>
-                        @{u.username}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {user ? (
@@ -488,6 +451,200 @@ export default function Header() {
             }}
           />
         </>
+      )}
+
+      {/* ── Responsive Search Modal (Visible on both mobile & desktop) ── */}
+      {searchOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "16px",
+            paddingTop: "max(60px, 8vh)",
+          }}
+          onClick={() => {
+            setSearchOpen(false);
+            setQuery("");
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              background: "var(--cc-surface, #ffffff)",
+              border: "1px solid var(--cc-border, #d6dbe1)",
+              borderRadius: 12,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.35)",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search Input Bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--cc-border, #d6dbe1)",
+                background: "var(--cc-surface-muted, #f8fafc)",
+              }}
+            >
+              <FaSearch style={{ color: "var(--cc-primary, #0078d4)", flexShrink: 0 }} size={16} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search Code Campus users…"
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  color: "var(--cc-text, inherit)",
+                  fontSize: "0.95rem",
+                }}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="border-0 bg-transparent p-1"
+                  style={{ color: "var(--cc-muted, #94a3b8)", cursor: "pointer" }}
+                  title="Clear search"
+                >
+                  <FaTimes size={13} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setQuery("");
+                }}
+                className="btn btn-sm btn-light border"
+                style={{
+                  fontSize: "0.78rem",
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  color: "var(--cc-text, inherit)",
+                  background: "var(--cc-surface, #ffffff)",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Subheading */}
+            <div
+              style={{
+                padding: "8px 16px 4px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "var(--cc-muted, #94a3b8)",
+              }}
+            >
+              {q ? "Search Results" : "Suggested Members"}
+            </div>
+
+            {/* Results List */}
+            <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "4px 0 8px" }}>
+              {filtered.length === 0 ? (
+                <div
+                  style={{
+                    padding: "32px 16px",
+                    textAlign: "center",
+                    color: "var(--cc-muted, #94a3b8)",
+                    fontSize: "0.88rem",
+                  }}
+                >
+                  No users found matching "{query}"
+                </div>
+              ) : (
+                filtered.map((u) => {
+                  const uId = u._id || u.id;
+                  const uImage = u.profileImage || ProfileIcon;
+                  return (
+                    <button
+                      type="button"
+                      key={uId}
+                      onClick={() => {
+                        closeAndNavigate(`/profile/${uId}`);
+                        setQuery("");
+                      }}
+                      className="w-100 border-0 text-start d-flex align-items-center gap-3 px-3 py-2"
+                      style={{
+                        background: "transparent",
+                        color: "var(--cc-text, inherit)",
+                        cursor: "pointer",
+                        transition: "background 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--cc-surface-muted, rgba(0,0,0,0.05))";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <img
+                        src={uImage}
+                        alt={u.name || u.username}
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                          border: "1.5px solid var(--cc-border, #d6dbe1)",
+                          flexShrink: 0,
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = ProfileIcon;
+                        }}
+                      />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: "0.9rem",
+                            color: "var(--cc-text, inherit)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {u.name || u.username}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.78rem",
+                            color: "var(--cc-muted, #94a3b8)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          @{u.username || "user"}
+                          {u.role ? ` · ${u.role}` : ""}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </header>
   );

@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "migrate:neon": "node scripts/migrate-neon.js",
+    "backfill:neon-shards": "node scripts/backfill-neon-shards.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

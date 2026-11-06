@@ -1,5 +1,18 @@
-import Enrollment from "../models/Enrollment.js";
-import { Op } from "sequelize";
+import crypto from "crypto";
+import { getEnrollmentModel } from "../models/Enrollment.js";
+import CertificateDirectory from "../models/CertificateDirectory.js";
+import { normalizeId, resolveShardId } from "../database/shardResolver.js";
+import { shardCount } from "../config/db.js";
+
+const userIdFrom = (req) => normalizeId(req.user?._id || req.user?.id);
+const modelForUser = (userId, mode = "write") => getEnrollmentModel(resolveShardId(userId), mode);
+const findAcrossShards = async (options, mode = "read") => {
+  for (let shardId = 0; shardId < shardCount; shardId += 1) {
+    const row = await getEnrollmentModel(shardId, mode).findOne(options);
+    if (row) return row;
+  }
+  return null;
+};
 
 const getCourseById = async (courseId) => {
   const serviceUrl = (process.env.COURSE_SERVICE_URL || "http://localhost:5005").replace(/\/+$/, "");
@@ -66,7 +79,7 @@ function attachCourseDetails(enrollmentList) {
 export const enrollCourse = async (req, res) => {
   try {
     const { courseId, days } = req.body;
-    const userId = req.user?._id || req.user?.id;
+    const userId = userIdFrom(req);
 
     if (!courseId) {
       return res.status(400).json({ error: "courseId is required" });
@@ -79,6 +92,8 @@ export const enrollCourse = async (req, res) => {
     const userIdStr = String(userId);
     const courseIdStr = String(courseId);
 
+    const Enrollment = modelForUser(userId, "write");
+    const shardId = resolveShardId(userId);
     let existing = await Enrollment.findOne({
       where: {
         user: userIdStr,
@@ -108,6 +123,7 @@ export const enrollCourse = async (req, res) => {
       user: userIdStr,
       course: courseIdStr,
       expiresAt: newExpiresAt,
+      shardId,
       enrolledAt: new Date(),
     });
 
@@ -125,12 +141,12 @@ export const enrollCourse = async (req, res) => {
 
 export const getMyEnrollments = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = userIdFrom(req);
     if (!userId) {
       return res.status(401).json({ error: "User authentication required" });
     }
 
-    const enrollments = await Enrollment.findAll({
+    const enrollments = await modelForUser(userId, "read").findAll({
       where: { user: String(userId) },
       order: [["createdAt", "DESC"]],
     });
@@ -144,8 +160,8 @@ export const getMyEnrollments = async (req, res) => {
 
 export const getEnrollmentsByUser = async (req, res) => {
   try {
-    const targetUserId = req.params.userId;
-    const enrollments = await Enrollment.findAll({
+    const targetUserId = normalizeId(req.params.userId);
+    const enrollments = await modelForUser(targetUserId, "read").findAll({
       where: { user: String(targetUserId) },
       order: [["createdAt", "DESC"]],
     });
@@ -158,7 +174,7 @@ export const getEnrollmentsByUser = async (req, res) => {
 
 export const getUserEnrollments = async (req, res) => {
   try {
-    const authenticatedUserId = req.user?._id || req.user?.id;
+    const authenticatedUserId = userIdFrom(req);
     if (!authenticatedUserId) return res.status(401).json({ error: "User authentication required." });
     const requestedUserId = req.query.userId;
     const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
@@ -167,7 +183,7 @@ export const getUserEnrollments = async (req, res) => {
     }
     const userId = requestedUserId && isAdmin ? requestedUserId : authenticatedUserId;
 
-    const enrollments = await Enrollment.findAll({
+    const enrollments = await modelForUser(userId, "read").findAll({
       where: { user: String(userId) },
       order: [["createdAt", "DESC"]],
     });
@@ -180,7 +196,7 @@ export const getUserEnrollments = async (req, res) => {
 
 export const updateCourseProgress = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = userIdFrom(req);
     const { subtopicId, completed = true } = req.body;
     if (typeof subtopicId !== "string" || !subtopicId.trim()) {
       return res.status(400).json({ error: "subtopicId is required." });
@@ -189,7 +205,7 @@ export const updateCourseProgress = async (req, res) => {
       return res.status(400).json({ error: "completed must be a boolean." });
     }
 
-    const enrollment = await Enrollment.findOne({
+    const enrollment = await modelForUser(userId, "write").findOne({
       where: {
         id: req.params.enrollmentId,
         user: String(userId),
@@ -229,7 +245,7 @@ export const updateCourseProgress = async (req, res) => {
 
 export const generateCertificate = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = userIdFrom(req);
     const { enrollmentId } = req.params;
     const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
 
@@ -238,7 +254,9 @@ export const generateCertificate = async (req, res) => {
       where.user = String(userId);
     }
 
-    let enrollment = await Enrollment.findOne({ where });
+    let enrollment = isAdmin
+      ? await findAcrossShards({ where }, "write")
+      : await modelForUser(userId, "write").findOne({ where });
     if (!enrollment) return res.status(404).json({ error: "Enrollment record not found" });
 
     if (!isAdmin) {
@@ -264,15 +282,17 @@ export const generateCertificate = async (req, res) => {
 
     if (!enrollment.certificateNumber) {
       const year = new Date().getFullYear();
-      const count = await Enrollment.count({
-        where: { certificateNumber: { [Op.ne]: null } },
-      });
-      const seq = String(count + 1).padStart(4, "0");
-      enrollment.certificateNumber = `CC-${year}-${seq}`;
+      enrollment.certificateNumber = `CC-${year}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
       enrollment.certificateIssuedAt = new Date();
       enrollment.certificateRecipientName = studentName;
       enrollment.certificateCeoName = "Malay Maity";
       await enrollment.save();
+      await CertificateDirectory.upsert({
+        certificateNumber: enrollment.certificateNumber,
+        userId: String(enrollment.user),
+        enrollmentId: enrollment.id,
+        shardId: Number(enrollment.shardId),
+      });
     } else if (req.body?.studentName) {
       enrollment.certificateRecipientName = req.body.studentName.trim();
       await enrollment.save();
@@ -302,7 +322,7 @@ export const generateCertificate = async (req, res) => {
 
 export const getCertificate = async (req, res) => {
   try {
-    const userId = req.user?._id || req.user?.id;
+    const userId = userIdFrom(req);
     const { enrollmentId } = req.params;
     const isAdmin = ["admin", "super_admin"].includes(req.user?.role);
 
@@ -311,7 +331,9 @@ export const getCertificate = async (req, res) => {
       where.user = String(userId);
     }
 
-    const enrollment = await Enrollment.findOne({ where });
+    const enrollment = isAdmin
+      ? await findAcrossShards({ where }, "read")
+      : await modelForUser(userId, "read").findOne({ where });
     if (!enrollment) return res.status(404).json({ error: "Enrollment not found" });
 
     if (!enrollment.certificateNumber) {
@@ -355,7 +377,10 @@ export const getCertificate = async (req, res) => {
 export const verifyCertificate = async (req, res) => {
   try {
     const { certificateNumber } = req.params;
-    const enrollment = await Enrollment.findOne({ where: { certificateNumber } });
+    const directoryEntry = await CertificateDirectory.findByPk(certificateNumber);
+    const enrollment = directoryEntry
+      ? await getEnrollmentModel(Number(directoryEntry.shardId), "read").findByPk(directoryEntry.enrollmentId)
+      : await findAcrossShards({ where: { certificateNumber } }, "read");
     if (!enrollment) {
       return res.status(404).json({ error: "Invalid certificate number. No record found." });
     }

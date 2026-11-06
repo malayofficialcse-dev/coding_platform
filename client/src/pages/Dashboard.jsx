@@ -466,15 +466,12 @@ export default function Dashboard() {
 
         @media (max-width: 768px) {
           #dashboard-page .dashboard-grid {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 1rem !important;
+            display: block !important;
+            width: 100% !important;
           }
           #dashboard-page .dashboard-left-aside,
           #dashboard-page .dashboard-right-aside {
-            position: static !important;
-            width: 100% !important;
-            padding: 0 !important;
+            display: none !important;
           }
           #dashboard-page main {
             padding: 0 !important;
