@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2600" viewBox="0 0 1800 2600">
+  <defs>
+    <style>
+      .title { font: 700 38px Arial, sans-serif; fill: #12344d; }
+      .section { font: 700 26px Arial, sans-serif; fill: #174a6b; }
+      .label { font: 600 20px Arial, sans-serif; fill: #12344d; }
+      .small { font: 16px Arial, sans-serif; fill: #355568; }
+      .tiny { font: 14px Arial, sans-serif; fill: #476879; }
+      .box { fill: #e8f4ff; stroke: #7aa9c7; stroke-width: 2; rx: 14; }
+      .primary { fill: #d9f2df; stroke: #5c9b6a; stroke-width: 2; }
+      .replica { fill: #fff0d8; stroke: #d39a42; stroke-width: 2; }
+      .shard { fill: #f0eaff; stroke: #876aca; stroke-width: 2; }
+      .directory { fill: #ffe7ee; stroke: #cc7087; stroke-width: 2; }
+      .note { fill: #fffbea; stroke: #d0b65e; stroke-width: 2; rx: 12; }
+      .arrow { stroke: #607d8b; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 10 8; }
+      .divider { stroke: #a9bdc9; stroke-width: 2; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#607d8b"/>
+    </marker>
+  </defs>
+
+  <rect width="1800" height="2600" fill="#f8fbfd"/>
+  <text x="900" y="60" text-anchor="middle" class="title">Enrollment Service — Sharding and Replication</text>
+  <text x="900" y="94" text-anchor="middle" class="small">Complete functional flow using Neon PostgreSQL</text>
+
+  <text x="70" y="155" class="section">1. Client request and service entry</text>
+  <rect x="90" y="185" width="220" height="78" class="box"/>
+  <text x="200" y="218" text-anchor="middle" class="label">Frontend Client</text>
+  <text x="200" y="244" text-anchor="middle" class="small">Student / Admin</text>
+  <rect x="410" y="185" width="220" height="78" class="box"/>
+  <text x="520" y="218" text-anchor="middle" class="label">API Gateway</text>
+  <text x="520" y="244" text-anchor="middle" class="small">Routes /v1/enrollments</text>
+  <rect x="730" y="185" width="300" height="78" class="box"/>
+  <text x="880" y="218" text-anchor="middle" class="label">Enrollment Service</text>
+  <text x="880" y="244" text-anchor="middle" class="small">Port 5006</text>
+  <rect x="1130" y="185" width="250" height="78" class="box"/>
+  <text x="1255" y="218" text-anchor="middle" class="label">JWT Middleware</text>
+  <text x="1255" y="244" text-anchor="middle" class="small">userId + role</text>
+  <path d="M310 224 H410 M630 224 H730 M1030 224 H1130" class="arrow"/>
+
+  <text x="70" y="340" class="section">2. Request classification</text>
+  <rect x="110" y="375" width="360" height="130" class="box"/>
+  <text x="290" y="410" text-anchor="middle" class="label">Write Operations</text>
+  <text x="290" y="442" text-anchor="middle" class="small">POST /enroll</text>
+  <text x="290" y="466" text-anchor="middle" class="small">PATCH /:id/progress</text>
+  <text x="290" y="490" text-anchor="middle" class="small">POST /:id/certificate</text>
+  <rect x="570" y="375" width="360" height="130" class="box"/>
+  <text x="750" y="410" text-anchor="middle" class="label">Read Operations</text>
+  <text x="750" y="442" text-anchor="middle" class="small">GET /my</text>
+  <text x="750" y="466" text-anchor="middle" class="small">GET /user/:userId</text>
+  <text x="750" y="490" text-anchor="middle" class="small">GET /:id/certificate</text>
+  <rect x="1030" y="375" width="360" height="130" class="directory"/>
+  <text x="1210" y="410" text-anchor="middle" class="label">Certificate Verification</text>
+  <text x="1210" y="442" text-anchor="middle" class="small">GET /certificate/verify/:number</text>
+  <text x="1210" y="474" text-anchor="middle" class="small">Uses certificate directory</text>
+
+  <path d="M880 263 V375 H290" class="arrow"/>
+  <path d="M880 263 V375 H750" class="arrow"/>
+  <path d="M880 263 V375 H1210" class="arrow"/>
+
+  <text x="70" y="585" class="section">3. User-based shard routing</text>
+  <rect x="140" y="625" width="300" height="95" class="box"/>
+  <text x="290" y="662" text-anchor="middle" class="label">Extract userId</text>
+  <text x="290" y="694" text-anchor="middle" class="small">From verified JWT</text>
+  <rect x="570" y="625" width="300" height="95" class="box"/>
+  <text x="720" y="662" text-anchor="middle" class="label">SHA-256(userId)</text>
+  <text x="720" y="694" text-anchor="middle" class="small">Stable hash value</text>
+  <rect x="1000" y="625" width="300" height="95" class="box"/>
+  <text x="1150" y="662" text-anchor="middle" class="label">hash % 2</text>
+  <text x="1150" y="694" text-anchor="middle" class="small">ENROLLMENT_SHARD_COUNT</text>
+  <path d="M440 672 H570 M870 672 H1000" class="arrow"/>
+  <path d="M1150 720 V770 H620 V820" class="arrow"/>
+  <path d="M1150 720 V770 H1250 V820" class="arrow"/>
+  <text x="600" y="795" text-anchor="middle" class="small">hash = 0</text>
+  <text x="1270" y="795" text-anchor="middle" class="small">hash = 1</text>
+
+  <rect x="300" y="820" width="640" height="230" class="shard"/>
+  <text x="620" y="860" text-anchor="middle" class="label">SHARD 0 — Existing Neon Database</text>
+  <text x="620" y="895" text-anchor="middle" class="small">neondb</text>
+  <rect x="355" y="925" width="240" height="78" class="primary"/>
+  <text x="475" y="956" text-anchor="middle" class="label">Primary</text>
+  <text x="475" y="981" text-anchor="middle" class="small">Writes</text>
+  <rect x="645" y="925" width="240" height="78" class="replica"/>
+  <text x="765" y="956" text-anchor="middle" class="label">Read Replica</text>
+  <text x="765" y="981" text-anchor="middle" class="small">Safe reads</text>
+  <path d="M595 964 H645" class="arrow dashed"/>
+
+  <rect x="980" y="820" width="640" height="230" class="shard"/>
+  <text x="1300" y="860" text-anchor="middle" class="label">SHARD 1 — New Neon Database</text>
+  <text x="1300" y="895" text-anchor="middle" class="small">codecampus_enrollment_sharding1</text>
+  <rect x="1050" y="925" width="240" height="78" class="primary"/>
+  <text x="1170" y="956" text-anchor="middle" class="label">Primary</text>
+  <text x="1170" y="981" text-anchor="middle" class="small">Writes and reads</text>
+  <rect x="1330" y="925" width="240" height="78" class="replica"/>
+  <text x="1450" y="956" text-anchor="middle" class="label">Read Endpoint</text>
+  <text x="1450" y="981" text-anchor="middle" class="small">Configure Neon replica</text>
+  <path d="M1290 964 H1330" class="arrow dashed"/>
+
+  <text x="70" y="1140" class="section">4. Write path</text>
+  <rect x="100" y="1180" width="260" height="90" class="box"/>
+  <text x="230" y="1215" text-anchor="middle" class="label">Validate request</text>
+  <text x="230" y="1243" text-anchor="middle" class="small">courseId, userId</text>
+  <rect x="490" y="1180" width="260" height="90" class="box"/>
+  <text x="620" y="1215" text-anchor="middle" class="label">Resolve shard</text>
+  <text x="620" y="1243" text-anchor="middle" class="small">Using userId hash</text>
+  <rect x="880" y="1180" width="260" height="90" class="primary"/>
+  <text x="1010" y="1215" text-anchor="middle" class="label">Write primary</text>
+  <text x="1010" y="1243" text-anchor="middle" class="small">INSERT / UPDATE</text>
+  <rect x="1270" y="1180" width="260" height="90" class="box"/>
+  <text x="1400" y="1215" text-anchor="middle" class="label">Return response</text>
+  <text x="1400" y="1243" text-anchor="middle" class="small">Created / updated</text>
+  <path d="M360 1225 H490 M750 1225 H880 M1140 1225 H1270" class="arrow"/>
+
+  <text x="70" y="1370" class="section">5. Read path</text>
+  <rect x="100" y="1410" width="260" height="90" class="box"/>
+  <text x="230" y="1445" text-anchor="middle" class="label">Verify JWT</text>
+  <text x="230" y="1473" text-anchor="middle" class="small">Get userId</text>
+  <rect x="490" y="1410" width="260" height="90" class="box"/>
+  <text x="620" y="1445" text-anchor="middle" class="label">Resolve shard</text>
+  <text x="620" y="1473" text-anchor="middle" class="small">Same hash function</text>
+  <rect x="880" y="1410" width="260" height="90" class="replica"/>
+  <text x="1010" y="1445" text-anchor="middle" class="label">Read endpoint</text>
+  <text x="1010" y="1473" text-anchor="middle" class="small">SELECT query</text>
+  <rect x="1270" y="1410" width="260" height="90" class="box"/>
+  <text x="1400" y="1445" text-anchor="middle" class="label">Return records</text>
+  <text x="1400" y="1473" text-anchor="middle" class="small">Enrollment list</text>
+  <path d="M360 1455 H490 M750 1455 H880 M1140 1455 H1270" class="arrow"/>
+
+  <text x="70" y="1600" class="section">6. Progress and course validation</text>
+  <rect x="100" y="1640" width="270" height="100" class="box"/>
+  <text x="235" y="1678" text-anchor="middle" class="label">Progress request</text>
+  <text x="235" y="1708" text-anchor="middle" class="small">subtopicId + completed</text>
+  <rect x="460" y="1640" width="270" height="100" class="box"/>
+  <text x="595" y="1678" text-anchor="middle" class="label">Course Service</text>
+  <text x="595" y="1708" text-anchor="middle" class="small">Validate subtopic</text>
+  <rect x="820" y="1640" width="270" height="100" class="primary"/>
+  <text x="955" y="1678" text-anchor="middle" class="label">Update primary</text>
+  <text x="955" y="1708" text-anchor="middle" class="small">Progress + completion</text>
+  <rect x="1180" y="1640" width="270" height="100" class="box"/>
+  <text x="1315" y="1678" text-anchor="middle" class="label">Certificate eligible</text>
+  <text x="1315" y="1708" text-anchor="middle" class="small">When progress = 100%</text>
+  <path d="M370 1690 H460 M730 1690 H820 M1090 1690 H1180" class="arrow"/>
+
+  <text x="70" y="1840" class="section">7. Certificate flow</text>
+  <rect x="120" y="1880" width="300" height="110" class="box"/>
+  <text x="270" y="1920" text-anchor="middle" class="label">Generate certificate</text>
+  <text x="270" y="1950" text-anchor="middle" class="small">Check 100% completion</text>
+  <rect x="530" y="1880" width="300" height="110" class="primary"/>
+  <text x="680" y="1920" text-anchor="middle" class="label">Selected shard</text>
+  <text x="680" y="1950" text-anchor="middle" class="small">Save certificate data</text>
+  <rect x="940" y="1880" width="300" height="110" class="directory"/>
+  <text x="1090" y="1920" text-anchor="middle" class="label">Certificate directory</text>
+  <text x="1090" y="1950" text-anchor="middle" class="small">number → shardId</text>
+  <rect x="1350" y="1880" width="300" height="110" class="box"/>
+  <text x="1500" y="1920" text-anchor="middle" class="label">Verify certificate</text>
+  <text x="1500" y="1950" text-anchor="middle" class="small">Find correct shard</text>
+  <path d="M420 1935 H530 M830 1935 H940 M1240 1935 H1350" class="arrow"/>
+
+  <text x="70" y="2100" class="section">8. Replication and failure behavior</text>
+  <rect x="110" y="2140" width="330" height="100" class="primary"/>
+  <text x="275" y="2178" text-anchor="middle" class="label">Primary database</text>
+  <text x="275" y="2208" text-anchor="middle" class="small">All writes</text>
+  <rect x="560" y="2140" width="330" height="100" class="replica"/>
+  <text x="725" y="2178" text-anchor="middle" class="label">Read replica</text>
+  <text x="725" y="2208" text-anchor="middle" class="small">Safe reads</text>
+  <path d="M440 2190 H560" class="arrow dashed"/>
+  <rect x="1010" y="2140" width="300" height="100" class="note"/>
+  <text x="1160" y="2178" text-anchor="middle" class="label">Replica unavailable</text>
+  <text x="1160" y="2208" text-anchor="middle" class="small">Read from primary</text>
+  <rect x="1400" y="2140" width="300" height="100" class="note"/>
+  <text x="1550" y="2178" text-anchor="middle" class="label">Primary unavailable</text>
+  <text x="1550" y="2208" text-anchor="middle" class="small">Retry / Neon failover</text>
+
+  <text x="70" y="2330" class="section">9. Migration and startup checks</text>
+  <rect x="100" y="2370" width="300" height="100" class="box"/>
+  <text x="250" y="2408" text-anchor="middle" class="label">Run Neon migrations</text>
+  <text x="250" y="2438" text-anchor="middle" class="small">Tables + indexes</text>
+  <rect x="500" y="2370" width="300" height="100" class="box"/>
+  <text x="650" y="2408" text-anchor="middle" class="label">Backfill rows</text>
+  <text x="650" y="2438" text-anchor="middle" class="small">Hash userId → shard</text>
+  <rect x="900" y="2370" width="300" height="100" class="box"/>
+  <text x="1050" y="2408" text-anchor="middle" class="label">Health check</text>
+  <text x="1050" y="2438" text-anchor="middle" class="small">/health/database</text>
+  <rect x="1300" y="2370" width="300" height="100" class="primary"/>
+  <text x="1450" y="2408" text-anchor="middle" class="label">Start traffic</text>
+  <text x="1450" y="2438" text-anchor="middle" class="small">Service ready</text>
+  <path d="M400 2420 H500 M800 2420 H900 M1200 2420 H1300" class="arrow"/>
+
+  <line x1="70" y1="2530" x2="1730" y2="2530" class="divider"/>
+  <text x="900" y="2565" text-anchor="middle" class="tiny">Current design: 2 logical enrollment databases, Shard 0 primary + read replica, Shard 1 primary, certificate directory in Shard 0.</text>
+</svg>
