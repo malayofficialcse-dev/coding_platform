@@ -61,19 +61,48 @@ const refreshEnrollmentProgress = (enrollment, subtopicIds) => {
     : null;
 };
 
+const courseCache = new Map();
+
 /**
- * Ensures course details are formatted properly for frontend
+ * Hydrates enrollment records with live course details (title, description, image)
  */
-function attachCourseDetails(enrollmentList) {
+async function attachCourseDetails(enrollmentList) {
   const list = Array.isArray(enrollmentList) ? enrollmentList : [enrollmentList];
-  return list.map((en) => {
-    const enObj = typeof en.toObject === "function" ? en.toObject() : { ...en };
-    if (!enObj.course || typeof enObj.course !== "object" || !enObj.course.title) {
-      const courseId = String(enObj.course?._id || enObj.course || "");
-      enObj.course = { _id: courseId, id: courseId, title: "Course" };
-    }
-    return enObj;
-  });
+  return Promise.all(
+    list.map(async (en) => {
+      const enObj = typeof en.toJSON === "function"
+        ? en.toJSON()
+        : typeof en.toObject === "function"
+          ? en.toObject()
+          : { ...(en.dataValues || en) };
+
+      const rawCourseId = String(enObj.course?._id || enObj.course || enObj.courseId || "");
+      let courseInfo = courseCache.get(rawCourseId);
+
+      if (!courseInfo && rawCourseId) {
+        try {
+          const fetched = await getCourseById(rawCourseId);
+          if (fetched && fetched.title) {
+            courseInfo = {
+              _id: fetched._id || fetched.id || rawCourseId,
+              id: fetched._id || fetched.id || rawCourseId,
+              title: fetched.title,
+              description: fetched.description || "",
+              image: fetched.image || "",
+              topicsCount: Array.isArray(fetched.topics) ? fetched.topics.length : 0,
+            };
+            courseCache.set(rawCourseId, courseInfo);
+          }
+        } catch (_) { }
+      }
+
+      const finalTitle = courseInfo?.title || "Course";
+      enObj.courseId = rawCourseId;
+      enObj.courseTitle = finalTitle;
+      enObj.course = courseInfo || { _id: rawCourseId, id: rawCourseId, title: finalTitle };
+      return enObj;
+    })
+  );
 }
 
 const generateEnrollmentNumber = () => {
@@ -152,7 +181,7 @@ export const enrollCourse = async (req, res) => {
       }
       await existing.save();
 
-      const [finalEnr] = attachCourseDetails([existing]);
+      const [finalEnr] = await attachCourseDetails([existing]);
       return res.status(200).json({
         message: isExpired ? "Enrollment renewed successfully" : "Course access extended successfully",
         enrollmentNumber: existing.enrollmentNumber,
@@ -171,7 +200,7 @@ export const enrollCourse = async (req, res) => {
       enrollmentNumber: assignedEnrollmentNumber,
     });
 
-    const [finalEnr] = attachCourseDetails([enrollment]);
+    const [finalEnr] = await attachCourseDetails([enrollment]);
     res.status(201).json({
       message: "Enrolled successfully",
       enrollmentNumber: enrollment.enrollmentNumber,
@@ -280,7 +309,7 @@ export const getMyEnrollments = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json(attachCourseDetails(enrollments));
+    res.json(await attachCourseDetails(enrollments));
   } catch (err) {
     console.error("[getMyEnrollments Error]:", err);
     res.status(500).json({ error: err.message });
@@ -295,7 +324,7 @@ export const getEnrollmentsByUser = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json(attachCourseDetails(enrollments));
+    res.json(await attachCourseDetails(enrollments));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -317,7 +346,7 @@ export const getUserEnrollments = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.json(attachCourseDetails(enrollments));
+    res.json(await attachCourseDetails(enrollments));
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch enrollments", error: err.message });
   }
@@ -427,7 +456,7 @@ export const generateCertificate = async (req, res) => {
       await enrollment.save();
     }
 
-    const [resolved] = attachCourseDetails([enrollment]);
+    const [resolved] = await attachCourseDetails([enrollment]);
 
     res.json({
       success: true,
@@ -483,7 +512,7 @@ export const getCertificate = async (req, res) => {
     }
 
     let studentName = enrollment.certificateRecipientName || req.user?.name || req.user?.username || "Student Name";
-    const [resolved] = attachCourseDetails([enrollment]);
+    const [resolved] = await attachCourseDetails([enrollment]);
 
     res.json({
       certificateNumber: enrollment.certificateNumber,
@@ -531,7 +560,7 @@ export const verifyCertificate = async (req, res) => {
     }
 
     let studentName = enrollment.certificateRecipientName || "Student Name";
-    const [resolved] = attachCourseDetails([enrollment]);
+    const [resolved] = await attachCourseDetails([enrollment]);
 
     res.json({
       valid: true,

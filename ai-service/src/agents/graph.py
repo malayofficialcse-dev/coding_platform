@@ -88,7 +88,10 @@ async def classify_intent(state: AgentState) -> dict:
     elif any(k in msg_lower for k in [
         "tell me about myself", "tell me about my self", "who am i",
         "my profile", "my account", "my status", "what is my role",
-        "my progress", "my learning"
+        "my progress", "my learning",
+        "course i have taken", "courses i have taken", "what course", "which course", "enrolled course",
+        "problem i solved", "problems i solved", "problem solved", "problems solved", "solved problem",
+        "what are the problem", "what problems"
     ]):
         intent = "user_progress"
     else:

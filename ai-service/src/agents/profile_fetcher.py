@@ -23,8 +23,9 @@ settings = get_settings()
 # Service base URLs (direct — bypassing the gateway for performance)
 USER_SERVICE_URL       = settings.user_service_url          # http://localhost:5002
 ENROLLMENT_SERVICE_URL = settings.enrollment_service_url    # http://localhost:5006
-EXAM_SERVICE_URL       = settings.exam_service_url
-CODING_SERVICE_URL     = settings.coding_service_url
+COURSE_SERVICE_URL     = settings.course_service_url        # http://localhost:5005
+EXAM_SERVICE_URL       = settings.exam_service_url          # http://localhost:5004
+CODING_SERVICE_URL     = settings.coding_service_url        # http://localhost:5007
 
 TIMEOUT = 6.0  # seconds per call
 
@@ -72,24 +73,59 @@ async def fetch_enrollments(token: str) -> list[dict]:
         return []
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            r = await client.get(
+            urls = [
+                f"{ENROLLMENT_SERVICE_URL}/v1/enrollments/my",
                 f"{ENROLLMENT_SERVICE_URL}/api/enrollments/my",
-                headers=_auth_headers(token),
-            )
-            if r.status_code == 200:
-                data = r.json()
-                enrollments = data if isinstance(data, list) else data.get("enrollments", [])
+            ]
+            enrollments = None
+            for url in urls:
+                try:
+                    r = await client.get(url, headers=_auth_headers(token))
+                    if r.status_code == 200:
+                        data = r.json()
+                        enrollments = data if isinstance(data, list) else data.get("enrollments", [])
+                        break
+                except Exception:
+                    continue
+
+            if enrollments is not None:
                 result = []
                 for e in enrollments:
-                    course = e.get("courseId", {}) if isinstance(e.get("courseId"), dict) else {}
+                    course_obj = e.get("course") if isinstance(e.get("course"), dict) else (
+                        e.get("courseId") if isinstance(e.get("courseId"), dict) else {}
+                    )
+                    course_title = (
+                        course_obj.get("title")
+                        or e.get("courseTitle")
+                        or e.get("course_title")
+                    )
+                    raw_id = (
+                        course_obj.get("_id")
+                        or course_obj.get("id")
+                        or (e.get("course") if isinstance(e.get("course"), str) else None)
+                        or (e.get("courseId") if isinstance(e.get("courseId"), str) else None)
+                    )
+
+                    # If course title is missing or generic "Course", fetch directly from course-service
+                    if (not course_title or course_title in ("Course", "Unknown Course")) and raw_id:
+                        try:
+                            cr = await client.get(f"{COURSE_SERVICE_URL}/v1/courses/{raw_id}")
+                            if cr.status_code == 200:
+                                cdata = cr.json()
+                                course_title = cdata.get("title") or course_title
+                        except Exception as ce:
+                            logger.debug(f"[Profile] course lookup failed for {raw_id}: {ce}")
+
+                    progress = e.get("progress", 0)
+                    completed = bool(e.get("completed") or progress == 100 or e.get("completedAt"))
                     result.append({
-                        "course_title": course.get("title", e.get("courseTitle", "Unknown Course")),
-                        "progress":     e.get("progress", 0),
-                        "completed":    e.get("completed", False),
+                        "course_title": course_title or "Course",
+                        "progress":     progress,
+                        "completed":    completed,
                         "enrolled_at":  e.get("enrolledAt", e.get("createdAt", "")),
                     })
                 return result
-            logger.warning(f"[Profile] enrollment-service {r.status_code}")
+            logger.warning("[Profile] enrollment-service fetch failed")
     except Exception as e:
         logger.error(f"[Profile] fetch_enrollments error: {e}")
     return []
@@ -113,12 +149,14 @@ async def fetch_exam_attempts(token: str) -> list[dict]:
                 attempts = data if isinstance(data, list) else data.get("attempts", [])
                 result = []
                 for a in attempts:
-                    exam = a.get("examId", {}) if isinstance(a.get("examId"), dict) else {}
+                    exam = a.get("exam") if isinstance(a.get("exam"), dict) else (
+                        a.get("examId") if isinstance(a.get("examId"), dict) else {}
+                    )
                     score = a.get("score", 0)
                     total = a.get("totalQuestions", a.get("total", 1))
                     pct   = round((score / total) * 100, 1) if total else 0
                     result.append({
-                        "exam_title":  exam.get("title", a.get("examTitle", "Unknown Exam")),
+                        "exam_title":  exam.get("title", a.get("examTitle", "Exam")),
                         "score":       score,
                         "total":       total,
                         "percentage":  pct,
@@ -142,26 +180,49 @@ async def fetch_coding_submissions(token: str) -> dict:
         return {}
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            r = await client.get(
+            urls = [
+                f"{CODING_SERVICE_URL}/api/coding/submissions/my",
+                f"{CODING_SERVICE_URL}/v1/coding/submissions/my",
                 f"{CODING_SERVICE_URL}/api/submissions/my",
-                headers=_auth_headers(token),
-            )
-            if r.status_code == 200:
-                data = r.json()
-                subs = data if isinstance(data, list) else data.get("submissions", [])
+            ]
+            subs = None
+            for url in urls:
+                try:
+                    r = await client.get(url, headers=_auth_headers(token))
+                    if r.status_code == 200:
+                        data = r.json()
+                        subs = data if isinstance(data, list) else data.get("submissions", [])
+                        break
+                except Exception:
+                    continue
 
-                # Deduplicate — keep only AC submissions, one per problem
+            if subs is not None:
+                # Deduplicate — keep only Accepted submissions, one per problem
                 solved: dict[str, dict] = {}
                 for s in subs:
-                    if s.get("status") in ("Accepted", "AC", "accepted"):
-                        prob = s.get("problemId", {})
-                        pid  = prob.get("_id", s.get("problemId", str(s.get("_id", ""))))
-                        if pid not in solved:
-                            solved[pid] = {
-                                "title":      prob.get("title", s.get("problemTitle", "Unknown")),
-                                "difficulty": prob.get("difficulty", s.get("difficulty", "Easy")),
-                                "topic":      prob.get("dsaTopic", s.get("dsaTopic", "General")),
-                                "tags":       prob.get("tags", []),
+                    verdict = str(s.get("result") or s.get("status") or "").strip().lower()
+                    if verdict in ("accepted", "ac"):
+                        prob = s.get("problem") if isinstance(s.get("problem"), dict) else (
+                            s.get("problemId") if isinstance(s.get("problemId"), dict) else {}
+                        )
+                        raw_pid = str(
+                            prob.get("_id")
+                            or prob.get("id")
+                            or (s.get("problem") if isinstance(s.get("problem"), str) else None)
+                            or (s.get("problemId") if isinstance(s.get("problemId"), str) else None)
+                            or (s.get("_id") or s.get("id") or "")
+                        )
+                        title = prob.get("title") or s.get("problemTitle") or "Coding Problem"
+                        difficulty = prob.get("difficulty") or s.get("difficulty") or "Medium"
+                        topic = prob.get("dsaTopic") or s.get("dsaTopic") or "General"
+                        tags = prob.get("tags") or s.get("tags") or []
+
+                        if raw_pid and raw_pid not in solved:
+                            solved[raw_pid] = {
+                                "title":      title,
+                                "difficulty": difficulty,
+                                "topic":      topic,
+                                "tags":       tags,
                             }
 
                 solved_list = list(solved.values())
@@ -170,7 +231,7 @@ async def fetch_coding_submissions(token: str) -> dict:
                 diff_counts: dict[str, int] = {}
                 topics_done: set[str] = set()
                 for p in solved_list:
-                    d = p.get("difficulty", "Easy")
+                    d = p.get("difficulty", "Medium")
                     diff_counts[d] = diff_counts.get(d, 0) + 1
                     if p.get("topic"):
                         topics_done.add(p["topic"])
@@ -181,7 +242,7 @@ async def fetch_coding_submissions(token: str) -> dict:
                     "difficulty_breakdown": diff_counts,
                     "topics_done":          sorted(topics_done),
                 }
-            logger.warning(f"[Profile] coding-service {r.status_code}")
+            logger.warning("[Profile] coding-service submissions fetch failed")
     except Exception as e:
         logger.error(f"[Profile] fetch_coding_submissions error: {e}")
     return {}
@@ -265,7 +326,8 @@ def format_user_context_for_prompt(ctx: dict) -> str:
         total = coding.get("total_solved", 0)
         diff  = coding.get("difficulty_breakdown", {})
         topics = coding.get("topics_done", [])
-        if total > 0 or diff or topics:
+        solved = coding.get("solved_problems", [])
+        if total > 0 or diff or topics or solved:
             lines.append(f"\n💻 **Coding Progress**:")
             lines.append(f"  • Problems solved: {total}")
             if diff:
@@ -273,6 +335,10 @@ def format_user_context_for_prompt(ctx: dict) -> str:
                 lines.append(f"  • Breakdown: {', '.join(parts)}")
             if topics:
                 lines.append(f"  • Topics covered: {', '.join(topics[:10])}")
+            if solved:
+                titles = [p.get("title") for p in solved if p.get("title")]
+                if titles:
+                    lines.append(f"  • Solved problems: {', '.join(titles)}")
 
     if not enrollments and not attempts and not coding and role not in ("super_admin", "admin"):
         lines.append("\nℹ️ Status: New learner account. No course enrollments or exam attempts recorded yet.")

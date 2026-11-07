@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     # Internal Services
     user_service_url: str = "http://localhost:5002"
     enrollment_service_url: str = "http://localhost:5006"
+    course_service_url: str = "http://localhost:5005"
     exam_service_url: str = "http://localhost:5004"
     coding_service_url: str = "http://localhost:5007"
     internal_service_token: str = ""
