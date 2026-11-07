@@ -2,6 +2,8 @@ import express from "express";
 import {
   enrollCourse,
   getMyEnrollments,
+  getMyEnrollmentNumber,
+  getEnrollmentsByNumber,
   getEnrollmentsByUser,
   getUserEnrollments,
   updateCourseProgress,
@@ -16,6 +18,8 @@ const router = express.Router();
 router.post("/enroll", protect, enrollCourse);
 router.post("/", protect, enrollCourse);
 router.get("/my", protect, getMyEnrollments);
+router.get("/my-enrollment-number", protect, getMyEnrollmentNumber);
+router.get("/by-number/:enrollmentNumber", getEnrollmentsByNumber);
 router.get("/user/:userId", protect, requireAdmin, getEnrollmentsByUser);
 router.get("/", protect, getUserEnrollments);
 router.patch("/:enrollmentId/progress", protect, updateCourseProgress);

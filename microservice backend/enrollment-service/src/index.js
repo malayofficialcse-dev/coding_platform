@@ -43,7 +43,7 @@ connectDB().then(async () => {
   await syncEnrollmentModels();
   await syncCertificateDirectory();
   app.listen(PORT, () => {
-    console.log(`[Enrollment Service] Running on port ${PORT}`);
+    console.log(`[Enrollment Service] Running on port ${PORT} (shards configured & synced)`);
   });
 });
 

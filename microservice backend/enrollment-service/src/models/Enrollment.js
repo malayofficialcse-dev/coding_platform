@@ -16,6 +16,7 @@ const fields = {
   certificateIssuedAt: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
   certificateRecipientName: { type: DataTypes.STRING, allowNull: true, defaultValue: null },
   certificateCeoName: { type: DataTypes.STRING, defaultValue: "Malay Maity" },
+  enrollmentNumber: { type: DataTypes.STRING, allowNull: true, defaultValue: null },
 };
 
 export const getEnrollmentModel = (shardId, mode = "write") => {
@@ -35,6 +36,7 @@ export const getEnrollmentModel = (shardId, mode = "write") => {
       { fields: ["user", "course"], unique: true },
       { fields: ["user", "createdAt"] },
       { fields: ["certificateNumber"], unique: true },
+      { fields: ["enrollmentNumber"] },
     ],
   });
   models.set(key, Enrollment);
@@ -42,8 +44,19 @@ export const getEnrollmentModel = (shardId, mode = "write") => {
 };
 
 export const syncEnrollmentModels = async () => {
-  if (!syncDatabase) return;
-  for (let shardId = 0; shardId < shardCount; shardId += 1) await getEnrollmentModel(shardId, "write").sync();
+  for (let shardId = 0; shardId < shardCount; shardId += 1) {
+    try {
+      const Model = getEnrollmentModel(shardId, "write");
+      await Model.sync();
+      const conn = getShardConnection(shardId, "write");
+      await conn.query(`
+        ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS "enrollmentNumber" VARCHAR(255);
+        CREATE INDEX IF NOT EXISTS "enrollments_enrollment_number_idx" ON enrollments("enrollmentNumber");
+      `);
+    } catch (err) {
+      console.warn(`[syncEnrollmentModels Shard ${shardId}]:`, err.message);
+    }
+  }
 };
 
 export default getEnrollmentModel;

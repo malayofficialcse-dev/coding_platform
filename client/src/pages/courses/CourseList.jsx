@@ -12,6 +12,10 @@ import {
   FaClock,
   FaLayerGroup,
   FaPlus,
+  FaIdCard,
+  FaCopy,
+  FaCheck,
+  FaTimes,
 } from "react-icons/fa";
 import { optimizedImageUrl } from "../../utils/imageUrl";
 import "./Courses.css";
@@ -23,6 +27,13 @@ export default function CourseList() {
   const [enrollmentsError, setEnrollmentsError] = useState("");
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // "all" | "enrolled" | "unenrolled"
+  const [myEnrollmentNumber, setMyEnrollmentNumber] = useState(null);
+  const [copiedNumber, setCopiedNumber] = useState(false);
+  const [showLookupModal, setShowLookupModal] = useState(false);
+  const [lookupNumber, setLookupNumber] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResults, setLookupResults] = useState(null);
+  const [lookupError, setLookupError] = useState("");
   const { user } = useContext(AuthContext);
 
   const isAdmin = user && ["admin", "super_admin"].includes(user.role);
@@ -76,7 +87,37 @@ export default function CourseList() {
             : "Could not reach the API Gateway to load enrollments."
         );
       });
+
+    // Check my permanent student enrollment number
+    api
+      .get("/enrollments/my-enrollment-number")
+      .then((res) => {
+        if (res.data?.enrollmentNumber) {
+          setMyEnrollmentNumber(res.data.enrollmentNumber);
+        }
+      })
+      .catch(() => { });
   }, [user]);
+
+  const handleLookup = async (e) => {
+    if (e) e.preventDefault();
+    const q = lookupNumber.trim().toUpperCase();
+    if (!q) return;
+    setLookupLoading(true);
+    setLookupError("");
+    setLookupResults(null);
+    try {
+      const res = await api.get(`/enrollments/by-number/${encodeURIComponent(q)}`);
+      setLookupResults(res.data);
+    } catch (err) {
+      setLookupError(
+        err.response?.data?.message ||
+        "No enrolled courses found for this Enrollment Number."
+      );
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   const getEnrollmentForCourse = useCallback((courseId) => {
     return enrollments.find((e) => {
@@ -119,8 +160,58 @@ export default function CourseList() {
           <span className="cc-courses-eyebrow">Code Campus Academy</span>
           <h1>Curated Courses &amp; Learning Tracks</h1>
           <p>Master modern software engineering, DevOps, algorithms, and cloud architectures with structured tracks.</p>
+
+          {myEnrollmentNumber && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "var(--cc-surface-muted)",
+                border: "1px solid var(--cc-border)",
+                padding: "6px 14px",
+                borderRadius: "20px",
+                fontSize: "12px",
+                marginTop: "8px",
+              }}
+            >
+              <FaIdCard style={{ color: "var(--cc-primary, #0078d4)" }} />
+              <span style={{ color: "var(--cc-muted)" }}>Permanent Student ID:</span>
+              <strong style={{ fontFamily: "monospace", letterSpacing: "0.06em", color: "var(--cc-text)" }}>
+                {myEnrollmentNumber}
+              </strong>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(myEnrollmentNumber);
+                  setCopiedNumber(true);
+                  setTimeout(() => setCopiedNumber(false), 2000);
+                }}
+                title="Copy Student Enrollment Number"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: copiedNumber ? "#22c55e" : "var(--cc-muted)",
+                  padding: "0 4px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                {copiedNumber ? <FaCheck /> : <FaCopy />}
+              </button>
+            </div>
+          )}
         </div>
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            className="cc-courses-action"
+            onClick={() => setShowLookupModal(true)}
+            style={{ cursor: "pointer", border: "1px solid var(--cc-border)" }}
+          >
+            <FaIdCard /> Lookup Student ID
+          </button>
           <Link className="cc-courses-action" to="/profile">
             <FaGraduationCap /> My Learning Profile
           </Link>
@@ -309,6 +400,200 @@ export default function CourseList() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Lookup Student by Enrollment Number Modal ── */}
+      {showLookupModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowLookupModal(false);
+          }}
+        >
+          <div
+            style={{
+              background: "var(--cc-surface)",
+              border: "1px solid var(--cc-border)",
+              borderRadius: "16px",
+              maxWidth: "560px",
+              width: "100%",
+              padding: "28px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <FaIdCard style={{ fontSize: "20px", color: "var(--cc-primary)" }} />
+                <h3 style={{ fontSize: "18px", fontWeight: 800, margin: 0, color: "var(--cc-text)" }}>
+                  Lookup Student Courses
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLookupModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--cc-muted)",
+                  fontSize: "18px",
+                  cursor: "pointer",
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "var(--cc-muted)", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+              Enter a Student Enrollment Number (e.g. <code>CC-2026-A8F3C9</code>) to retrieve all aggregated courses enrolled under that student ID.
+            </p>
+
+            <form onSubmit={handleLookup} style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+              <input
+                type="text"
+                placeholder="Enter Enrollment Number..."
+                value={lookupNumber}
+                onChange={(e) => setLookupNumber(e.target.value.toUpperCase())}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  border: "1px solid var(--cc-border)",
+                  borderRadius: "8px",
+                  background: "var(--cc-surface-muted)",
+                  color: "var(--cc-text)",
+                  fontFamily: "monospace",
+                  fontSize: "14px",
+                  textTransform: "uppercase",
+                  outline: "none",
+                }}
+              />
+              <button
+                type="submit"
+                disabled={lookupLoading || !lookupNumber.trim()}
+                className="cc-course-primary-btn"
+                style={{ minHeight: "42px", padding: "0 18px", whiteSpace: "nowrap" }}
+              >
+                {lookupLoading ? "Searching..." : "Lookup"}
+              </button>
+            </form>
+
+            {lookupError && (
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.12)",
+                  color: "#ef4444",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontSize: "13px",
+                  marginBottom: "16px",
+                }}
+              >
+                {lookupError}
+              </div>
+            )}
+
+            {lookupResults && (
+              <div>
+                <div
+                  style={{
+                    background: "var(--cc-surface-muted)",
+                    border: "1px solid var(--cc-border)",
+                    borderRadius: "10px",
+                    padding: "12px 16px",
+                    marginBottom: "16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: "11px", color: "var(--cc-muted)", textTransform: "uppercase", fontWeight: 700 }}>
+                      Student ID
+                    </span>
+                    <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: "15px", color: "var(--cc-primary)" }}>
+                      {lookupResults.enrollmentNumber}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      background: "rgba(34, 197, 94, 0.15)",
+                      color: "#22c55e",
+                      padding: "4px 10px",
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {lookupResults.totalCourses} {lookupResults.totalCourses === 1 ? "Course" : "Courses"} Linked
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {lookupResults.courses?.length === 0 ? (
+                    <div style={{ textAlign: "center", color: "var(--cc-muted)", padding: "16px" }}>
+                      No courses found for this enrollment number.
+                    </div>
+                  ) : (
+                    lookupResults.courses?.map((c) => {
+                      const isExpired = c.expiresAt ? new Date(c.expiresAt) < new Date() : false;
+                      return (
+                        <div
+                          key={c._id || c.enrollmentId}
+                          style={{
+                            background: "var(--cc-surface)",
+                            border: "1px solid var(--cc-border)",
+                            borderRadius: "8px",
+                            padding: "12px 14px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: "12px",
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 4px 0", color: "var(--cc-text)" }}>
+                              {c.courseTitle || c.course?.title || "Course Track"}
+                            </h4>
+                            <div style={{ fontSize: "11px", color: "var(--cc-muted)", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                              <span>Progress: <strong>{c.progress || 0}%</strong></span>
+                              <span>Enrolled: {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "N/A"}</span>
+                              <span>
+                                Status:{" "}
+                                <strong style={{ color: isExpired ? "#ef4444" : "#22c55e" }}>
+                                  {isExpired ? "Expired" : "Active"}
+                                </strong>
+                              </span>
+                            </div>
+                          </div>
+                          <Link
+                            to={`/courses/${c.courseId || c.course?._id || c.course}`}
+                            className="cc-course-secondary-btn"
+                            style={{ padding: "6px 12px", fontSize: "12px", whiteSpace: "nowrap" }}
+                            onClick={() => setShowLookupModal(false)}
+                          >
+                            View
+                          </Link>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -41,6 +41,7 @@ import {
   FaThumbsUp,
   FaThumbsDown,
   FaShareAlt,
+  FaIdCard,
 } from "react-icons/fa";
 import { optimizedImageUrl } from "../../utils/imageUrl";
 import CourseCertificate from "../../components/CourseCertificate";
@@ -343,10 +344,10 @@ export default function CourseDetail() {
                 found.certificateRecipientName && !isCeo(found.certificateRecipientName)
                   ? found.certificateRecipientName
                   : user?.name && !isCeo(user.name)
-                  ? user.name
-                  : user?.username && !isCeo(user.username)
-                  ? user.username
-                  : "Student Name";
+                    ? user.name
+                    : user?.username && !isCeo(user.username)
+                      ? user.username
+                      : "Student Name";
 
               setCertData({
                 certificateNumber: found.certificateNumber,
@@ -654,10 +655,10 @@ export default function CourseDetail() {
         enrollment.certificateRecipientName && !isCeo(enrollment.certificateRecipientName)
           ? enrollment.certificateRecipientName
           : user?.name && !isCeo(user.name)
-          ? user.name
-          : user?.username && !isCeo(user.username)
-          ? user.username
-          : "Student Name";
+            ? user.name
+            : user?.username && !isCeo(user.username)
+              ? user.username
+              : "Student Name";
 
       const response = await api.post(`/enrollments/${enrollment._id}/certificate`, {
         studentName: resolvedStudent,
@@ -893,6 +894,15 @@ export default function CourseDetail() {
             ) : (
               <span className="cc-course-track-pill green">
                 <FaGraduationCap /> Active Student
+              </span>
+            )}
+            {enrollment?.enrollmentNumber && (
+              <span
+                className="cc-course-track-pill"
+                style={{ fontFamily: "monospace", letterSpacing: "0.04em" }}
+                title="Your permanent Student Enrollment Number"
+              >
+                <FaIdCard style={{ color: "var(--cc-primary)" }} /> {enrollment.enrollmentNumber}
               </span>
             )}
             <span className="cc-course-track-pill">
@@ -1453,7 +1463,7 @@ export default function CourseDetail() {
                             type="radio"
                             name="quiz-answer"
                             checked={isChosen}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             style={{ cursor: "pointer" }}
                           />
                           <span>{option}</span>

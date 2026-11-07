@@ -40,7 +40,7 @@ export function createMentorRouter(io) {
       ON CONFLICT(user_id) DO UPDATE SET name=EXCLUDED.name,email=EXCLUDED.email,expertise=EXCLUDED.expertise,
       experience_years=EXCLUDED.experience_years,bio=EXCLUDED.bio,status='pending',reviewer_id=NULL,review_note='',reviewed_at=NULL,updated_at=now()
       WHERE mentor_applications.status <> 'approved' RETURNING *`,
-    [req.user.id, req.user.name, req.user.email, expertise, years, bio]);
+      [req.user.id, req.user.name, req.user.email, expertise, years, bio]);
     io.emit("mentor:application-updated", { status: rows[0]?.status || "pending" });
     res.status(201).json(rows[0]);
   }));
@@ -77,7 +77,7 @@ export function createMentorRouter(io) {
         [application.id, decision, req.user.id, clean(req.body.reviewNote, 1000)]));
     } catch (error) {
       if (roleGranted) await axios.patch(`${process.env.AUTH_SERVICE_URL || "http://localhost:5001"}/v1/auth/internal/users/${application.user_id}/role`,
-        { role: "student" }, { headers: { "x-internal-service-token": process.env.INTERNAL_SERVICE_TOKEN }, timeout: 5000 }).catch(() => {});
+        { role: "student" }, { headers: { "x-internal-service-token": process.env.INTERNAL_SERVICE_TOKEN }, timeout: 5000 }).catch(() => { });
       throw error;
     }
     io.emit("mentor:application-updated", { applicationId: application.id, status: decision });
@@ -91,7 +91,7 @@ export function createMentorRouter(io) {
       SET status = 'ended', updated_at = now()
       WHERE status IN ('scheduled', 'live')
         AND scheduled_at + (duration_minutes || ' minutes')::interval < now() - interval '15 minutes'
-    `).catch(() => {});
+    `).catch(() => { });
 
     const { rows } = await pool.query(`SELECT s.*, COALESCE(s.mentor_name, u.name, 'Mentor') AS mentor_name,
       (SELECT count(*)::int FROM mentor_enrollments e WHERE e.session_id=s.id AND e.status='enrolled') AS enrolled_count,
@@ -109,7 +109,7 @@ export function createMentorRouter(io) {
       SET status = 'ended', updated_at = now()
       WHERE status IN ('scheduled', 'live')
         AND scheduled_at + (duration_minutes || ' minutes')::interval < now() - interval '15 minutes'
-    `).catch(() => {});
+    `).catch(() => { });
 
     const scope = String(req.query.scope || "all").toLowerCase();
     const userId = req.user.id;
@@ -220,7 +220,7 @@ export function createMentorRouter(io) {
       await pool.query(
         "UPDATE mentor_enrollments SET joined_at=COALESCE(joined_at,now()), user_name=COALESCE(user_name,$3), user_email=COALESCE(user_email,$4) WHERE session_id=$1 AND user_id=$2",
         [session.id, req.user.id, clean(req.user.name, 100), clean(req.user.email, 120)]
-      ).catch(() => {});
+      ).catch(() => { });
     }
 
     const hasLiveKit = Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
@@ -334,7 +334,7 @@ export async function configureRealtime(io) {
   });
   io.on("connection", (socket) => {
     socket.data.messageTimes = [];
-    socket.on("session:join", async ({ sessionId } = {}, callback = () => {}) => {
+    socket.on("session:join", async ({ sessionId } = {}, callback = () => { }) => {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
       socket.join(`session:${sessionId}`);
       socket.data.sessionId = sessionId;
@@ -343,7 +343,7 @@ export async function configureRealtime(io) {
       await pool.query(
         "UPDATE mentor_enrollments SET joined_at=COALESCE(joined_at, now()), user_name=COALESCE(user_name, $3) WHERE session_id=$1 AND user_id=$2",
         [sessionId, socket.user.id, clean(socket.user.name, 100)]
-      ).catch(() => {});
+      ).catch(() => { });
       const room = io.sockets.adapter.rooms.get(`session:${sessionId}`);
       const peers = [];
       if (room) {
@@ -382,17 +382,17 @@ export async function configureRealtime(io) {
         });
       }
     });
-    socket.on("session:raise-hand", async ({ sessionId } = {}, callback = () => {}) => {
+    socket.on("session:raise-hand", async ({ sessionId } = {}, callback = () => { }) => {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
       io.to(`session:${sessionId}`).emit("session:hand-raised", { userId: socket.user.id, userName: clean(socket.user.name, 100) });
       callback({ ok: true });
     });
-    socket.on("session:lower-hand", async ({ sessionId } = {}, callback = () => {}) => {
+    socket.on("session:lower-hand", async ({ sessionId } = {}, callback = () => { }) => {
       if (!validUuid(sessionId)) return callback({ error: "Invalid session." });
       io.to(`session:${sessionId}`).emit("session:hand-lowered", { userId: socket.user.id });
       callback({ ok: true });
     });
-    socket.on("session:question", async ({ sessionId, body } = {}, callback = () => {}) => {
+    socket.on("session:question", async ({ sessionId, body } = {}, callback = () => { }) => {
       try {
         if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
         const text = clean(body, 500);
@@ -402,7 +402,7 @@ export async function configureRealtime(io) {
         callback({ ok: true });
       } catch { callback({ error: "Could not send question." }); }
     });
-    socket.on("session:chat", async ({ sessionId, body } = {}, callback = () => {}) => {
+    socket.on("session:chat", async ({ sessionId, body } = {}, callback = () => { }) => {
       try {
         if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
         const now = Date.now();

@@ -76,9 +76,15 @@ function attachCourseDetails(enrollmentList) {
   });
 }
 
+const generateEnrollmentNumber = () => {
+  const year = new Date().getFullYear();
+  const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `CC-${year}-${rand}`;
+};
+
 export const enrollCourse = async (req, res) => {
   try {
-    const { courseId, days } = req.body;
+    const { courseId, days, enrollmentNumber } = req.body;
     const userId = userIdFrom(req);
 
     if (!courseId) {
@@ -94,6 +100,39 @@ export const enrollCourse = async (req, res) => {
 
     const Enrollment = modelForUser(userId, "write");
     const shardId = resolveShardId(userId);
+
+    // Determine Enrollment Number (Auto-Carry-Forward or Validate Pasted Number)
+    const inputNumber = enrollmentNumber
+      ? String(enrollmentNumber).trim().toUpperCase()
+      : null;
+
+    // Check if user already has an existing enrollment with an enrollmentNumber
+    const previousEnrollment = await Enrollment.findOne({
+      where: { user: userIdStr },
+      order: [["createdAt", "DESC"]],
+    });
+
+    let assignedEnrollmentNumber = null;
+
+    if (inputNumber) {
+      // Validate that this enrollment number doesn't belong to another student account
+      const conflict = await Enrollment.findOne({
+        where: { enrollmentNumber: inputNumber },
+      });
+      if (conflict && String(conflict.user) !== userIdStr) {
+        return res.status(409).json({
+          error: "This Enrollment Number is registered to another student account.",
+        });
+      }
+      assignedEnrollmentNumber = inputNumber;
+    } else if (previousEnrollment?.enrollmentNumber) {
+      // Auto carry-forward existing student enrollment number!
+      assignedEnrollmentNumber = previousEnrollment.enrollmentNumber;
+    } else {
+      // First-time enrollment for this student -> generate new unique number
+      assignedEnrollmentNumber = generateEnrollmentNumber();
+    }
+
     let existing = await Enrollment.findOne({
       where: {
         user: userIdStr,
@@ -108,11 +147,15 @@ export const enrollCourse = async (req, res) => {
 
       existing.expiresAt = newExpiresAt;
       existing.enrolledAt = existing.enrolledAt || new Date();
+      if (!existing.enrollmentNumber) {
+        existing.enrollmentNumber = assignedEnrollmentNumber;
+      }
       await existing.save();
 
       const [finalEnr] = attachCourseDetails([existing]);
       return res.status(200).json({
         message: isExpired ? "Enrollment renewed successfully" : "Course access extended successfully",
+        enrollmentNumber: existing.enrollmentNumber,
         enrollment: finalEnr,
         ...finalEnr,
       });
@@ -125,17 +168,103 @@ export const enrollCourse = async (req, res) => {
       expiresAt: newExpiresAt,
       shardId,
       enrolledAt: new Date(),
+      enrollmentNumber: assignedEnrollmentNumber,
     });
 
     const [finalEnr] = attachCourseDetails([enrollment]);
     res.status(201).json({
       message: "Enrolled successfully",
+      enrollmentNumber: enrollment.enrollmentNumber,
       enrollment: finalEnr,
       ...finalEnr,
     });
   } catch (err) {
     console.error("[enrollCourse Error]:", err);
     res.status(400).json({ error: err.message || "Enrollment failed" });
+  }
+};
+
+export const getMyEnrollmentNumber = async (req, res) => {
+  try {
+    const userId = userIdFrom(req);
+    if (!userId) {
+      return res.status(401).json({ error: "User authentication required" });
+    }
+    const Enrollment = modelForUser(userId, "read");
+    const found = await Enrollment.findOne({
+      where: { user: String(userId) },
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.json({
+      enrollmentNumber: found?.enrollmentNumber || null,
+      hasExisting: Boolean(found?.enrollmentNumber),
+    });
+  } catch (err) {
+    console.error("[getMyEnrollmentNumber Error]:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getEnrollmentsByNumber = async (req, res) => {
+  try {
+    const num = String(req.params.enrollmentNumber || "").trim().toUpperCase();
+    if (!num) {
+      return res.status(400).json({ error: "Enrollment number is required" });
+    }
+
+    const allEnrollments = [];
+    for (let shardId = 0; shardId < shardCount; shardId += 1) {
+      const rows = await getEnrollmentModel(shardId, "read").findAll({
+        where: { enrollmentNumber: num },
+        order: [["createdAt", "DESC"]],
+      });
+      if (rows.length > 0) {
+        allEnrollments.push(...rows);
+      }
+    }
+
+    if (allEnrollments.length === 0) {
+      return res.status(404).json({ error: "No student records found with this Enrollment Number." });
+    }
+
+    // Hydrate course details
+    const hydratedList = [];
+    for (const enr of allEnrollments) {
+      const enrObj = typeof enr.toObject === "function" ? enr.toObject() : { ...enr.get?.() || enr };
+      try {
+        const course = await getCourseById(enr.course);
+        enrObj.courseTitle = course.title || "Course";
+        enrObj.courseId = course._id || course.id || enr.course;
+        enrObj.course = {
+          _id: course._id || course.id || enr.course,
+          id: course._id || course.id || enr.course,
+          title: course.title || "Course",
+          description: course.description || "",
+          image: course.image || "",
+          topicsCount: (course.topics || []).length,
+        };
+      } catch (_) {
+        enrObj.courseTitle = "Course";
+        enrObj.courseId = enr.course;
+        enrObj.course = {
+          _id: enr.course,
+          id: enr.course,
+          title: "Course",
+        };
+      }
+      hydratedList.push(enrObj);
+    }
+
+    res.json({
+      enrollmentNumber: num,
+      userId: allEnrollments[0].user,
+      totalCourses: hydratedList.length,
+      courses: hydratedList,
+    });
+  } catch (err) {
+    console.error("[getEnrollmentsByNumber Error]:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
