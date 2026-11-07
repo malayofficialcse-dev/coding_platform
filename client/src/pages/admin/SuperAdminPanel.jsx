@@ -491,22 +491,24 @@ function UserRow({ u, onEdit, onToggleActive, onViewPerms, onDelete }) {
         </span>
       </td>
       <td className="sa-actions-cell">
-        <button className="sa-icon-btn sa-icon-btn-blue" title="Edit User" onClick={() => onEdit(u)}>
-          <FaEdit />
-        </button>
-        <button className="sa-icon-btn sa-icon-btn-purple" title="Manage Permissions" onClick={() => onViewPerms(u)}>
-          <FaKey />
-        </button>
-        <button
-          className={`sa-icon-btn ${u.isActive !== false ? "sa-icon-btn-red" : "sa-icon-btn-green"}`}
-          title={u.isActive !== false ? "Deactivate User" : "Activate User"}
-          onClick={() => onToggleActive(u)}
-        >
-          {u.isActive !== false ? <FaBan /> : <FaCheck />}
-        </button>
-        <button className="sa-icon-btn sa-icon-btn-red" title="Delete User Permanently" onClick={() => onDelete(u)}>
-          <FaTrashAlt />
-        </button>
+        <div className="sa-actions-wrapper">
+          <button className="sa-icon-btn sa-icon-btn-blue" title="Edit User" onClick={() => onEdit(u)}>
+            <FaEdit />
+          </button>
+          <button className="sa-icon-btn sa-icon-btn-purple" title="Manage Permissions" onClick={() => onViewPerms(u)}>
+            <FaKey />
+          </button>
+          <button
+            className={`sa-icon-btn ${u.isActive !== false ? "sa-icon-btn-red" : "sa-icon-btn-green"}`}
+            title={u.isActive !== false ? "Deactivate User" : "Activate User"}
+            onClick={() => onToggleActive(u)}
+          >
+            {u.isActive !== false ? <FaBan /> : <FaCheck />}
+          </button>
+          <button className="sa-icon-btn sa-icon-btn-red" title="Delete User Permanently" onClick={() => onDelete(u)}>
+            <FaTrashAlt />
+          </button>
+        </div>
       </td>
     </tr>
   );
