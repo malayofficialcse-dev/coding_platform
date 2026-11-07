@@ -16,6 +16,7 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 import { optimizedImageUrl } from "../../utils/imageUrl";
+import { EnrollCourseSkeleton } from "../../components/skeletons/CourseSkeleton";
 import "./Courses.css";
 
 export default function EnrollCourse() {
@@ -136,14 +137,7 @@ export default function EnrollCourse() {
   if (!user) return null;
 
   if (checkingEnrollment || !course) {
-    return (
-      <div className="cc-courses-shell">
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status" />
-          <p className="mt-3 text-muted">Checking enrollment credentials...</p>
-        </div>
-      </div>
-    );
+    return <EnrollCourseSkeleton />;
   }
 
   // Admin already has full course access

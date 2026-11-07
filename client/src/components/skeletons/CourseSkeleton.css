@@ -1,0 +1,181 @@
+/* ── Course Page Skeletons ────────────────────────────────────────── */
+@import "./DashboardSkeleton.css";
+
+/* Stat Grid Skeleton */
+.cc-skeleton-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  background: var(--cc-surface, #ffffff);
+  border: 1px solid var(--cc-border, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .cc-skeleton-stat {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  box-shadow: none !important;
+}
+
+/* Course Card Skeleton */
+.cc-skeleton-course-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cc-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--cc-surface, #ffffff);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .cc-skeleton-course-card {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  box-shadow: 0 3px 12px rgba(1, 4, 9, 0.4) !important;
+}
+
+.cc-skeleton-course-cover {
+  position: relative;
+  height: 160px;
+  width: 100%;
+}
+
+.cc-skeleton-course-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 90px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.cc-skeleton-course-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 18px;
+  gap: 12px;
+}
+
+.cc-skeleton-course-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--cc-border, #e2e8f0);
+}
+
+[data-theme="dark"] .cc-skeleton-course-meta-row {
+  border-color: #30363d !important;
+}
+
+/* Track Overview Skeleton */
+.cc-skeleton-track-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  border: 1px solid var(--cc-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--cc-surface, #ffffff);
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .cc-skeleton-track-bar {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  box-shadow: none !important;
+}
+
+/* Syllabus Sidebar Skeleton */
+.cc-skeleton-syllabus-module {
+  border: 1px solid var(--cc-border, #e2e8f0);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: var(--cc-surface-muted, #f8fafc);
+}
+
+[data-theme="dark"] .cc-skeleton-syllabus-module {
+  background: #1c2128 !important;
+  border-color: #30363d !important;
+}
+
+.cc-skeleton-syllabus-module-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--cc-surface, #ffffff);
+  border-bottom: 1px solid var(--cc-border, #e2e8f0);
+}
+
+[data-theme="dark"] .cc-skeleton-syllabus-module-header {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+.cc-skeleton-subtopic-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+/* Content Reader Skeleton */
+.cc-skeleton-content-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--cc-border, #e2e8f0);
+}
+
+[data-theme="dark"] .cc-skeleton-content-header {
+  border-color: #30363d !important;
+}
+
+.cc-skeleton-code-editor {
+  border: 1px solid var(--cc-border, #cbd5e1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d1117;
+  margin: 18px 0;
+}
+
+.cc-skeleton-code-editor-header {
+  height: 38px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+}
+
+.cc-skeleton-code-editor-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.cc-skeleton-code-editor-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #30363d;
+}
+
+.cc-skeleton-code-editor-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+

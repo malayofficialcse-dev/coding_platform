@@ -45,6 +45,7 @@ import {
 } from "react-icons/fa";
 import { optimizedImageUrl } from "../../utils/imageUrl";
 import CourseCertificate from "../../components/CourseCertificate";
+import { CourseDetailSkeleton } from "../../components/skeletons/CourseSkeleton";
 import "./Courses.css";
 
 /* ─── Copy Button with feedback ──────────────────────────────────────── */
@@ -747,14 +748,7 @@ export default function CourseDetail() {
   };
 
   if (!course) {
-    return (
-      <div className="cc-courses-shell">
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status" />
-          <p className="mt-3 text-muted">Loading curriculum materials...</p>
-        </div>
-      </div>
-    );
+    return <CourseDetailSkeleton />;
   }
 
   if (!user) {
