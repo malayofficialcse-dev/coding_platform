@@ -1189,6 +1189,24 @@ export default function CourseDetail() {
               {/* ── TAB 1: CURRICULUM CONTENT ── */}
               {activeTab === "content" && (
                 <div>
+                  {activeSubtopic.video && (
+                    <video
+                      src={activeSubtopic.video}
+                      controls
+                      preload="metadata"
+                      playsInline
+                      className="d-block w-100 my-3"
+                      style={{
+                        maxWidth: 800,
+                        maxHeight: 480,
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        borderRadius: 8,
+                        background: "var(--cc-surface-muted)",
+                      }}
+                    />
+                  )}
+
                   {/* Images Carousel / Gallery */}
                   {activeSubtopic.images?.length > 0 && (
                     <div

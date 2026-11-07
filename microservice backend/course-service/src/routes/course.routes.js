@@ -35,11 +35,18 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
-    folder: "code-campus/courses",
-    allowed_formats: ["jpg", "png", "jpeg", "webp"],
-    transformation: [{ width: 1200, crop: "limit", quality: "auto", fetch_format: "auto" }],
-  },
+  params: (req, file) =>
+    file.fieldname === "video"
+      ? {
+          folder: "code-campus/course-videos",
+          resource_type: "video",
+          allowed_formats: ["mp4", "mov", "avi", "mkv", "webm", "m4v"],
+        }
+      : {
+          folder: "code-campus/courses",
+          allowed_formats: ["jpg", "png", "jpeg", "webp"],
+          transformation: [{ width: 1200, crop: "limit", quality: "auto", fetch_format: "auto" }],
+        },
 });
 
 const upload = multer({ storage });
@@ -54,8 +61,13 @@ router.delete("/:id", protect, requirePermission("courses", "delete"), deleteCou
 router.post("/:id/topics", protect, requirePermission("courses", "edit"), addTopicToCourse);
 router.put("/:id/topics/:topicId", protect, requirePermission("courses", "edit"), updateTopicInCourse);
 router.delete("/:id/topics/:topicId", protect, requirePermission("courses", "delete"), deleteTopicFromCourse);
-router.post("/:id/topics/:topicId/subtopics", protect, requirePermission("courses", "edit"), upload.array("images", 10), addSubtopicToTopic);
-router.put("/:id/topics/:topicId/subtopics/:subtopicId", protect, requirePermission("courses", "edit"), upload.array("images", 10), updateSubtopicInTopic);
+const uploadSubtopicMedia = upload.fields([
+  { name: "images", maxCount: 10 },
+  { name: "video", maxCount: 1 },
+]);
+
+router.post("/:id/topics/:topicId/subtopics", protect, requirePermission("courses", "edit"), uploadSubtopicMedia, addSubtopicToTopic);
+router.put("/:id/topics/:topicId/subtopics/:subtopicId", protect, requirePermission("courses", "edit"), uploadSubtopicMedia, updateSubtopicInTopic);
 router.delete("/:id/topics/:topicId/subtopics/:subtopicId", protect, requirePermission("courses", "delete"), deleteSubtopicFromTopic);
 
 export default router;

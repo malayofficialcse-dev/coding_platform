@@ -9,6 +9,7 @@ const subtopicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   body: { type: String, default: "" },
   images: [{ type: String }],
+  video: { type: String, default: "" },
   codeBlocks: [codeBlockSchema],
   order: { type: Number, default: 0 },
 });

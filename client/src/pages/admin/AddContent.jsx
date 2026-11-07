@@ -36,6 +36,7 @@ export default function AddContent() {
     codeBlocks: [],
   });
   const [images, setImages] = useState([]);
+  const [video, setVideo] = useState(null);
 
   useEffect(() => {
     api.get(`/courses/${id}`).then((res) => {
@@ -84,6 +85,7 @@ export default function AddContent() {
     data.append("body", form.body);
     data.append("order", form.order);
     data.append("imageUrls", JSON.stringify([]));
+    if (video) data.append("video", video);
     codeBlocks.forEach((cb, i) => {
       data.append(`codeBlocks[${i}][language]`, cb.language);
       data.append(`codeBlocks[${i}][code]`, cb.code);
@@ -93,7 +95,7 @@ export default function AddContent() {
       await api.post(`/courses/${id}/topics/${selectedTopicId}/subtopics`, data);
       nav(`/admin/courses/${id}/edit`);
     } catch (err) {
-      alert("Failed to add subtopic");
+      alert(err.response?.data?.error || err.message || "Failed to add subtopic");
     }
   };
 
@@ -200,6 +202,18 @@ export default function AddContent() {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-bold text-dark">Lesson Video (optional):</label>
+              <input
+                type="file"
+                className="form-control"
+                accept=".mp4,.mov,.avi,.mkv,.webm,.m4v"
+                onChange={(e) => setVideo(e.target.files?.[0] || null)}
+              />
+              <div className="form-text">Supported formats: MP4, MOV, AVI, MKV, WebM, M4V.</div>
+              {video && <div className="form-text">{video.name}</div>}
             </div>
 
             {/* Code blocks */}

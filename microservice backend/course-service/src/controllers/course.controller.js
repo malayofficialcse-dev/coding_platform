@@ -156,7 +156,8 @@ export const addSubtopicToTopic = async (req, res) => {
       title,
       body: body || "",
       order: order || topic.subtopics.length,
-      images: getSubtopicImages(req.body.imageUrls, req.files),
+      images: getSubtopicImages(req.body.imageUrls, req.files?.images),
+      video: req.files?.video?.[0]?.path || "",
       codeBlocks: parseCodeBlocks(req.body.codeBlocks),
     });
 
@@ -178,13 +179,16 @@ export const updateSubtopicInTopic = async (req, res) => {
     const subtopic = topic.subtopics.id(req.params.subtopicId);
     if (!subtopic) return res.status(404).json({ error: "Subtopic not found" });
 
-    const { title, body, order, codeBlocks, imageUrls } = req.body;
+    const { title, body, order, codeBlocks, imageUrls, videoUrl } = req.body;
     if (title !== undefined) subtopic.title = title;
     if (body !== undefined) subtopic.body = body;
     if (order !== undefined) subtopic.order = order;
     if (codeBlocks !== undefined) subtopic.codeBlocks = parseCodeBlocks(codeBlocks);
-    if (imageUrls !== undefined || req.files?.length) {
-      subtopic.images = getSubtopicImages(imageUrls, req.files);
+    if (imageUrls !== undefined || req.files?.images?.length) {
+      subtopic.images = getSubtopicImages(imageUrls, req.files?.images);
+    }
+    if (req.files?.video?.[0] || videoUrl !== undefined) {
+      subtopic.video = req.files?.video?.[0]?.path || videoUrl;
     }
 
     await course.save();

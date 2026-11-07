@@ -47,6 +47,8 @@ export default function AdminCourseEdit() {
     order: 0,
     images: [""], // URLs
     imageFiles: [], // Local files
+    video: "",
+    videoFile: null,
     codeBlocks: [],
   });
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -135,6 +137,8 @@ export default function AdminCourseEdit() {
       order: subtopic.order || 0,
       images: subtopic.images && subtopic.images.length ? subtopic.images : [""],
       imageFiles: [],
+      video: subtopic.video || "",
+      videoFile: null,
       codeBlocks: subtopic.codeBlocks && subtopic.codeBlocks.length ? subtopic.codeBlocks : [],
     });
   };
@@ -203,6 +207,8 @@ export default function AdminCourseEdit() {
       "imageUrls",
       JSON.stringify(subtopicForm.images.filter((image) => image.trim() !== ""))
     );
+    data.append("videoUrl", subtopicForm.video);
+    if (subtopicForm.videoFile) data.append("video", subtopicForm.videoFile);
 
     // Add code blocks
     codeBlocks.forEach((cb, i) => {
@@ -222,7 +228,7 @@ export default function AdminCourseEdit() {
       setEditingSubtopicTopicId(null);
       alert("Subtopic updated successfully!");
     } catch (err) {
-      alert("Failed to update subtopic");
+      alert(err.response?.data?.error || err.message || "Failed to update subtopic");
     }
     setUploadingImages(false);
   };
@@ -630,6 +636,44 @@ export default function AdminCourseEdit() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label fw-bold">Lesson Video (optional):</label>
+                {subtopicForm.video && (
+                  <div className="mb-2">
+                    <video
+                      src={subtopicForm.video}
+                      controls
+                      preload="metadata"
+                      style={{ width: "100%", maxHeight: 240 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm mt-2"
+                      onClick={() =>
+                        setSubtopicForm({ ...subtopicForm, video: "", videoFile: null })
+                      }
+                    >
+                      Remove current video
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept=".mp4,.mov,.avi,.mkv,.webm,.m4v"
+                  className="form-control"
+                  onChange={(e) =>
+                    setSubtopicForm({
+                      ...subtopicForm,
+                      videoFile: e.target.files?.[0] || null,
+                    })
+                  }
+                />
+                <div className="form-text">Supported formats: MP4, MOV, AVI, MKV, WebM, M4V.</div>
+                {subtopicForm.videoFile && (
+                  <div className="form-text">Selected: {subtopicForm.videoFile.name}</div>
+                )}
               </div>
 
               {/* Subtopic Code blocks */}
