@@ -10,6 +10,7 @@ import { MY_PROFILE_PAGE_QUERY } from "../graphql/profile/documents";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { formatDateTime } from "../utils/formatDateTime";
 import CourseCertificate from "../components/CourseCertificate";
+import { ProfileSkeleton } from "../components/skeletons/ProfileSkeleton";
 import "./Profile.css";
 import "./ProfileContributions.css";
 
@@ -47,6 +48,7 @@ export default function Profile() {
   const [activeCertificate, setActiveCertificate] = useState(null);
   const [loadingCert, setLoadingCert] = useState(false);
   const [graphStats, setGraphStats] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -59,6 +61,7 @@ export default function Profile() {
     if (!user) return;
     const userId = user._id || user.id;
     let active = true;
+    setLoadingProfile(true);
     executeGraphQL(MY_PROFILE_PAGE_QUERY, { id: String(userId), first: 20 }, "MyProfilePage")
       .then(({ myProfilePage }) => {
         if (!active || !myProfilePage) return;
@@ -78,6 +81,9 @@ export default function Profile() {
       })
       .catch((error) => {
         if (active) console.error("Failed to load profile data:", error);
+      })
+      .finally(() => {
+        if (active) setLoadingProfile(false);
       });
 
     return () => {
@@ -252,10 +258,10 @@ export default function Profile() {
       enrollment.certificateRecipientName && !isCeo(enrollment.certificateRecipientName)
         ? enrollment.certificateRecipientName
         : user?.name && !isCeo(user.name)
-        ? user.name
-        : user?.username && !isCeo(user.username)
-        ? user.username
-        : "Student Name";
+          ? user.name
+          : user?.username && !isCeo(user.username)
+            ? user.username
+            : "Student Name";
 
     if (enrollment.certificateNumber) {
       setActiveCertificate({
@@ -323,6 +329,10 @@ export default function Profile() {
     for (let index = cells.length - 1; index >= 0 && cells[index].count > 0; index -= 1) currentStreak += 1;
     return { cells, max, total: codingSubmissions.length, activeDays: cells.filter((cell) => cell.count > 0).length, currentStreak };
   }, [codingSubmissions, enrollments]);
+
+  if (loadingProfile && !enrollments.length && !attempts.length && !posts.length) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <div className="cc-profile-shell">

@@ -10,6 +10,7 @@ import MutualConnectionsModal from "../components/MutualConnectionsModal";
 import { AuthContext } from "../contexts/AuthContext";
 import { optimizedImageUrl } from "../utils/imageUrl";
 import { FaRoute, FaUserFriends, FaNetworkWired, FaChartLine } from "react-icons/fa";
+import { PublicProfileSkeleton } from "../components/skeletons/ProfileSkeleton";
 import "./PostToProfile.css";
 
 const DEFAULT_AVATAR = "https://static.vecteezy.com/system/resources/previews/018/742/015/original/minimal-profile-account-symbol-user-interface-theme-3d-icon-rendering-illustration-isolated-in-transparent-background-png.png";
@@ -75,7 +76,7 @@ export default function PostToProfile() {
     setPosts((prev) => prev.filter((post) => post._id !== postId));
   };
 
-  if (loading) return <div className="text-center py-5">Loading...</div>;
+  if (loading) return <PublicProfileSkeleton />;
   if (!profile)
     return <div className="text-center py-5 text-danger">User not found</div>;
 

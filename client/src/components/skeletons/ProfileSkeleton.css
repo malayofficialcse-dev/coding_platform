@@ -1,0 +1,76 @@
+/* ── Profile Page Skeletons ────────────────────────────────────────── */
+@import "./DashboardSkeleton.css";
+
+/* Heatmap Grid Skeleton */
+.cc-skeleton-contribution-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 10px);
+  grid-auto-columns: 10px;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.cc-skeleton-heatmap-cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Exam Row Skeleton */
+.cc-skeleton-exam-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid var(--cc-border, #e6e9ed);
+  border-radius: 6px;
+  background: var(--cc-surface, #ffffff);
+}
+
+[data-theme="dark"] .cc-skeleton-exam-row {
+  border-color: #30363d !important;
+  background: #161b22 !important;
+}
+
+/* Certificate Card Skeleton */
+.cc-skeleton-cert-card {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.cc-skeleton-cert-preview {
+  display: flex;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--cc-border, #cbd5e1);
+  border-radius: 6px;
+  background: var(--cc-surface-muted, #f8fafc);
+}
+
+[data-theme="dark"] .cc-skeleton-cert-preview {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
+/* Public Profile Header Skeleton */
+.cc-skeleton-public-profile-card {
+  border: 1px solid var(--cc-border, #d6dbe1);
+  border-radius: 8px;
+  background: var(--cc-surface, #ffffff);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .cc-skeleton-public-profile-card {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+}
+
