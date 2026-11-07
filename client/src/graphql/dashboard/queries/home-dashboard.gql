@@ -11,6 +11,9 @@ query HomeDashboard($first: Int = 20) {
       author
       likes
       likedByMe
+      reactions
+      poll
+      tags
       repostedFrom
       repostedPost
       comments {

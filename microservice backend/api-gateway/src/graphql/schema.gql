@@ -73,6 +73,9 @@ type ProfilePost {
   author: JSON
   likes: JSON
   likedByMe: Boolean
+  reactions: JSON
+  poll: JSON
+  tags: [String!]
   repostedFrom: JSON
   repostedPost: JSON
   comments: [ProfileComment!]!

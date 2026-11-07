@@ -40,6 +40,9 @@ fragment ProfilePostFields on ProfilePost {
   author
   likes
   likedByMe
+  reactions
+  poll
+  tags
   comments {
     id
     _id
