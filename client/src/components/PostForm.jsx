@@ -45,6 +45,8 @@ export default function PostForm({
   const { theme } = useTheme();
   const [text, setText] = useState(post?.text || "");
   const [images, setImages] = useState([]);
+  const [video, setVideo] = useState(post?.video || "");
+  const [videoFile, setVideoFile] = useState(null);
   const [codeBlocks, setCodeBlocks] = useState(post?.codeBlocks || []);
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
@@ -64,10 +66,13 @@ export default function PostForm({
   const [tags, setTags] = useState(post?.tags || []);
   const [tagInput, setTagInput] = useState("");
   const [postType, setPostType] = useState(post?.postType || "text");
+  const hasSelectedMedia = images.length > 0 || Boolean(videoFile);
 
   useEffect(() => {
     setText(post?.text || "");
     setImages([]);
+    setVideo(post?.video || "");
+    setVideoFile(null);
     setCodeBlocks(post?.codeBlocks || []);
     setCode("");
     setLanguage("javascript");
@@ -127,13 +132,14 @@ export default function PostForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !pollQuestion.trim() && codeBlocks.length === 0 && images.length === 0) {
-      window.alert("Please provide text, a poll, a code block, or an image.");
+    if (!text.trim() && !pollQuestion.trim() && codeBlocks.length === 0 && images.length === 0 && !videoFile && !video) {
+      window.alert("Please provide text, a poll, a code block, an image, or a video.");
       return;
     }
 
     setLoading(true);
-    setUploadProgress(images.length > 0 ? 0 : 100);
+    const hasUploads = images.length > 0 || Boolean(videoFile);
+    setUploadProgress(hasUploads ? 0 : 100);
 
     try {
       const data = new FormData();
@@ -141,6 +147,7 @@ export default function PostForm({
       data.append("group", group);
       data.append("codeBlocks", JSON.stringify(codeBlocks));
       data.append("tags", JSON.stringify(tags));
+      data.append("videoUrl", video);
 
       let resolvedType = postType;
       if (showPoll && pollQuestion.trim() && pollOptions.filter((o) => o.trim()).length >= 2) {
@@ -160,6 +167,7 @@ export default function PostForm({
       data.append("postType", resolvedType);
 
       images.forEach((img) => data.append("images", img));
+      if (videoFile) data.append("video", videoFile);
 
       const requestConfig = {
         onUploadProgress: (event) => {
@@ -176,6 +184,8 @@ export default function PostForm({
       onPost?.(res.data);
       setText("");
       setImages([]);
+      setVideo("");
+      setVideoFile(null);
       setCodeBlocks([]);
       setShowPoll(false);
       setPollQuestion("");
@@ -393,7 +403,7 @@ export default function PostForm({
           <span>
             <FaFileImage /> Attachments
           </span>
-          <small>{images.length ? `${images.length} selected` : "Optional"}</small>
+          <small>{hasSelectedMedia ? `${images.length + (videoFile ? 1 : 0)} selected` : "Optional"}</small>
         </div>
         <label className="cc-file-picker">
           <FaFileImage /> Choose images
@@ -416,28 +426,63 @@ export default function PostForm({
             ))}
           </div>
         )}
+        <div className="mt-2">
+          <label className="cc-file-picker">
+            <FaFileImage /> Choose a video
+            <input
+              type="file"
+              accept=".mp4,.mov,.avi,.mkv,.webm,.m4v"
+              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          <small className="d-block text-muted mt-1">
+            Supported formats: MP4, MOV, AVI, MKV, WebM, M4V.
+          </small>
+          {video && !videoFile && (
+            <div className="mt-2">
+              <video src={video} controls preload="metadata" style={{ maxWidth: "100%", maxHeight: 220 }} />
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger d-block mt-1"
+                onClick={() => setVideo("")}
+              >
+                Remove current video
+              </button>
+            </div>
+          )}
+          {videoFile && (
+            <div className="cc-selected-files">
+              <span>
+                <FaFileImage /> {videoFile.name}
+                <button type="button" onClick={() => setVideoFile(null)} aria-label="Remove selected video">
+                  <FaTimes />
+                </button>
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && (
         <div className="cc-upload-status" role="status" aria-live="polite">
           <div className="cc-upload-status-row">
-            <span>{images.length ? "Uploading your images…" : "Publishing your post…"}</span>
-            {images.length > 0 && <strong>{uploadProgress}%</strong>}
+            <span>{hasSelectedMedia ? "Uploading your media…" : "Publishing your post…"}</span>
+            {hasSelectedMedia && <strong>{uploadProgress}%</strong>}
           </div>
           <div
             className="cc-progress-track"
             role="progressbar"
             aria-valuemin="0"
             aria-valuemax="100"
-            aria-valuenow={images.length > 0 ? uploadProgress : undefined}
+            aria-valuenow={hasSelectedMedia ? uploadProgress : undefined}
           >
             <div
               className="cc-progress-bar"
-              style={{ width: `${images.length > 0 ? Math.max(uploadProgress, 6) : 100}%` }}
+              style={{ width: `${hasSelectedMedia ? Math.max(uploadProgress, 6) : 100}%` }}
             />
           </div>
           <span className="cc-upload-help">
-            {images.length
+            {hasSelectedMedia
               ? "Keep this window open while your files are being processed."
               : "Almost there…"}
           </span>
@@ -504,7 +549,7 @@ export default function PostForm({
 
       <button className="cc-publish-button btn btn-primary w-100" disabled={loading}>
         {!loading && <FaPaperPlane />}
-        {loading ? (images.length ? `${uploadProgress}% Uploading…` : "Publishing…") : submitLabel}
+        {loading ? (hasSelectedMedia ? `${uploadProgress}% Uploading…` : "Publishing…") : submitLabel}
       </button>
     </form>
   );

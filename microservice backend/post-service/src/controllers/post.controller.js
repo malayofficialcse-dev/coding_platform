@@ -101,9 +101,10 @@ export const createPost = async (req, res) => {
     if (poll) postType = "poll";
     else if (Array.isArray(codeBlocks) && codeBlocks.length > 0) postType = "code";
 
-    const images = Array.isArray(req.files)
-      ? req.files.map((f) => f.path || f.secure_url || f.url || f.filename || f.location || "")
-      : [];
+    const images = (req.files?.images || [])
+      .map((f) => f.path || f.secure_url || f.url || f.filename || f.location || "")
+      .filter(Boolean);
+    const video = req.files?.video?.[0]?.path || "";
 
     const post = new Post({
       author: userId,
@@ -111,6 +112,7 @@ export const createPost = async (req, res) => {
       text: req.body.text || "",
       codeBlocks: Array.isArray(codeBlocks) ? codeBlocks : [],
       images,
+      video,
       poll,
       tags: Array.isArray(tags) ? tags : [],
       postType,
@@ -341,6 +343,7 @@ export const repost = async (req, res) => {
       repostedFrom: postId,
       text: originalPost.text,
       images: originalPost.images,
+      video: originalPost.video,
       codeBlocks: originalPost.codeBlocks,
     });
 
@@ -405,8 +408,13 @@ export const updatePost = async (req, res) => {
       }
     }
 
-    if (req.files && req.files.length > 0) {
-      post.images = req.files.map((f) => f.path || f.secure_url || f.url || f.location).filter(Boolean);
+    if (req.files?.images?.length) {
+      post.images = req.files.images
+        .map((f) => f.path || f.secure_url || f.url || f.location)
+        .filter(Boolean);
+    }
+    if (req.files?.video?.[0] || req.body.videoUrl !== undefined) {
+      post.video = req.files?.video?.[0]?.path || req.body.videoUrl;
     }
 
     await post.save();
@@ -689,4 +697,3 @@ export const executeSnippet = async (req, res) => {
     });
   }
 };
-

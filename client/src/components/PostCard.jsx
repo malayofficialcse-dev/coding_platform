@@ -309,7 +309,7 @@ export default function PostCard({
     poll?.options?.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0) || 0;
 
   const isSingleImage =
-    !post.text && !post.codeBlocks?.length && post.images?.length === 1;
+    !post.text && !post.video && !post.codeBlocks?.length && post.images?.length === 1;
 
   const PostContent = ({ data }) => (
     <>
@@ -362,6 +362,17 @@ export default function PostCard({
             </button>
           ))}
         </div>
+      )}
+
+      {data.video && (
+        <video
+          src={data.video}
+          controls
+          preload="metadata"
+          playsInline
+          className="d-block w-100 my-2"
+          style={{ maxHeight: 480, borderRadius: 12, background: "#000" }}
+        />
       )}
 
       {/* Community Poll Rendering */}

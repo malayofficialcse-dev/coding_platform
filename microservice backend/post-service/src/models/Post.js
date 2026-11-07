@@ -34,6 +34,7 @@ const postSchema = new mongoose.Schema(
     text: { type: String, default: "" },
     codeBlocks: [codeBlockSchema],
     images: [{ type: String }],
+    video: { type: String, default: "" },
     // likes also stored as String[] (UUIDs)
     likes: [{ type: String, ref: "User" }],
     reactions: [reactionSchema],
@@ -61,4 +62,3 @@ postSchema.index({ bookmarks: 1 });
 postSchema.index({ repostedFrom: 1 });
 
 export default mongoose.models.Post || mongoose.model("Post", postSchema);
-

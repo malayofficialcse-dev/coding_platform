@@ -54,14 +54,25 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
-    folder: "code-campus/posts",
-    allowed_formats: ["jpg", "png", "jpeg", "webp"],
-    transformation: [{ width: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }],
-  },
+  params: (req, file) =>
+    file.fieldname === "video"
+      ? {
+          folder: "code-campus/post-videos",
+          resource_type: "video",
+          allowed_formats: ["mp4", "mov", "avi", "mkv", "webm", "m4v"],
+        }
+      : {
+          folder: "code-campus/posts",
+          allowed_formats: ["jpg", "png", "jpeg", "webp"],
+          transformation: [{ width: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }],
+        },
 });
 
 const upload = multer({ storage });
+const uploadPostMedia = upload.fields([
+  { name: "images", maxCount: 5 },
+  { name: "video", maxCount: 1 },
+]);
 
 // Dashboard & Analytics (Admin / Post Controller)
 router.get("/dashboard/metrics", protect, requireAdmin, getPostDashboardMetrics);
@@ -76,8 +87,8 @@ router.get("/bookmarks", protect, getBookmarkedPosts);
 router.get("/user/:id", getPostsByUser);
 router.get("/by-user/:id", getPostsByUser);
 router.get("/", optionalAuth, getAllPosts);
-router.post("/", protect, upload.array("images", 5), createPost);
-router.put("/:id", protect, upload.array("images", 5), updatePost);
+router.post("/", protect, uploadPostMedia, createPost);
+router.put("/:id", protect, uploadPostMedia, updatePost);
 router.delete("/:id", protect, deletePost);
 
 // Snippet Runner
@@ -100,4 +111,3 @@ router.delete("/:postId/comments/:commentId", protect, deleteComment);
 router.delete("/comment/:postId/:commentId", protect, deleteComment);
 
 export default router;
-
