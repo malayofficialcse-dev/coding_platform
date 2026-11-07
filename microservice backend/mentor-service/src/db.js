@@ -62,7 +62,10 @@ export async function initializeDatabase() {
       joined_at timestamptz, left_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(session_id,user_id)
     );
     ALTER TABLE mentor_enrollments ADD COLUMN IF NOT EXISTS left_at timestamptz;
+    ALTER TABLE mentor_enrollments ADD COLUMN IF NOT EXISTS user_name text;
+    ALTER TABLE mentor_enrollments ADD COLUMN IF NOT EXISTS user_email text;
     ALTER TABLE mentor_sessions ADD COLUMN IF NOT EXISTS started_at timestamptz;
+    ALTER TABLE mentor_sessions ADD COLUMN IF NOT EXISTS mentor_name text;
     CREATE INDEX IF NOT EXISTS mentor_enrollments_user_idx ON mentor_enrollments(user_id,status);
     CREATE TABLE IF NOT EXISTS mentor_chat_messages (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(), session_id uuid NOT NULL REFERENCES mentor_sessions(id) ON DELETE CASCADE,

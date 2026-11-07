@@ -85,12 +85,74 @@ export function createMentorRouter(io) {
   }));
 
   router.get("/sessions", asyncRoute(async (req, res) => {
-    const { rows } = await pool.query(`SELECT s.*, u.name AS mentor_name,
+    // Auto-transition past sessions older than scheduled_at + duration to ended
+    await pool.query(`
+      UPDATE mentor_sessions
+      SET status = 'ended', updated_at = now()
+      WHERE status IN ('scheduled', 'live')
+        AND scheduled_at + (duration_minutes || ' minutes')::interval < now() - interval '15 minutes'
+    `).catch(() => {});
+
+    const { rows } = await pool.query(`SELECT s.*, COALESCE(s.mentor_name, u.name, 'Mentor') AS mentor_name,
       (SELECT count(*)::int FROM mentor_enrollments e WHERE e.session_id=s.id AND e.status='enrolled') AS enrolled_count,
       EXISTS(SELECT 1 FROM mentor_enrollments e WHERE e.session_id=s.id AND e.user_id=$1 AND e.status='enrolled') AS enrolled
       FROM mentor_sessions s LEFT JOIN mentor_applications u ON u.user_id=s.mentor_id
       WHERE s.status IN ('scheduled','live') AND (s.mentor_id=$1 OR s.scheduled_at > now()-interval '4 hours')
       ORDER BY s.scheduled_at ASC LIMIT 200`, [req.user.id]);
+    res.json(rows);
+  }));
+
+  router.get("/sessions/history", asyncRoute(async (req, res) => {
+    // 1. Auto-transition past sessions to 'ended'
+    await pool.query(`
+      UPDATE mentor_sessions
+      SET status = 'ended', updated_at = now()
+      WHERE status IN ('scheduled', 'live')
+        AND scheduled_at + (duration_minutes || ' minutes')::interval < now() - interval '15 minutes'
+    `).catch(() => {});
+
+    const scope = String(req.query.scope || "all").toLowerCase();
+    const userId = req.user.id;
+    const isSuperAdmin = req.user.role === "super_admin";
+
+    let condition = "";
+    if (scope === "hosted") {
+      condition = "AND s.mentor_id = $1";
+    } else if (scope === "attended") {
+      condition = "AND EXISTS(SELECT 1 FROM mentor_enrollments e WHERE e.session_id = s.id AND e.user_id = $1)";
+    } else if (isSuperAdmin || scope === "all") {
+      condition = "";
+    } else {
+      condition = "AND (s.mentor_id = $1 OR EXISTS(SELECT 1 FROM mentor_enrollments e WHERE e.session_id = s.id AND e.user_id = $1))";
+    }
+
+    const query = `
+      SELECT s.*,
+        COALESCE(s.mentor_name, u.name, 'Mentor') AS mentor_name,
+        (SELECT count(*)::int FROM mentor_enrollments e WHERE e.session_id = s.id AND e.status = 'enrolled') AS enrolled_count,
+        (SELECT count(*)::int FROM mentor_enrollments e WHERE e.session_id = s.id AND e.joined_at IS NOT NULL) AS attended_count,
+        EXISTS(SELECT 1 FROM mentor_enrollments e WHERE e.session_id = s.id AND e.user_id = $1 AND e.status = 'enrolled') AS enrolled,
+        EXISTS(SELECT 1 FROM mentor_enrollments e WHERE e.session_id = s.id AND e.user_id = $1 AND e.joined_at IS NOT NULL) AS joined,
+        (SELECT e.joined_at FROM mentor_enrollments e WHERE e.session_id = s.id AND e.user_id = $1 LIMIT 1) AS my_joined_at,
+        (SELECT COALESCE(json_agg(json_build_object(
+          'user_id', e.user_id,
+          'name', COALESCE(e.user_name, 'Learner'),
+          'email', e.user_email,
+          'joined_at', e.joined_at,
+          'left_at', e.left_at
+        ) ORDER BY e.joined_at NULLS LAST, e.created_at ASC), '[]'::json)
+        FROM mentor_enrollments e
+        WHERE e.session_id = s.id AND e.status = 'enrolled'
+        ) AS attendees
+      FROM mentor_sessions s
+      LEFT JOIN mentor_applications u ON u.user_id = s.mentor_id
+      WHERE (s.status = 'ended' OR s.scheduled_at + (s.duration_minutes || ' minutes')::interval <= now())
+      ${condition}
+      ORDER BY s.scheduled_at DESC
+      LIMIT 150
+    `;
+
+    const { rows } = await pool.query(query, [userId]);
     res.json(rows);
   }));
 
@@ -104,8 +166,8 @@ export function createMentorRouter(io) {
       return res.status(400).json({ error: "Check the title, topic, future start time, duration (15–240 minutes), format, and participant limit." });
     }
     const roomName = `cc-${randomUUID()}`;
-    const { rows } = await pool.query(`INSERT INTO mentor_sessions(mentor_id,title,description,topic,format,scheduled_at,duration_minutes,max_participants,room_name)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [req.user.id, title, description, topic, format, start, duration, capacity, roomName]);
+    const { rows } = await pool.query(`INSERT INTO mentor_sessions(mentor_id,mentor_name,title,description,topic,format,scheduled_at,duration_minutes,max_participants,room_name)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`, [req.user.id, clean(req.user.name, 100), title, description, topic, format, start, duration, capacity, roomName]);
     io.emit("mentor:sessions-updated");
     res.status(201).json(rows[0]);
   }));
@@ -122,8 +184,8 @@ export function createMentorRouter(io) {
       if (currentEnrollment) { await client.query("COMMIT"); return res.json(currentEnrollment); }
       const count = Number((await client.query("SELECT count(*)::int AS count FROM mentor_enrollments WHERE session_id=$1 AND status='enrolled'", [session.id])).rows[0].count);
       if (count >= session.max_participants) { await client.query("ROLLBACK"); return res.status(409).json({ error: "This session is full." }); }
-      const { rows } = await client.query(`INSERT INTO mentor_enrollments(session_id,user_id) VALUES($1,$2)
-        ON CONFLICT(session_id,user_id) DO UPDATE SET status='enrolled' RETURNING *`, [session.id, req.user.id]);
+      const { rows } = await client.query(`INSERT INTO mentor_enrollments(session_id,user_id,user_name,user_email) VALUES($1,$2,$3,$4)
+        ON CONFLICT(session_id,user_id) DO UPDATE SET status='enrolled', user_name=COALESCE(EXCLUDED.user_name, mentor_enrollments.user_name), user_email=COALESCE(EXCLUDED.user_email, mentor_enrollments.user_email) RETURNING *`, [session.id, req.user.id, clean(req.user.name, 100), clean(req.user.email, 120)]);
       await client.query("COMMIT");
       io.emit("mentor:sessions-updated");
       res.status(201).json(rows[0]);
@@ -151,6 +213,14 @@ export function createMentorRouter(io) {
     if (isHost && session.status === "scheduled") {
       await pool.query("UPDATE mentor_sessions SET status='live',started_at=COALESCE(started_at,now()),updated_at=now() WHERE id=$1 AND status='scheduled'", [session.id]);
       io.emit("mentor:sessions-updated");
+    }
+
+    // Record attendee joined status
+    if (!isHost) {
+      await pool.query(
+        "UPDATE mentor_enrollments SET joined_at=COALESCE(joined_at,now()), user_name=COALESCE(user_name,$3), user_email=COALESCE(user_email,$4) WHERE session_id=$1 AND user_id=$2",
+        [session.id, req.user.id, clean(req.user.name, 100), clean(req.user.email, 120)]
+      ).catch(() => {});
     }
 
     const hasLiveKit = Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
@@ -268,6 +338,12 @@ export async function configureRealtime(io) {
       if (!validUuid(sessionId) || !await isMember(sessionId, socket.user.id)) return callback({ error: "Session enrollment required." });
       socket.join(`session:${sessionId}`);
       socket.data.sessionId = sessionId;
+
+      // Mark joined_at in DB for attendance tracking
+      await pool.query(
+        "UPDATE mentor_enrollments SET joined_at=COALESCE(joined_at, now()), user_name=COALESCE(user_name, $3) WHERE session_id=$1 AND user_id=$2",
+        [sessionId, socket.user.id, clean(socket.user.name, 100)]
+      ).catch(() => {});
       const room = io.sockets.adapter.rooms.get(`session:${sessionId}`);
       const peers = [];
       if (room) {

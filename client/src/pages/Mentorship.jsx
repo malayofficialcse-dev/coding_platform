@@ -147,6 +147,189 @@ function SessionCard({ session, user, onEnroll, onJoin }) {
   );
 }
 
+/* ─── History Card ─────────────────────────────────────────────────────────── */
+function HistoryCard({ session, user, onViewAttendees }) {
+  const isHost =
+    String(session.mentor_id) === String(user?.id || user?._id);
+  const didJoin = Boolean(session.joined || session.my_joined_at);
+  const wasEnrolled = Boolean(session.enrolled);
+  const attendeesList = Array.isArray(session.attendees) ? session.attendees : [];
+  const attendedCount = session.attended_count ?? attendeesList.filter((a) => a.joined_at).length;
+  const enrolledCount = session.enrolled_count ?? attendeesList.length;
+
+  return (
+    <article className="mc-card mc-card--history">
+      <div className="mc-card-header">
+        <span className={`mc-badge ${formatColors[session.format] || "mc-badge--blue"}`}>
+          {formatIcons[session.format] || "🎓"} {formatNames[session.format] || "Masterclass"}
+        </span>
+        <span className="mc-history-completed-pill">
+          ✓ Completed
+        </span>
+      </div>
+
+      <div className="mc-history-time">
+        🗓 Held on {when(session.scheduled_at)} · {session.duration_minutes || 60} mins
+      </div>
+
+      <h3 className="mc-card-title">{session.title}</h3>
+      <p className="mc-card-desc">{session.description || session.topic}</p>
+
+      <div className="mc-card-mentor">
+        <div className="mc-avatar">
+          {(session.mentor_name || "M")[0].toUpperCase()}
+        </div>
+        <div>
+          <strong>{session.mentor_name || (isHost ? "You" : "Mentor")}</strong>
+          <span>Mentor · {session.topic}</span>
+        </div>
+      </div>
+
+      <div className="mc-card-footer mc-history-footer">
+        <div className="mc-history-stats-row">
+          <span className="mc-history-stat-badge">
+            👥 <strong>{attendedCount}</strong> joined ({enrolledCount} registered)
+          </span>
+          {isHost && (
+            <span className="mc-role-badge mc-role-badge--host">👑 You Hosted</span>
+          )}
+          {!isHost && didJoin && (
+            <span className="mc-role-badge mc-role-badge--attended">✅ You Attended</span>
+          )}
+          {!isHost && wasEnrolled && !didJoin && (
+            <span className="mc-role-badge mc-role-badge--missed">⚠️ Registered (Missed)</span>
+          )}
+        </div>
+
+        <div className="mc-card-actions">
+          {(isHost || user?.role === "super_admin") ? (
+            <button
+              type="button"
+              className="mc-btn mc-btn--secondary"
+              onClick={() => onViewAttendees(session)}
+            >
+              👥 View Attendees ({attendeesList.length || enrolledCount})
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="mc-btn mc-btn--ghost"
+              onClick={() => onViewAttendees(session)}
+            >
+              ℹ️ Session Details
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ─── Attendees Modal ──────────────────────────────────────────────────────── */
+function AttendeesModal({ session, user, onClose }) {
+  if (!session) return null;
+  const isHost = String(session.mentor_id) === String(user?.id || user?._id);
+  const attendees = Array.isArray(session.attendees) ? session.attendees : [];
+  const attendedCount = session.attended_count ?? attendees.filter((a) => a.joined_at).length;
+  const enrolledCount = session.enrolled_count ?? attendees.length;
+  const rate = enrolledCount > 0 ? Math.round((attendedCount / enrolledCount) * 100) : 0;
+
+  return (
+    <div className="mc-modal-backdrop" onClick={onClose}>
+      <div className="mc-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="mc-modal-header">
+          <div>
+            <div className="mc-modal-eyebrow">
+              {formatIcons[session.format]} {formatNames[session.format]} · Session History
+            </div>
+            <h2>{session.title}</h2>
+            <p className="mc-modal-meta">
+              Conducted by <strong>{session.mentor_name || (isHost ? "You" : "Mentor")}</strong> on {when(session.scheduled_at)} ({session.duration_minutes} mins)
+            </p>
+          </div>
+          <button type="button" className="mc-modal-close" onClick={onClose} title="Close">✕</button>
+        </div>
+
+        {/* Quick summary stats */}
+        <div className="mc-modal-metrics">
+          <div className="mc-metric-box">
+            <strong>{enrolledCount}</strong>
+            <span>Total Registered</span>
+          </div>
+          <div className="mc-metric-box mc-metric-box--highlight">
+            <strong>{attendedCount}</strong>
+            <span>Joined Live</span>
+          </div>
+          <div className="mc-metric-box">
+            <strong>{rate}%</strong>
+            <span>Attendance Rate</span>
+          </div>
+        </div>
+
+        {/* Description / topic */}
+        {session.description && (
+          <div className="mc-modal-description">
+            <strong>Topic Overview:</strong>
+            <p>{session.description}</p>
+          </div>
+        )}
+
+        {/* Attendee list */}
+        <div className="mc-modal-body">
+          <h4 className="mc-attendees-heading">
+            {isHost || user?.role === "super_admin" ? `Session Participants (${attendees.length})` : "Attendance Details"}
+          </h4>
+
+          {attendees.length === 0 ? (
+            <div className="mc-empty-small">
+              No participants recorded for this session.
+            </div>
+          ) : (
+            <div className="mc-attendees-list">
+              {attendees.map((a, i) => {
+                const joined = Boolean(a.joined_at);
+                const isMe = String(a.user_id) === String(user?.id || user?._id);
+                return (
+                  <div key={a.user_id || i} className="mc-attendee-row">
+                    <div className="mc-attendee-info">
+                      <div className="mc-avatar mc-avatar--sm">
+                        {(a.name || "L")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <strong>{a.name || "Learner"}{isMe ? " (You)" : ""}</strong>
+                        {a.email && (isHost || user?.role === "super_admin") && (
+                          <span className="mc-attendee-email">{a.email}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mc-attendee-status">
+                      {joined ? (
+                        <span className="mc-status-pill mc-status-pill--success">
+                          ✅ Attended {a.joined_at ? `(${when(a.joined_at)})` : ""}
+                        </span>
+                      ) : (
+                        <span className="mc-status-pill mc-status-pill--muted">
+                          Registered only
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mc-modal-footer">
+          <button type="button" className="mc-btn mc-btn--primary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Page ────────────────────────────────────────────────────────────── */
 export default function Mentorship() {
   const { user } = useAuth();
@@ -157,6 +340,10 @@ export default function Mentorship() {
   const [application, setApplication] = useState(null);
   const [applications, setApplications] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [historySessions, setHistorySessions] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState("all");
+  const [historySearch, setHistorySearch] = useState("");
+  const [selectedSessionAttendees, setSelectedSessionAttendees] = useState(null);
   const [applicationForm, setApplicationForm] = useState(initialApply);
   const [sessionForm, setSessionForm] = useState({
     title: "", topic: "", description: "", format: "group_class",
@@ -178,18 +365,22 @@ export default function Mentorship() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const reqs = [api.get("/mentor/sessions")];
+      const reqs = [
+        api.get("/mentor/sessions"),
+        api.get("/mentor/sessions/history"),
+      ];
       if (isAdmin) reqs.push(api.get("/mentor/admin/applications"));
       else reqs.push(api.get("/mentor/me"));
-      const [sessRes, otherRes] = await Promise.all(reqs);
+      const [sessRes, histRes, otherRes] = await Promise.all(reqs);
       const allSessions = sessRes.data || [];
       setSessions(
         isMentor
           ? allSessions.filter(
-              (s) => String(s.mentor_id) === String(user?.id || user?._id)
-            )
+            (s) => String(s.mentor_id) === String(user?.id || user?._id)
+          )
           : allSessions
       );
+      setHistorySessions(histRes.data || []);
       if (isAdmin) setApplications(otherRes.data || []);
       else if (otherRes.data) {
         setApplication(otherRes.data);
@@ -306,13 +497,36 @@ export default function Mentorship() {
     return matchSearch && matchFilter;
   });
 
+  const filteredHistory = historySessions.filter((s) => {
+    const q = historySearch.toLowerCase();
+    const matchSearch =
+      !q ||
+      s.title?.toLowerCase().includes(q) ||
+      s.topic?.toLowerCase().includes(q) ||
+      (s.mentor_name || "").toLowerCase().includes(q);
+
+    const isHost = String(s.mentor_id) === String(user?.id || user?._id);
+    const didJoin = Boolean(s.joined || s.my_joined_at);
+    const wasEnrolled = Boolean(s.enrolled);
+
+    const matchFilter =
+      historyFilter === "all" ||
+      (historyFilter === "hosted" && isHost) ||
+      (historyFilter === "attended" && didJoin) ||
+      (historyFilter === "enrolled" && wasEnrolled);
+
+    return matchSearch && matchFilter;
+  });
+
   const liveCount = sessions.filter((s) => s.status === "live").length;
   const upcomingCount = sessions.filter((s) => s.status === "scheduled").length;
+  const completedCount = historySessions.length;
   const enrolledCount = sessions.filter((s) => s.enrolled).length;
 
   /* tabs config */
   const tabs = [
     { id: "sessions", label: "Upcoming Sessions", icon: "🎓" },
+    { id: "history", label: `Session History ${historySessions.length > 0 ? `(${historySessions.length})` : ""}`, icon: "📜" },
     ...(isMentor ? [{ id: "create", label: "Schedule Class", icon: "➕" }] : []),
     ...(!isMentor && !isAdmin ? [{ id: "apply", label: "Become a Mentor", icon: "🌟" }] : []),
     ...(isAdmin ? [{ id: "review", label: `Review Applications ${applications.length > 0 ? `(${applications.length})` : ""}`, icon: "👮" }] : []),
@@ -341,6 +555,10 @@ export default function Mentorship() {
               <div className="mc-stat">
                 <strong>{upcomingCount}</strong>
                 <span>Upcoming</span>
+              </div>
+              <div className="mc-stat">
+                <strong>{completedCount}</strong>
+                <span>Completed</span>
               </div>
               <div className="mc-stat">
                 <strong>{enrolledCount}</strong>
@@ -421,7 +639,74 @@ export default function Mentorship() {
                     session={s}
                     user={user}
                     onEnroll={enroll}
-                    onJoin={() => {}}
+                    onJoin={() => { }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Session History tab ────────────────────────────────────── */}
+        {tab === "history" && (
+          <div>
+            {/* search / filter bar */}
+            <div className="mc-filter-bar">
+              <div className="mc-search-wrap">
+                <span className="mc-search-icon">🔍</span>
+                <input
+                  className="mc-search"
+                  placeholder="Search history by title, topic, or mentor…"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                />
+              </div>
+              <div className="mc-filter-chips">
+                {[
+                  { id: "all", label: `All History (${historySessions.length})` },
+                  ...(isMentor || isAdmin ? [{ id: "hosted", label: "👑 Hosted by Me" }] : []),
+                  { id: "attended", label: "✅ Attended" },
+                  { id: "enrolled", label: "✓ Registered" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    className={`mc-chip ${historyFilter === f.id ? "mc-chip--active" : ""}`}
+                    onClick={() => setHistoryFilter(f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <button className="mc-btn mc-btn--ghost" onClick={load}>↺ Refresh</button>
+            </div>
+
+            {loading ? (
+              <div className="mc-skeleton-grid">
+                {[1, 2, 3].map((i) => <div key={i} className="mc-skeleton-card" />)}
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="mc-empty">
+                <div className="mc-empty-icon">📜</div>
+                <h3>No session history found</h3>
+                <p>
+                  {historySessions.length === 0
+                    ? isMentor
+                      ? "You haven't conducted any sessions yet. Once a scheduled session concludes, its history and attendance record will appear here."
+                      : "You haven't attended any completed sessions yet. Enroll in upcoming masterclasses to build your learning history!"
+                    : "No completed sessions match your current filter or search criteria."}
+                </p>
+                <button className="mc-btn mc-btn--primary" onClick={() => setTab("sessions")}>
+                  Browse Upcoming Sessions →
+                </button>
+              </div>
+            ) : (
+              <div className="mc-session-grid">
+                {filteredHistory.map((s) => (
+                  <HistoryCard
+                    key={s.id}
+                    session={s}
+                    user={user}
+                    onViewAttendees={(sess) => setSelectedSessionAttendees(sess)}
                   />
                 ))}
               </div>
@@ -551,17 +836,17 @@ export default function Mentorship() {
                     {application?.status === "pending"
                       ? "⏳ Application Under Review"
                       : application?.status === "approved"
-                      ? "✅ You're an Approved Mentor"
-                      : application?.status === "rejected"
-                      ? "❌ Update and Resubmit"
-                      : "🌟 Apply to Become a Mentor"}
+                        ? "✅ You're an Approved Mentor"
+                        : application?.status === "rejected"
+                          ? "❌ Update and Resubmit"
+                          : "🌟 Apply to Become a Mentor"}
                   </h2>
                   <p>
                     {application?.status === "pending"
                       ? "The admin team reviews applications carefully. You'll be notified once a decision is made."
                       : application?.status === "approved"
-                      ? "Sign out and back in to access your mentor tools."
-                      : "Share your expertise with thousands of learners through live sessions."}
+                        ? "Sign out and back in to access your mentor tools."
+                        : "Share your expertise with thousands of learners through live sessions."}
                   </p>
                 </div>
               </div>
@@ -708,6 +993,15 @@ export default function Mentorship() {
           </div>
         )}
       </div>
+
+      {/* ─── Attendees / Session Details Modal ──────────────────────── */}
+      {selectedSessionAttendees && (
+        <AttendeesModal
+          session={selectedSessionAttendees}
+          user={user}
+          onClose={() => setSelectedSessionAttendees(null)}
+        />
+      )}
     </div>
   );
 }
