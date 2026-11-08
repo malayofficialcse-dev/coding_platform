@@ -1,7 +1,8 @@
 import { GraphQLError } from "graphql";
 import { getServiceUrl } from "../../config/services.js";
 
-const SERVICE_TIMEOUT_MS = 8_000;
+// Allow sufficient time for cold-starting cloud microservices (e.g. Render)
+const SERVICE_TIMEOUT_MS = 20_000;
 
 export async function requestDashboardService(serviceName, path, context) {
   const baseUrl = getServiceUrl(serviceName);
@@ -23,6 +24,18 @@ export async function requestDashboardService(serviceName, path, context) {
     data: await response.json(),
     headers: response.headers,
   };
+}
+
+export async function safeDashboardService(serviceName, path, context, defaultData = []) {
+  try {
+    return await requestDashboardService(serviceName, path, context);
+  } catch (error) {
+    console.warn(`[GraphQL dashboard safe] ${serviceName} request failed: ${error.message} - using fallback`);
+    return {
+      data: defaultData,
+      headers: new Headers(),
+    };
+  }
 }
 
 export async function requireDashboardService(serviceName, path, context) {

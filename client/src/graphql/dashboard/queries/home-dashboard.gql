@@ -1,4 +1,4 @@
-query HomeDashboard($first: Int = 20) {
+query HomeDashboard($first: Int = 10) {
   homeDashboard(first: $first) {
     posts {
       id

@@ -35,7 +35,8 @@ const upsertUserMirror = async (req) => {
 
 const getPagination = (req) => {
   const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
+  // Default to 10 posts per page for lightning-fast delivery and smooth infinite scrolling
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 30);
   return { page, limit, skip: (page - 1) * limit };
 };
 
@@ -89,8 +90,8 @@ export const createPost = async (req, res) => {
       try {
         tags = typeof req.body.tags === "string"
           ? (req.body.tags.startsWith("[")
-              ? JSON.parse(req.body.tags)
-              : req.body.tags.split(",").map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))
+            ? JSON.parse(req.body.tags)
+            : req.body.tags.split(",").map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))
           : req.body.tags;
       } catch (err) {
         tags = [];
@@ -139,21 +140,22 @@ export const getFeed = async (req, res) => {
 
     const [posts, total] = await Promise.all([
       Post.find()
-      .populate("author", "name username profileImage")
-      .populate({
-        path: "repostedFrom",
-        populate: [
-          { path: "author", select: "name username profileImage" },
-          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
-        ],
-      })
-      .populate({
-        path: "comments",
-        populate: { path: "author", select: "name username profileImage" },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+        .populate("author", "name username profileImage")
+        .populate({
+          path: "repostedFrom",
+          populate: [
+            { path: "author", select: "name username profileImage" },
+          ],
+        })
+        .populate({
+          path: "comments",
+          options: { limit: 3, sort: { createdAt: -1 } },
+          populate: { path: "author", select: "name username profileImage" },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Post.countDocuments(),
     ]);
 
@@ -204,21 +206,22 @@ export const getAllPosts = async (req, res) => {
 
     const [posts, total] = await Promise.all([
       Post.find(filter)
-      .populate("author", "name username profileImage")
-      .populate({
-        path: "repostedFrom",
-        populate: [
-          { path: "author", select: "name username profileImage" },
-          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
-        ],
-      })
-      .populate({
-        path: "comments",
-        populate: { path: "author", select: "name username profileImage" },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+        .populate("author", "name username profileImage")
+        .populate({
+          path: "repostedFrom",
+          populate: [
+            { path: "author", select: "name username profileImage" },
+          ],
+        })
+        .populate({
+          path: "comments",
+          options: { limit: 3, sort: { createdAt: -1 } },
+          populate: { path: "author", select: "name username profileImage" },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Post.countDocuments(filter),
     ]);
 
@@ -243,21 +246,22 @@ export const getPostsByUser = async (req, res) => {
     const filter = { author: userId };
     const [posts, total] = await Promise.all([
       Post.find(filter)
-      .populate("author", "name username profileImage")
-      .populate({
-        path: "repostedFrom",
-        populate: [
-          { path: "author", select: "name username profileImage" },
-          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
-        ],
-      })
-      .populate({
-        path: "comments",
-        populate: { path: "author", select: "name username profileImage" },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+        .populate("author", "name username profileImage")
+        .populate({
+          path: "repostedFrom",
+          populate: [
+            { path: "author", select: "name username profileImage" },
+          ],
+        })
+        .populate({
+          path: "comments",
+          options: { limit: 3, sort: { createdAt: -1 } },
+          populate: { path: "author", select: "name username profileImage" },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       Post.countDocuments(filter),
     ]);
 
@@ -508,7 +512,7 @@ export const reactToPost = async (req, res) => {
         title: `${req.user?.name || req.user?.username || "A user"} reacted ${emojiMap[type] || "❤️"} to your post`,
         description: post.text?.substring(0, 100) || "",
         actionUrl: `/posts/${postId}`,
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     const reactionCounts = { like: 0, fire: 0, insight: 0, rocket: 0, clap: 0 };

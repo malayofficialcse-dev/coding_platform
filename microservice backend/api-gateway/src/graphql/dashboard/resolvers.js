@@ -1,21 +1,17 @@
 import { GraphQLError } from "graphql";
 import { mapPost } from "../profile/resolvers.js";
-import { requireDashboardService } from "./dashboard.api.js";
+import { requireDashboardService, safeDashboardService } from "./dashboard.api.js";
 
 const normalizeFollowers = (followers) =>
   Array.isArray(followers)
     ? followers.map((follower) =>
-        String(follower?.id || follower?._id || follower)
-      )
+      String(follower?.id || follower?._id || follower)
+    )
     : [];
 
 function mapPerson(person, viewerId) {
   const id = person?.id || person?._id;
-  if (!id) {
-    throw new GraphQLError("A dashboard user is missing an ID.", {
-      extensions: { code: "DOWNSTREAM_SERVICE_ERROR" },
-    });
-  }
+  if (!id) return null;
 
   const followers = normalizeFollowers(person.followers);
   return {
@@ -31,43 +27,37 @@ function mapPerson(person, viewerId) {
   };
 }
 
-const requireArray = (value, serviceName) => {
-  if (!Array.isArray(value)) {
-    console.error(`[GraphQL dashboard] ${serviceName} returned an unexpected response.`);
-    throw new GraphQLError("Dashboard data is temporarily unavailable.", {
-      extensions: { code: "DOWNSTREAM_SERVICE_ERROR" },
-    });
-  }
-  return value;
-};
+const safeArray = (value) => (Array.isArray(value) ? value : []);
 
 export const dashboardResolvers = {
   Query: {
     homeDashboard: async (_root, { first }, context) => {
-      const limit = Math.min(Math.max(Number(first) || 20, 1), 50);
+      // Default to 10 posts per batch for low latency on cloud deployments
+      const limit = Math.min(Math.max(Number(first) || 10, 1), 30);
 
       const [usersResponse, recommendationsResponse, postsResponse] = await Promise.all([
-        requireDashboardService("user", "/v1/users", context),
+        safeDashboardService("user", "/v1/users", context, []),
         context.viewer
-          ? requireDashboardService("user", "/v1/social/recommendations", context)
+          ? safeDashboardService("user", "/v1/social/recommendations", context, [])
           : Promise.resolve({ data: [] }),
-        requireDashboardService(
+        safeDashboardService(
           "post",
           `/v1/posts?group=${encodeURIComponent("General Feed")}&page=1&limit=${limit}`,
-          context
+          context,
+          []
         ),
       ]);
 
-      const users = requireArray(usersResponse.data, "user service");
-      const recommendations = requireArray(recommendationsResponse.data, "recommendations service");
-      const posts = requireArray(postsResponse.data, "post service");
+      const users = safeArray(usersResponse.data);
+      const recommendations = safeArray(recommendationsResponse.data);
+      const posts = safeArray(postsResponse.data);
       const viewerId = context.viewer?.id || "";
 
       return {
-        users: users.map((person) => mapPerson(person, viewerId)),
-        recommendations: recommendations.map((person) => mapPerson(person, viewerId)),
-        posts: posts.map(mapPost),
-        feedHasMore: postsResponse.headers.get("x-has-more") === "true",
+        users: users.map((p) => mapPerson(p, viewerId)).filter(Boolean),
+        recommendations: recommendations.map((p) => mapPerson(p, viewerId)).filter(Boolean),
+        posts: posts.map(mapPost).filter(Boolean),
+        feedHasMore: postsResponse.headers?.get ? postsResponse.headers.get("x-has-more") === "true" : posts.length === limit,
       };
     },
   },

@@ -46,19 +46,23 @@ export default function NotificationBell() {
 
   const fetchUnreadCount = async () => {
     try {
-      const res = await api.get("/notifications/unread-count");
-      setUnreadCount(res.data.unreadCount);
+      const res = await api.get("/notifications/unread-count", { timeout: 10000 });
+      setUnreadCount(res.data?.unreadCount ?? 0);
     } catch (err) {
-      console.error("Error fetching unread count:", err);
+      if (err.code !== "ECONNABORTED") {
+        console.warn("Unread count lookup deferred:", err.message);
+      }
     }
   };
 
   const fetchRecentNotifications = async () => {
     try {
-      const res = await api.get("/notifications");
-      setRecentNotifications(res.data.slice(0, 5));
+      const res = await api.get("/notifications", { timeout: 10000 });
+      setRecentNotifications(Array.isArray(res.data) ? res.data.slice(0, 5) : []);
     } catch (err) {
-      console.error("Error fetching notifications:", err);
+      if (err.code !== "ECONNABORTED") {
+        console.warn("Notifications lookup deferred:", err.message);
+      }
     }
   };
 
