@@ -105,7 +105,13 @@ export const createPost = async (req, res) => {
     const images = (req.files?.images || [])
       .map((f) => f.path || f.secure_url || f.url || f.filename || f.location || "")
       .filter(Boolean);
-    const video = req.files?.video?.[0]?.path || "";
+    const video =
+      req.files?.video?.[0]?.path ||
+      req.files?.video?.[0]?.secure_url ||
+      req.files?.video?.[0]?.url ||
+      req.body.videoUrl ||
+      req.body.video ||
+      "";
 
     const post = new Post({
       author: userId,
@@ -417,8 +423,14 @@ export const updatePost = async (req, res) => {
         .map((f) => f.path || f.secure_url || f.url || f.location)
         .filter(Boolean);
     }
-    if (req.files?.video?.[0] || req.body.videoUrl !== undefined) {
-      post.video = req.files?.video?.[0]?.path || req.body.videoUrl;
+    if (req.files?.video?.[0] || req.body.videoUrl !== undefined || req.body.video !== undefined) {
+      post.video =
+        req.files?.video?.[0]?.path ||
+        req.files?.video?.[0]?.secure_url ||
+        req.files?.video?.[0]?.url ||
+        req.body.videoUrl ||
+        req.body.video ||
+        "";
     }
 
     await post.save();

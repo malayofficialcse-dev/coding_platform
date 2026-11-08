@@ -66,7 +66,7 @@ export async function refreshSession() {
       : sendRefresh();
     refreshPromise = refresh.catch((error) => {
       const status = error.response?.status;
-      if (status === 401) refreshSessionInvalid = true;
+      if (status === 401 || status === 403) refreshSessionInvalid = true;
       if (status === 429) {
         const retrySeconds = Number(error.response.headers?.["retry-after"]);
         const rateLimitSeconds = Number(error.response.headers?.["ratelimit-reset"]);

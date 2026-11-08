@@ -18,7 +18,12 @@ if (!baseUrl) {
 export const shardCount = Math.max(1, Number(process.env.ENROLLMENT_SHARD_COUNT || 1));
 export const syncDatabase = process.env.ENROLLMENT_DB_SYNC === "true";
 
-const isNeon = (url) => url.includes("neon.tech");
+const isNeon = (url) =>
+  url.includes("neon.tech") ||
+  url.includes("sslmode=require") ||
+  url.includes("render.com") ||
+  url.includes("supabase.co") ||
+  process.env.NODE_ENV === "production";
 
 const createConnection = (url, label) => {
   const connectionString = clean(url);

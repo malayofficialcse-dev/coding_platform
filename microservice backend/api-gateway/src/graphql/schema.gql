@@ -68,6 +68,7 @@ type ProfilePost {
   text: String
   group: String
   createdAt: String
+  video: JSON
   images: [String!]!
   codeBlocks: [JSON!]!
   author: JSON

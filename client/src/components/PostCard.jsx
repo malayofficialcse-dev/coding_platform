@@ -308,74 +308,105 @@ export default function PostCard({
   const pollTotalVotes =
     poll?.options?.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0) || 0;
 
-  const isSingleImage =
-    !post.text && !post.video && !post.codeBlocks?.length && post.images?.length === 1;
+  const isVideoUrl = (url) => typeof url === "string" && /\.(mp4|webm|mov|mkv|m4v|avi)(\?.*)?$/i.test(url);
 
-  const PostContent = ({ data }) => (
-    <>
-      {/* Question Badge / Flair */}
-      {data.postType === "question" && (
-        <div className="mb-2">
-          <span
-            className="badge d-inline-flex align-items-center gap-1"
-            style={{
-              background: "#fee2e2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
-              fontSize: "0.74rem",
-              padding: "4px 8px",
-              fontWeight: 700,
-            }}
-          >
-            <FaQuestionCircle /> Community Question / Doubt
-          </span>
-        </div>
-      )}
+  const PostContent = ({ data }) => {
+    let resolvedVideoUrl = "";
+    if (typeof data.video === "string" && data.video.trim()) {
+      resolvedVideoUrl = data.video.trim();
+    } else if (data.video && typeof data.video === "object") {
+      resolvedVideoUrl = data.video.url || data.video.secure_url || data.video.path || "";
+    }
 
-      {/* Post Text */}
-      {data.text && (
-        <div className="mb-2 cc-markdown-text" style={{ fontSize: "0.93rem", lineHeight: 1.6 }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.text}</ReactMarkdown>
-        </div>
-      )}
+    const rawImages = Array.isArray(data.images) ? data.images : [];
+    if (!resolvedVideoUrl) {
+      const foundVideo = rawImages.find((img) => isVideoUrl(img));
+      if (foundVideo) {
+        resolvedVideoUrl = foundVideo;
+      }
+    }
 
-      {/* Tags List */}
-      {Array.isArray(data.tags) && data.tags.length > 0 && (
-        <div className="d-flex flex-wrap gap-1 mb-2">
-          {data.tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className="badge text-decoration-none border"
-              onClick={() => onTagClick?.(tag)}
+    const displayImages = rawImages.filter((img) => !isVideoUrl(img));
+    const isSingleImg = !data.text && !resolvedVideoUrl && !data.codeBlocks?.length && displayImages.length === 1;
+
+    return (
+      <>
+        {/* Question Badge / Flair */}
+        {data.postType === "question" && (
+          <div className="mb-2">
+            <span
+              className="badge d-inline-flex align-items-center gap-1"
               style={{
-                background: "var(--cc-surface-muted, #f1f5f9)",
-                color: "var(--cc-primary, #0078d4)",
-                cursor: onTagClick ? "pointer" : "default",
-                fontSize: "0.72rem",
-                padding: "3px 8px",
-                borderRadius: 12,
-                fontWeight: 600,
+                background: "#fee2e2",
+                color: "#991b1b",
+                border: "1px solid #fecaca",
+                fontSize: "0.74rem",
+                padding: "4px 8px",
+                fontWeight: 700,
               }}
             >
-              #{tag}
-            </button>
-          ))}
-        </div>
-      )}
+              <FaQuestionCircle /> Community Question / Doubt
+            </span>
+          </div>
+        )}
 
-      {data.video && (
-        <video
-          src={data.video}
-          controls
-          preload="metadata"
-          playsInline
-          className="d-block w-100 my-2"
-          style={{ maxHeight: 480, borderRadius: 12, background: "#000" }}
-        />
-      )}
+        {/* Post Text */}
+        {data.text && (
+          <div className="mb-2 cc-markdown-text" style={{ fontSize: "0.93rem", lineHeight: 1.6 }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.text}</ReactMarkdown>
+          </div>
+        )}
 
-      {/* Community Poll Rendering */}
+        {/* Tags List */}
+        {Array.isArray(data.tags) && data.tags.length > 0 && (
+          <div className="d-flex flex-wrap gap-1 mb-2">
+            {data.tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="badge text-decoration-none border"
+                onClick={() => onTagClick?.(tag)}
+                style={{
+                  background: "var(--cc-surface-muted, #f1f5f9)",
+                  color: "var(--cc-primary, #0078d4)",
+                  cursor: onTagClick ? "pointer" : "default",
+                  fontSize: "0.72rem",
+                  padding: "3px 8px",
+                  borderRadius: 12,
+                  fontWeight: 600,
+                }}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {resolvedVideoUrl && (
+          <div
+            className="my-2 overflow-hidden position-relative"
+            style={{
+              borderRadius: 12,
+              background: "#000",
+              maxHeight: 520,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <video
+              src={resolvedVideoUrl}
+              controls
+              preload="metadata"
+              playsInline
+              poster={typeof data.video === "object" ? data.video?.thumbnail || data.video?.poster : undefined}
+              className="d-block w-100"
+              style={{ maxHeight: 520, objectFit: "contain", borderRadius: 12 }}
+            />
+          </div>
+        )}
+
+        {/* Community Poll Rendering */}
       {poll && Array.isArray(poll.options) && poll.options.length > 0 && (
         <div
           className="p-3 my-3 rounded-3"
@@ -480,11 +511,11 @@ export default function PostCard({
       )}
 
       {/* Images */}
-      {data.images?.length > 0 && (
+      {displayImages?.length > 0 && (
         <div className="my-2">
-          {isSingleImage ? (
+          {isSingleImg ? (
             <img
-              src={optimizedImageUrl(data.images[0], 1200)}
+              src={optimizedImageUrl(displayImages[0], 1200)}
               alt="post"
               onClick={() => setPreviewImageIdx(0)}
               style={{
@@ -502,11 +533,11 @@ export default function PostCard({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: data.images.length === 2 ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
+                gridTemplateColumns: displayImages.length === 2 ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: 8,
               }}
             >
-              {data.images.map((img, i) => (
+              {displayImages.map((img, i) => (
                 <img
                   key={i}
                   src={optimizedImageUrl(img, 800)}
@@ -730,7 +761,8 @@ export default function PostCard({
         </div>
       )}
     </>
-  );
+    );
+  };
 
   return (
     <>

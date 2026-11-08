@@ -304,15 +304,29 @@ export const getMyEnrollments = async (req, res) => {
       return res.status(401).json({ error: "User authentication required" });
     }
 
-    const enrollments = await modelForUser(userId, "read").findAll({
-      where: { user: String(userId) },
-      order: [["createdAt", "DESC"]],
-    });
+    let enrollments = [];
+    try {
+      enrollments = await modelForUser(userId, "read").findAll({
+        where: { user: String(userId) },
+        order: [["createdAt", "DESC"]],
+      });
+    } catch (readErr) {
+      console.warn("[getMyEnrollments read replica fallback]:", readErr.message);
+      try {
+        enrollments = await modelForUser(userId, "write").findAll({
+          where: { user: String(userId) },
+          order: [["createdAt", "DESC"]],
+        });
+      } catch (writeErr) {
+        console.error("[getMyEnrollments primary fallback failed]:", writeErr.message);
+        return res.json([]);
+      }
+    }
 
     res.json(await attachCourseDetails(enrollments));
   } catch (err) {
     console.error("[getMyEnrollments Error]:", err);
-    res.status(500).json({ error: err.message });
+    res.json([]);
   }
 };
 

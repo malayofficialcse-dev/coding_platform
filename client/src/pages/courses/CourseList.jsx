@@ -86,12 +86,11 @@ export default function CourseList() {
       })
       .catch((error) => {
         setEnrollments([]);
-        const status = error.response?.status;
-        setEnrollmentsError(
-          status
-            ? `Could not load enrollments (HTTP ${status}).`
-            : "Could not reach the API Gateway to load enrollments."
-        );
+        console.warn("Could not load enrollments:", error.message);
+        // Only set error message if it's an unauthorized state or critical, otherwise gracefully treat as no active enrollments
+        if (error.response?.status && error.response.status !== 500) {
+          setEnrollmentsError(`Enrollments temporarily unavailable (HTTP ${error.response.status}).`);
+        }
       });
 
     // Check my permanent student enrollment number

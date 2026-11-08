@@ -35,6 +35,7 @@ fragment ProfilePostFields on ProfilePost {
   text
   group
   createdAt
+  video
   images
   codeBlocks
   author
