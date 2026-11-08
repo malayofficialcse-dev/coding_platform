@@ -83,6 +83,12 @@ especially for a super-admin account. The seeder creates or updates the account
 in the Auth database and its assigned User database shard, and revokes active
 refresh sessions for that account. Do not commit credentials to source control.
 
+If an existing account has no password hash, the old password cannot be
+recovered. After verifying the account owner through your normal process, run
+`node scripts/reset-user-password.js <account-email>` from this directory. The
+command prompts twice without echoing the new password, updates the Auth
+database, and revokes existing refresh sessions.
+
 RabbitMQ carries `like`, `comment`, `repost`, `follow`, and `message` notification events to the Notification Service. Set `RABBITMQ_URL` in this `.env` to the broker URL and credentials. Docker Compose defaults to `host.docker.internal:5672` so it can use the RabbitMQ container already running on the Docker host; override the full URL when the broker is on another host or Docker network. Local Node development defaults to `amqp://guest:guest@localhost:5672`.
 
 The User Service stores profiles across `USER_SHARD_0_DATABASE_URL` and
