@@ -25,22 +25,37 @@ app.set("trust proxy", trustProxy ? 1 : false);
 
 // ---- Redis Client (graceful: works without Redis too) ----
 let redis = null;
-try {
-  redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-    lazyConnect: true,
-    enableOfflineQueue: false,
-    maxRetriesPerRequest: 1,
-  });
-  redis.on("error", (err) => {
-    console.warn("[Gateway Redis] Connection error:", err.message, "— falling back to in-memory rate limiting");
-  });
-  await redis.connect().catch(() => {
-    redis = null;
-  });
-  if (redis) console.log("[Gateway Redis] Connected ✓");
-} catch {
-  redis = null;
-  console.warn("[Gateway Redis] Unavailable — using in-memory rate limiting");
+const isProduction =
+  process.env.RENDER === "true" ||
+  (process.env.APP_ENV || process.env.NODE_ENV || "local").toLowerCase() === "production";
+const redisUrl = process.env.REDIS_URL || (isProduction ? null : "redis://localhost:6379");
+
+if (!redisUrl) {
+  console.warn("[Gateway Redis] REDIS_URL is not configured — using in-memory rate limiting");
+} else {
+  let connectionErrorReported = false;
+  const reportConnectionError = (error) => {
+    if (connectionErrorReported) return;
+    connectionErrorReported = true;
+    const reason = [error.code, error.message].filter(Boolean).join(": ") || "unknown connection error";
+    console.warn(`[Gateway Redis] ${reason} — using in-memory rate limiting`);
+  };
+  let client;
+  try {
+    client = new Redis(redisUrl, {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      retryStrategy: () => null,
+    });
+    client.on("error", reportConnectionError);
+    await client.connect();
+    redis = client;
+    console.log("[Gateway Redis] Connected ✓");
+  } catch (error) {
+    reportConnectionError(error);
+    if (client) client.disconnect();
+  }
 }
 
 // 1. CORS Configuration
