@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     port: int = 5011
 
     # OpenAI / Groq
-    openai_api_key: str
+    openai_api_key: str = ""
     openai_api_base: str = ""
     openai_base_url: str = ""
     openai_model: str = "gpt-4o-mini"
@@ -41,32 +41,42 @@ class Settings(BaseSettings):
             return "qwen/qwen3.8-27b"
         return self.openai_model
 
-    # LangSmith
-    langchain_tracing_v2: str = "true"
+    # LangSmith — disable tracing unless a valid key is explicitly provided
+    langchain_tracing_v2: str = "false"
     langchain_project: str = "code-campus-ai"
     langchain_api_key: str = ""
     langchain_endpoint: str = "https://api.smith.langchain.com"
 
-    # Vector Store
+    @property
+    def langsmith_enabled(self) -> bool:
+        key = self.langchain_api_key.strip()
+        return (
+            self.langchain_tracing_v2.lower() == "true"
+            and bool(key)
+            and not key.startswith("ls__your")
+            and len(key) > 20
+        )
+
+    # Vector Store — MUST be set via env var on Render
     vector_store: str = "pinecone"
     chroma_persist_dir: str = "./chroma_db"
     chroma_collection_name: str = "code_campus_knowledge"
     pinecone_api_key: str = ""
     pinecone_index_name: str = "code-campus-knowledge"
 
-    # MongoDB
+    # MongoDB — cloud URIs from env var (no localhost defaults)
     mongo_uri: str = ""
-    course_mongo_uri: str = "mongodb://localhost:27018/course_db"
-    coding_mongo_uri: str = "mongodb://localhost:27019/coding_problems_db"
+    course_mongo_uri: str = ""
+    coding_mongo_uri: str = ""
 
-    # PostgreSQL
-    user_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/user_db"
-    auth_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/auth_db"
-    exam_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/exam_db"
-    enrollment_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/enrollment_db"
-    coding_database_url: str = "postgresql://postgres:malay21@127.0.0.1:5432/coding_db"
+    # PostgreSQL — all via env var (no localhost/hardcoded password defaults)
+    user_database_url: str = ""
+    auth_database_url: str = ""
+    exam_database_url: str = ""
+    enrollment_database_url: str = ""
+    coding_database_url: str = ""
 
-    # Internal Services
+    # Internal Services — override via env var in production
     user_service_url: str = "http://localhost:5002"
     enrollment_service_url: str = "http://localhost:5006"
     course_service_url: str = "http://localhost:5005"
@@ -75,7 +85,7 @@ class Settings(BaseSettings):
     internal_service_token: str = ""
 
     # JWT
-    jwt_secret: str
+    jwt_secret: str = ""
 
     # CORS
     client_origins: str = "http://localhost:5173,http://localhost:3000"
@@ -95,8 +105,12 @@ def get_settings() -> Settings:
 
 # Apply LangSmith env vars at import time
 def configure_langsmith(settings: Settings):
-    os.environ["LANGCHAIN_TRACING_V2"] = settings.langchain_tracing_v2
-    os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
-    os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
-    if settings.langchain_api_key:
+    if settings.langsmith_enabled:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
         os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+    else:
+        # Explicitly disable — prevents 403 spam from invalid keys
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        os.environ.pop("LANGCHAIN_API_KEY", None)

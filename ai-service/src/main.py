@@ -3,10 +3,10 @@
 Code Campus AI Service — FastAPI entry point.
 
 Startup sequence:
-  1. Configure LangSmith tracing
-  2. Load ChromaDB vector store
+  1. Configure LangSmith tracing (optional — only if key is valid)
+  2. Load Pinecone vector store (or ChromaDB fallback)
   3. Auto-ingest if store is empty
-  4. Build hybrid retriever (BM25 seeded from ChromaDB)
+  4. Build hybrid retriever (dense Pinecone + sparse BM25)
   5. Compile LangGraph agent
   6. Start session cleanup background task
 """
@@ -62,12 +62,12 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Port:  {settings.port}")
     logger.info("=" * 58)
 
-    # 1. Configure LangSmith tracing (optional — set LANGCHAIN_TRACING_V2=true)
+    # 1. Configure LangSmith tracing (optional — only enabled with a valid key)
     configure_langsmith(settings)
-    if settings.langchain_tracing_v2.lower() == "true" and settings.langchain_api_key:
+    if settings.langsmith_enabled:
         logger.info("[Startup] LangSmith tracing ENABLED ✓")
     else:
-        logger.info("[Startup] LangSmith tracing disabled (no API key set)")
+        logger.info("[Startup] LangSmith tracing DISABLED (no valid key — set LANGCHAIN_API_KEY to enable)")
 
     # 2. Load (or lazily init) Vector Store (Pinecone or ChromaDB)
     from src.ingestion.embedder import get_vectorstore, get_vector_count
@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.info(f"[Startup] Skipping ingestion — {count} vectors already indexed in {store_name} ✓")
 
-    # 4. Build hybrid retriever (BM25 seeded from ChromaDB)
+    # 4. Build hybrid retriever (dense Pinecone + sparse BM25)
     from src.rag.retriever import build_hybrid_retriever
     build_hybrid_retriever()
     logger.info("[Startup] Hybrid retriever ready (dense 70% + BM25 30%) ✓")

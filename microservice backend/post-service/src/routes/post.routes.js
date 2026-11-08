@@ -1,10 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
+import os from "os";
 import { fileURLToPath } from "url";
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import { v2 as cloudinary } from "cloudinary";
 import {
   createPost,
   getFeed,
@@ -21,6 +20,7 @@ import {
   bookmarkPost,
   getBookmarkedPosts,
   executeSnippet,
+  streamNeonVideo,
 } from "../controllers/post.controller.js";
 import {
   addComment,
@@ -46,29 +46,11 @@ dotenv.config();
 
 const router = express.Router();
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: (req, file) =>
-    file.fieldname === "video"
-      ? {
-          folder: "code-campus/post-videos",
-          resource_type: "video",
-          allowed_formats: ["mp4", "mov", "avi", "mkv", "webm", "m4v"],
-        }
-      : {
-          folder: "code-campus/posts",
-          allowed_formats: ["jpg", "png", "jpeg", "webp"],
-          transformation: [{ width: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }],
-        },
-});
-
-const upload = multer({ storage });
 const uploadPostMedia = upload.fields([
   { name: "images", maxCount: 5 },
   { name: "video", maxCount: 1 },
@@ -90,6 +72,9 @@ router.get("/", optionalAuth, getAllPosts);
 router.post("/", protect, uploadPostMedia, createPost);
 router.put("/:id", protect, uploadPostMedia, updatePost);
 router.delete("/:id", protect, deletePost);
+
+// Video Streaming & Fresh URL resolver from Neon Object Storage
+router.get("/video/:key(*)", streamNeonVideo);
 
 // Snippet Runner
 router.post("/execute-snippet", executeSnippet);

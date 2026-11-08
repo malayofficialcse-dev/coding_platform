@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+import psycopg2
 from pymongo import MongoClient
-from sqlalchemy import create_engine, text
 from langchain_core.documents import Document
 
 from src.config.settings import get_settings
@@ -48,6 +48,9 @@ class CourseLoader:
 
     def load(self) -> list[Document]:
         docs: list[Document] = []
+        if not self.mongo_uri:
+            logger.warning("[CodingLoader] No CODING_MONGO_URI configured — skipping")
+            return docs
         try:
             client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
             try:
@@ -118,6 +121,9 @@ class CodingProblemLoader:
 
     def load(self) -> list[Document]:
         docs: list[Document] = []
+        if not self.mongo_uri:
+            logger.warning("[CodingLoader] No CODING_MONGO_URI configured — skipping")
+            return docs
         try:
             client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
             try:
@@ -209,15 +215,18 @@ class ExamLoader:
             logger.warning("[ExamLoader] No EXAM_DATABASE_URL set — skipping")
             return docs
         try:
-            # Set search_path for Neon PostgreSQL schema isolation if applicable
-            connect_args = {}
-            if "neon.tech" in self.db_url:
-                connect_args = {"options": "-c search_path=exam_schema,public"}
-            engine = create_engine(self.db_url, connect_args=connect_args)
-            with engine.connect() as conn:
-                rows = conn.execute(
-                    text('SELECT id, title, description, questions FROM exams')
-                ).fetchall()
+            sslmode = "require" if "neon.tech" in self.db_url else "prefer"
+            conn = psycopg2.connect(self.db_url, connect_timeout=5, sslmode=sslmode)
+            cur = conn.cursor()
+            rows = []
+            for tbl in ["exam_schema.exams", "public.exams", "exams"]:
+                try:
+                    cur.execute(f"SELECT id, title, description, questions FROM {tbl}")
+                    rows = cur.fetchall()
+                    break
+                except Exception:
+                    cur.connection.rollback()
+            conn.close()
             logger.info(f"[ExamLoader] Found {len(rows)} exams")
 
             for row in rows:
