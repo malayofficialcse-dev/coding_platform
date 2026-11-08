@@ -209,7 +209,11 @@ class ExamLoader:
             logger.warning("[ExamLoader] No EXAM_DATABASE_URL set — skipping")
             return docs
         try:
-            engine = create_engine(self.db_url)
+            # Set search_path for Neon PostgreSQL schema isolation if applicable
+            connect_args = {}
+            if "neon.tech" in self.db_url:
+                connect_args = {"options": "-c search_path=exam_schema,public"}
+            engine = create_engine(self.db_url, connect_args=connect_args)
             with engine.connect() as conn:
                 rows = conn.execute(
                     text('SELECT id, title, description, questions FROM exams')

@@ -22,27 +22,28 @@ _hybrid_retriever: EnsembleRetriever | None = None
 _bm25_docs: list[Document] = []
 
 
-def _load_docs_from_chroma() -> list[Document]:
+def _load_docs_from_store() -> list[Document]:
     """
-    Fetch all documents from ChromaDB to seed BM25.
-    This is called once at startup if no docs are passed explicitly.
+    Fetch documents from VectorStore to seed BM25.
+    Works for both ChromaDB and Pinecone.
     """
     try:
         vs = get_vectorstore()
-        collection = vs._collection
-        total = collection.count()
-        if total == 0:
-            return []
-        # Fetch all stored documents (page_content + metadata)
-        result = collection.get(include=["documents", "metadatas"])
-        docs = []
-        for content, meta in zip(result["documents"], result["metadatas"]):
-            docs.append(Document(page_content=content, metadata=meta or {}))
-        logger.info(f"[Retriever] Loaded {len(docs)} docs from ChromaDB for BM25 seeding")
-        return docs
+        # If ChromaDB
+        if hasattr(vs, "_collection"):
+            collection = vs._collection
+            total = collection.count()
+            if total == 0:
+                return []
+            result = collection.get(include=["documents", "metadatas"])
+            docs = []
+            for content, meta in zip(result["documents"], result["metadatas"]):
+                docs.append(Document(page_content=content, metadata=meta or {}))
+            logger.info(f"[Retriever] Loaded {len(docs)} docs from ChromaDB for BM25 seeding")
+            return docs
     except Exception as e:
         logger.warning(f"[Retriever] Could not load docs for BM25: {e}")
-        return []
+    return []
 
 
 def build_hybrid_retriever(
@@ -80,8 +81,8 @@ def build_hybrid_retriever(
         # Fresh ingestion: use the newly ingested docs
         _bm25_docs = all_docs
     elif not _bm25_docs:
-        # Startup: seed BM25 from existing ChromaDB collection
-        _bm25_docs = _load_docs_from_chroma()
+        # Startup: seed BM25 from existing collection
+        _bm25_docs = _load_docs_from_store()
 
     if _bm25_docs:
         bm25_retriever = BM25Retriever.from_documents(_bm25_docs, k=k_sparse)

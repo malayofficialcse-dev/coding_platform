@@ -48,9 +48,11 @@ class Settings(BaseSettings):
     langchain_endpoint: str = "https://api.smith.langchain.com"
 
     # Vector Store
-    vector_store: str = "chroma"
+    vector_store: str = "pinecone"
     chroma_persist_dir: str = "./chroma_db"
     chroma_collection_name: str = "code_campus_knowledge"
+    pinecone_api_key: str = ""
+    pinecone_index_name: str = "code-campus-knowledge"
 
     # MongoDB
     mongo_uri: str = ""

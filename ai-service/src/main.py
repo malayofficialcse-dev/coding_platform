@@ -69,15 +69,16 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("[Startup] LangSmith tracing disabled (no API key set)")
 
-    # 2. Load (or lazily init) ChromaDB vector store
-    from src.ingestion.embedder import get_vectorstore
+    # 2. Load (or lazily init) Vector Store (Pinecone or ChromaDB)
+    from src.ingestion.embedder import get_vectorstore, get_vector_count
     vs = get_vectorstore()
-    count = vs._collection.count()
-    logger.info(f"[Startup] ChromaDB ready — {count} vectors in '{settings.chroma_collection_name}' ✓")
+    count = get_vector_count()
+    store_name = "Pinecone" if settings.vector_store.lower() == "pinecone" else "ChromaDB"
+    logger.info(f"[Startup] {store_name} ready — {count} vectors ✓")
 
     # 3. If empty, run automatic initial ingestion
     if count == 0:
-        logger.warning("[Startup] Vector store is EMPTY — running initial ingestion …")
+        logger.warning(f"[Startup] Vector store ({store_name}) is EMPTY — running initial ingestion …")
         logger.warning("[Startup] This may take a few minutes on first run.")
         try:
             from src.ingestion.loaders import load_all_documents
@@ -87,15 +88,15 @@ async def lifespan(app: FastAPI):
             if raw:
                 chunks = split_documents(raw)
                 build_vector_store(chunks)
-                count = vs._collection.count()
-                logger.info(f"[Startup] Auto-ingestion complete — {len(chunks)} chunks, {count} vectors ✓")
+                count = get_vector_count()
+                logger.info(f"[Startup] Auto-ingestion complete — {len(chunks)} chunks, {count} vectors in {store_name} ✓")
             else:
                 logger.warning("[Startup] No documents found from any source — check DB connections and .env")
         except Exception as e:
             logger.error(f"[Startup] Auto-ingestion failed: {e}")
             logger.warning("[Startup] Service will start but RAG quality may be degraded")
     else:
-        logger.info(f"[Startup] Skipping ingestion — {count} vectors already indexed ✓")
+        logger.info(f"[Startup] Skipping ingestion — {count} vectors already indexed in {store_name} ✓")
 
     # 4. Build hybrid retriever (BM25 seeded from ChromaDB)
     from src.rag.retriever import build_hybrid_retriever
@@ -154,7 +155,18 @@ from src.api.routes import router
 app.include_router(router)
 
 
-# ── Health endpoint ───────────────────────────────────────────────────────
+# ── Health & Root endpoints ───────────────────────────────────────────────
+@app.get("/", tags=["Root"])
+async def root():
+    """Root endpoint for Render health checks and uptime monitoring."""
+    return {
+        "service": "Code Campus AI Service",
+        "status": "UP",
+        "health": "/health",
+        "docs": "/docs",
+    }
+
+
 @app.get("/health", tags=["Health"])
 async def health():
     """
@@ -162,10 +174,10 @@ async def health():
     Called by the API gateway and Docker health check.
     """
     try:
-        from src.ingestion.embedder import get_vectorstore
+        from src.ingestion.embedder import get_vectorstore, get_vector_count
         from src.agents.memory import active_session_count
-        vs = get_vectorstore()
-        count = vs._collection.count()
+        get_vectorstore()
+        count = get_vector_count()
         return {
             "service": "Code Campus AI Service",
             "status": "UP",

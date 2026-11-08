@@ -17,6 +17,8 @@ langsmith==0.1.141
 # Vector Store
 langchain-chroma==0.1.4
 chromadb==0.5.18
+pinecone==5.4.2
+langchain-pinecone==0.2.2
 
 # Embeddings + LLM
 openai==1.54.4
