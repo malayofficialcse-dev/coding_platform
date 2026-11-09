@@ -612,9 +612,14 @@ export default function CourseDetail() {
   // Mark lesson complete
   const markSubtopicComplete = async () => {
     if (!enrollment || !activeSubtopic || !flatList.length) return;
+    const enrollmentId = enrollment._id || enrollment.id;
+    if (!enrollmentId) {
+      alert("Enrollment details are still loading. Please try again.");
+      return;
+    }
     try {
       const willBeCompleted = !currentSubtopicComplete;
-      const response = await api.patch(`/enrollments/${enrollment._id}/progress`, {
+      const response = await api.patch(`/enrollments/${enrollmentId}/progress`, {
         subtopicId: activeSubtopic._id,
         completed: willBeCompleted,
       });
@@ -648,6 +653,11 @@ export default function CourseDetail() {
       return;
     }
     if (!enrollment) return;
+    const enrollmentId = enrollment._id || enrollment.id;
+    if (!enrollmentId) {
+      alert("Enrollment details are still loading. Please try again.");
+      return;
+    }
 
     setGeneratingCert(true);
     try {
@@ -661,7 +671,7 @@ export default function CourseDetail() {
               ? user.username
               : "Student Name";
 
-      const response = await api.post(`/enrollments/${enrollment._id}/certificate`, {
+      const response = await api.post(`/enrollments/${enrollmentId}/certificate`, {
         studentName: resolvedStudent,
       });
       setCertData(response.data);
