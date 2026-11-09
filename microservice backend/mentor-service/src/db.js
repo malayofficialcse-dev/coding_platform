@@ -12,16 +12,10 @@ const isNeon = connectionString.includes("neon.tech");
 export const pool = new Pool({
   connectionString,
   ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+  options: isNeon ? "-c search_path=mentor_schema,public" : undefined,
   max: Number(process.env.DB_POOL_MAX || 15),
   idleTimeoutMillis: 30000,
 });
-
-// Set schema search_path for every new connection from the pool
-if (isNeon) {
-  pool.on("connect", (client) => {
-    client.query("SET search_path TO mentor_schema, public").catch(console.error);
-  });
-}
 
 export async function initializeDatabase() {
   let connected = false;
