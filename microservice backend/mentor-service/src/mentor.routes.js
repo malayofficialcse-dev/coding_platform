@@ -4,7 +4,7 @@ import axios from "axios";
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
-import { pool } from "./db.js";
+import { pool, prepareClient } from "./db.js";
 import { decodeToken, requireMentor, requireSuperAdmin } from "./auth.js";
 
 const clean = (value, limit = 500) => String(value || "").trim().slice(0, limit);
@@ -176,6 +176,7 @@ export function createMentorRouter(io) {
     if (!validUuid(req.params.id)) return res.status(400).json({ error: "Invalid session id." });
     const client = await pool.connect();
     try {
+      await prepareClient(client);
       await client.query("BEGIN");
       const session = (await client.query("SELECT * FROM mentor_sessions WHERE id=$1 FOR UPDATE", [req.params.id])).rows[0];
       if (!session || !["scheduled", "live"].includes(session.status)) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Session is unavailable." }); }

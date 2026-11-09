@@ -9,10 +9,29 @@ const connectionString = (
 
 const isNeon = connectionString.includes("neon.tech");
 
-export const pool = new Pool({
+const initializedClients = new WeakSet();
+
+export async function prepareClient(client) {
+  if (!isNeon || initializedClients.has(client)) return;
+  await client.query("SET search_path TO mentor_schema, public");
+  initializedClients.add(client);
+}
+
+class MentorPool extends Pool {
+  async query(...args) {
+    const client = await this.connect();
+    try {
+      await prepareClient(client);
+      return await client.query(...args);
+    } finally {
+      client.release();
+    }
+  }
+}
+
+export const pool = new MentorPool({
   connectionString,
   ssl: isNeon ? { rejectUnauthorized: false } : undefined,
-  options: isNeon ? "-c search_path=mentor_schema,public" : undefined,
   max: Number(process.env.DB_POOL_MAX || 15),
   idleTimeoutMillis: 30000,
 });
