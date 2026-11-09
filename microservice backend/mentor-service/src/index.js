@@ -71,6 +71,10 @@ app.use((error, _req, res, _next) => {
 
 const port = Number(process.env.PORT || 5010);
 await initializeDatabase();
-if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) throw new Error("REDIS_URL is required for production Socket.IO scaling.");
+if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
+  // Redis is optional — single Render instance works without it.
+  // With multiple instances you'd need REDIS_URL for Socket.IO scaling.
+  console.warn("[Mentor Service] REDIS_URL not set — Socket.IO realtime limited to single instance.");
+}
 await configureRealtime(io);
 server.listen(port, () => console.log(`[Mentor Service] listening on ${port}`));

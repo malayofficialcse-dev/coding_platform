@@ -143,11 +143,18 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Pre-build one proxy instance per service target — avoids MaxListeners leak
+// and allows Render free-tier cold-start (services can take 50+ s to wake up).
+const proxyCache = new Map();
 const createServiceProxy = (target) => {
-  return createProxyMiddleware({
+  if (proxyCache.has(target)) return proxyCache.get(target);
+  const proxy = createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite: (_path, req) => req.originalUrl,
+    // 90 s lets a Render free instance fully cold-start before we give up
+    proxyTimeout: 90000,
+    timeout: 90000,
     on: {
       proxyRes: (proxyRes) => {
         for (const headerName of Object.keys(proxyRes.headers)) {
@@ -168,6 +175,8 @@ const createServiceProxy = (target) => {
       },
     },
   });
+  proxyCache.set(target, proxy);
+  return proxy;
 };
 
 // 6. Microservice Routes
@@ -211,6 +220,9 @@ const wsProxy = createProxyMiddleware({
   target: SERVICES.chat,
   changeOrigin: true,
   ws: true,
+  // Allow Render cold-start for WebSocket too
+  proxyTimeout: 90000,
+  timeout: 90000,
 });
 app.use("/socket.io", wsProxy);
 
@@ -219,6 +231,8 @@ const mentorWsProxy = createProxyMiddleware({
   changeOrigin: true,
   ws: true,
   pathRewrite: (_path, req) => req.originalUrl,
+  proxyTimeout: 90000,
+  timeout: 90000,
 });
 app.use("/mentor-socket.io", mentorWsProxy);
 
@@ -233,6 +247,33 @@ const server = app.listen(PORT, () => {
   console.log(` 🔀 Forwarding requests to 11 microservices`);
   console.log(`=================================================`);
 });
+
+// ── Keep-Alive Pinger ───────────────────────────────────────────────────────
+// On Render free tier, services sleep after 15 min of inactivity.
+// Every 10 minutes, the gateway pings each service's /health endpoint so they
+// stay warm.  Only runs when RENDER=true (skipped in local dev).
+if (process.env.RENDER === "true") {
+  const http = await import("http");
+  const https = await import("https");
+  const pingService = (name, url) => {
+    try {
+      const target = new URL(`${url}/health`);
+      const lib = target.protocol === "https:" ? https : http;
+      const req = lib.request({ hostname: target.hostname, path: target.pathname, method: "GET", timeout: 10000 }, (res) => {
+        res.resume(); // drain response
+        console.log(`[Gateway Pinger] ${name} → ${res.statusCode}`);
+      });
+      req.on("error", (err) => console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message));
+      req.end();
+    } catch (err) {
+      console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
+    }
+  };
+  const pingAll = () => Object.entries(SERVICES).forEach(([name, url]) => url && pingService(name, url));
+  // Stagger first ping by 60s after boot, then every 10 min
+  setTimeout(() => { pingAll(); setInterval(pingAll, 10 * 60 * 1000); }, 60 * 1000);
+  console.log("[Gateway Pinger] Keep-alive enabled — pinging all services every 10 min");
+}
 
 // Support WebSocket Upgrade on HTTP Server
 server.on("upgrade", (req, socket, head) => {

@@ -14,7 +14,8 @@ export const getOAuthUrl = (provider) => `${apiBaseUrl}/auth/${provider}`;
 
 const api = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 30000,
+  // 90 s — Render free instances can take 50+ s to cold-start; 30 s was too short
+  timeout: 90000,
   withCredentials: true,
   headers: {
     Accept: "application/json",

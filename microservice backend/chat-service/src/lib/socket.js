@@ -9,14 +9,20 @@ const userSockets = new Map();
 const activeCalls = new Map();
 
 export function initSocket(server) {
-  const allowedOrigins = [
-    process.env.FRONTEND_URL || "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://code-campus-malay1.onrender.com",
-    "https://code-campus-htg4.vercel.app",
-  ];
+  const allowedOrigins = (process.env.CLIENT_ORIGINS
+    ? process.env.CLIENT_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+    : [
+        process.env.FRONTEND_URL || "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://code-campus-malay1.onrender.com",
+        "https://code-campus-htg4.vercel.app",
+        "https://coding-platform-bsrk.vercel.app",
+        "https://codecampus-eosin.vercel.app",
+        "https://coding-platform-api-gateway.onrender.com",
+        "https://coding-platform-bsrk-rczw8coba-malaymaity1s-projects.vercel.app",
+      ]);
 
   io = new Server(server, {
     cors: {
