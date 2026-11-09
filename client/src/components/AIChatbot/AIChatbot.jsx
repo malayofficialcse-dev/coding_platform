@@ -1,7 +1,6 @@
 // client/src/components/AIChatbot/AIChatbot.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import { getAccessToken } from '../../api/accessToken';
 import { apiBaseUrl } from '../../api/api';
 import './AIChatbot.css';
@@ -18,7 +17,6 @@ const WELCOME_MESSAGE = {
 
 export default function AIChatbot() {
   const { user } = useAuth();
-  const { theme } = useTheme();
   const [isOpen, setIsOpen]       = useState(false);
   const [messages, setMessages]   = useState([WELCOME_MESSAGE]);
   const [input, setInput]         = useState('');
@@ -211,14 +209,7 @@ export default function AIChatbot() {
             onClick={() => setIsOpen(false)}
             aria-label="Close CodeBot"
           />
-          <div
-            id="ai-chatbot-window"
-            className={`ai-chatbot-window ${theme === 'light' ? 'light' : 'dark'}`}
-            data-theme={theme}
-            role="dialog"
-            aria-modal="true"
-            aria-label="CodeBot AI Tutor"
-          >
+          <div id="ai-chatbot-window" className="ai-chatbot-window" role="dialog" aria-modal="true" aria-label="CodeBot AI Tutor">
           {/* Header */}
           <div className="ai-chat-header">
             <div className="ai-header-info">

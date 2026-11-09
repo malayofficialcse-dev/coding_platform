@@ -54,7 +54,6 @@ export function mapPost(post) {
     text: post?.text || "",
     group: post?.group || "General Feed",
     createdAt: post?.createdAt || null,
-    video: post?.video || null,
     images: Array.isArray(post?.images) ? post.images : [],
     codeBlocks: Array.isArray(post?.codeBlocks) ? post.codeBlocks : [],
     author: mapAuthor(post?.author),

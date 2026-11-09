@@ -28,9 +28,13 @@ export const sequelize = new Sequelize(dbUrl, {
 });
 
 export const connectDB = async () => {
-  await sequelize.authenticate();
-  await sequelize.sync({ alter: true });
-  console.log("[Exam Service] PostgreSQL connected — Neon (exam_schema)");
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    console.log("[Exam Service] PostgreSQL connected — Neon (exam_schema)");
+  } catch (err) {
+    console.error(`[Exam Service DB Error]: ${err.message}`);
+  }
 };
 
 export default connectDB;

@@ -43,12 +43,10 @@ export const useNotifications = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const res = await api.get("/notifications/unread-count", { timeout: 10000 });
-      setUnreadCount(res.data?.unreadCount ?? 0);
+      const res = await api.get("/notifications/unread-count");
+      setUnreadCount(res.data.unreadCount);
     } catch (err) {
-      if (err.code !== "ECONNABORTED") {
-        console.warn("Unread count lookup deferred:", err.message);
-      }
+      console.error("Error fetching unread count:", err);
     }
   };
 

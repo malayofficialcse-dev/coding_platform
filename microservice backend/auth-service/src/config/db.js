@@ -31,23 +31,26 @@ export const sequelize = new Sequelize(dbUrl, {
 export const connectDB = async () => {
   await sequelize.authenticate();
 
-  await sequelize.query(`
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "username" VARCHAR(255);
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "password" VARCHAR(255);
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "googleId" VARCHAR(255);
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "githubId" VARCHAR(255);
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "authProvider" VARCHAR(50) DEFAULT 'local';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(255) DEFAULT 'student';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "college" VARCHAR(255) DEFAULT '';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "degree" VARCHAR(255) DEFAULT '';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "yearOfPassing" VARCHAR(255) DEFAULT '';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "profileImage" TEXT DEFAULT '';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "bannerImage" TEXT DEFAULT '';
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT TRUE;
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "createdBy" UUID;
-    ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "permissions" JSONB DEFAULT '{}'::jsonb;
-    ALTER TABLE IF EXISTS "users" ALTER COLUMN "password" DROP NOT NULL;
-  `);
+  const [tables] = await sequelize.query(`SELECT to_regclass('"users"') AS users_table`);
+  if (tables[0]?.users_table) {
+    await sequelize.query(`
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "username" VARCHAR(255);
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password" VARCHAR(255);
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleId" VARCHAR(255);
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "githubId" VARCHAR(255);
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "authProvider" VARCHAR(50) DEFAULT 'local';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(255) DEFAULT 'student';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "college" VARCHAR(255) DEFAULT '';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "degree" VARCHAR(255) DEFAULT '';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "yearOfPassing" VARCHAR(255) DEFAULT '';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "profileImage" TEXT DEFAULT '';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "bannerImage" TEXT DEFAULT '';
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT TRUE;
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "createdBy" UUID;
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "permissions" JSONB DEFAULT '{}'::jsonb;
+      ALTER TABLE "users" ALTER COLUMN "password" DROP NOT NULL;
+    `);
+  }
 
   await sequelize.sync();
   console.log("[Auth Service] PostgreSQL connected — Neon (auth_schema)");

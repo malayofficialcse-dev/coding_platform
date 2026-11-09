@@ -1,4 +1,4 @@
-query HomeDashboard($first: Int = 10) {
+query HomeDashboard($first: Int = 20) {
   homeDashboard(first: $first) {
     posts {
       id
@@ -6,7 +6,6 @@ query HomeDashboard($first: Int = 10) {
       text
       group
       createdAt
-      video
       images
       codeBlocks
       author

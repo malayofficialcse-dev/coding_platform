@@ -2,89 +2,9 @@ import Post from "../models/Post.js";
 import Comment from "../models/Comment.js";
 import User from "../models/User.js";
 import axios from "axios";
-import fs from "fs";
-import { v2 as cloudinary } from "cloudinary";
 import { dispatchNotification } from "../utils/serviceClient.js";
 import { deleteCachedPrefix, getCached, setCached } from "../config/cache.js";
 import { hydratePostsWithUsers } from "../utils/userHydration.js";
-import {
-  uploadToNeonStorage,
-  getNeonSignedUrl,
-  deleteFromNeonStorage,
-} from "../config/neonStorage.js";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-async function processUploadedImages(files) {
-  const images = [];
-  if (!files || !files.length) return images;
-
-  for (const imgFile of files) {
-    try {
-      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
-        const result = await cloudinary.uploader.upload(imgFile.path, {
-          folder: "code-campus/posts",
-          transformation: [{ width: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }],
-        });
-        images.push(result.secure_url);
-      } else {
-        const neonImg = await uploadToNeonStorage({
-          filePath: imgFile.path,
-          originalname: imgFile.originalname,
-          mimetype: imgFile.mimetype,
-          folder: "post-images",
-        });
-        images.push(neonImg.url);
-      }
-    } catch (err) {
-      console.warn("[Post Controller] Cloudinary upload fallback to Neon Storage:", err.message);
-      try {
-        const neonImg = await uploadToNeonStorage({
-          filePath: imgFile.path,
-          originalname: imgFile.originalname,
-          mimetype: imgFile.mimetype,
-          folder: "post-images",
-        });
-        images.push(neonImg.url);
-      } catch (fallbackErr) {
-        console.error("[Post Controller] Image upload failed:", fallbackErr.message);
-      }
-    } finally {
-      try {
-        if (imgFile.path && fs.existsSync(imgFile.path)) {
-          await fs.promises.unlink(imgFile.path);
-        }
-      } catch (_) {}
-    }
-  }
-  return images;
-}
-
-async function processUploadedVideo(vidFile) {
-  if (!vidFile) return "";
-  try {
-    const uploadRes = await uploadToNeonStorage({
-      filePath: vidFile.path,
-      originalname: vidFile.originalname,
-      mimetype: vidFile.mimetype,
-      folder: "post-videos",
-    });
-    return uploadRes.url;
-  } catch (err) {
-    console.error("[Post Controller] Neon video upload failed:", err);
-    throw new Error(`Video upload to Neon Object Storage failed: ${err.message}`);
-  } finally {
-    try {
-      if (vidFile.path && fs.existsSync(vidFile.path)) {
-        await fs.promises.unlink(vidFile.path);
-      }
-    } catch (_) {}
-  }
-}
 
 /**
  * Upsert a local User mirror in post-service's MongoDB.
@@ -115,8 +35,7 @@ const upsertUserMirror = async (req) => {
 
 const getPagination = (req) => {
   const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-  // Default to 10 posts per page for lightning-fast delivery and smooth infinite scrolling
-  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 30);
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
   return { page, limit, skip: (page - 1) * limit };
 };
 
@@ -170,8 +89,8 @@ export const createPost = async (req, res) => {
       try {
         tags = typeof req.body.tags === "string"
           ? (req.body.tags.startsWith("[")
-            ? JSON.parse(req.body.tags)
-            : req.body.tags.split(",").map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))
+              ? JSON.parse(req.body.tags)
+              : req.body.tags.split(",").map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))
           : req.body.tags;
       } catch (err) {
         tags = [];
@@ -182,16 +101,10 @@ export const createPost = async (req, res) => {
     if (poll) postType = "poll";
     else if (Array.isArray(codeBlocks) && codeBlocks.length > 0) postType = "code";
 
-    const uploadedImages = await processUploadedImages(req.files?.images);
-    let video = req.body.videoUrl || req.body.video || "";
-    if (req.files?.video?.[0]) {
-      video = await processUploadedVideo(req.files.video[0]);
-    }
-
-    const images = [
-      ...uploadedImages,
-      ...(Array.isArray(req.body.images) ? req.body.images : (req.body.images ? [req.body.images] : [])),
-    ].filter(Boolean);
+    const images = (req.files?.images || [])
+      .map((f) => f.path || f.secure_url || f.url || f.filename || f.location || "")
+      .filter(Boolean);
+    const video = req.files?.video?.[0]?.path || "";
 
     const post = new Post({
       author: userId,
@@ -226,22 +139,21 @@ export const getFeed = async (req, res) => {
 
     const [posts, total] = await Promise.all([
       Post.find()
-        .populate("author", "name username profileImage")
-        .populate({
-          path: "repostedFrom",
-          populate: [
-            { path: "author", select: "name username profileImage" },
-          ],
-        })
-        .populate({
-          path: "comments",
-          options: { limit: 3, sort: { createdAt: -1 } },
-          populate: { path: "author", select: "name username profileImage" },
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
+        path: "comments",
+        populate: { path: "author", select: "name username profileImage" },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
       Post.countDocuments(),
     ]);
 
@@ -292,22 +204,21 @@ export const getAllPosts = async (req, res) => {
 
     const [posts, total] = await Promise.all([
       Post.find(filter)
-        .populate("author", "name username profileImage")
-        .populate({
-          path: "repostedFrom",
-          populate: [
-            { path: "author", select: "name username profileImage" },
-          ],
-        })
-        .populate({
-          path: "comments",
-          options: { limit: 3, sort: { createdAt: -1 } },
-          populate: { path: "author", select: "name username profileImage" },
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
+        path: "comments",
+        populate: { path: "author", select: "name username profileImage" },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
       Post.countDocuments(filter),
     ]);
 
@@ -332,22 +243,21 @@ export const getPostsByUser = async (req, res) => {
     const filter = { author: userId };
     const [posts, total] = await Promise.all([
       Post.find(filter)
-        .populate("author", "name username profileImage")
-        .populate({
-          path: "repostedFrom",
-          populate: [
-            { path: "author", select: "name username profileImage" },
-          ],
-        })
-        .populate({
-          path: "comments",
-          options: { limit: 3, sort: { createdAt: -1 } },
-          populate: { path: "author", select: "name username profileImage" },
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      .populate("author", "name username profileImage")
+      .populate({
+        path: "repostedFrom",
+        populate: [
+          { path: "author", select: "name username profileImage" },
+          { path: "comments", populate: { path: "author", select: "name username profileImage" } },
+        ],
+      })
+      .populate({
+        path: "comments",
+        populate: { path: "author", select: "name username profileImage" },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
       Post.countDocuments(filter),
     ]);
 
@@ -499,13 +409,12 @@ export const updatePost = async (req, res) => {
     }
 
     if (req.files?.images?.length) {
-      const uploadedImages = await processUploadedImages(req.files.images);
-      post.images = uploadedImages;
+      post.images = req.files.images
+        .map((f) => f.path || f.secure_url || f.url || f.location)
+        .filter(Boolean);
     }
-    if (req.files?.video?.[0]) {
-      post.video = await processUploadedVideo(req.files.video[0]);
-    } else if (req.body.videoUrl !== undefined || req.body.video !== undefined) {
-      post.video = req.body.videoUrl || req.body.video || "";
+    if (req.files?.video?.[0] || req.body.videoUrl !== undefined) {
+      post.video = req.files?.video?.[0]?.path || req.body.videoUrl;
     }
 
     await post.save();
@@ -528,13 +437,6 @@ export const deletePost = async (req, res) => {
 
     if (post.author.toString() !== userId.toString() && req.user?.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    if (post.video && post.video.includes("neon.tech")) {
-      const match = post.video.match(/(post-videos\/[^?]+)/);
-      if (match) {
-        deleteFromNeonStorage(match[1]).catch(() => {});
-      }
     }
 
     await Post.findByIdAndDelete(postId);
@@ -606,7 +508,7 @@ export const reactToPost = async (req, res) => {
         title: `${req.user?.name || req.user?.username || "A user"} reacted ${emojiMap[type] || "❤️"} to your post`,
         description: post.text?.substring(0, 100) || "",
         actionUrl: `/posts/${postId}`,
-      }).catch(() => { });
+      }).catch(() => {});
     }
 
     const reactionCounts = { like: 0, fire: 0, insight: 0, rocket: 0, clap: 0 };
@@ -793,24 +695,5 @@ export const executeSnippet = async (req, res) => {
       error: "Execution failed or timed out",
       details: err.response?.data?.message || err.message,
     });
-  }
-};
-
-/**
- * Stream or resolve fresh signed URL for a Neon Object Storage video
- */
-export const streamNeonVideo = async (req, res) => {
-  try {
-    const key = req.params.key;
-    if (!key) return res.status(400).json({ error: "Object key is required" });
-
-    // Generate fresh signed URL valid for 2 hours
-    const freshUrl = await getNeonSignedUrl(key, 7200);
-    if (!freshUrl) return res.status(404).json({ error: "Video not found in storage" });
-
-    return res.redirect(302, freshUrl);
-  } catch (err) {
-    console.error("[streamNeonVideo Error]:", err.message);
-    return res.status(500).json({ error: "Could not stream video" });
   }
 };

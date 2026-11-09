@@ -3,10 +3,10 @@
 Code Campus AI Service — FastAPI entry point.
 
 Startup sequence:
-  1. Configure LangSmith tracing (optional — only if key is valid)
-  2. Load Pinecone vector store (or ChromaDB fallback)
+  1. Configure LangSmith tracing
+  2. Load ChromaDB vector store
   3. Auto-ingest if store is empty
-  4. Build hybrid retriever (dense Pinecone + sparse BM25)
+  4. Build hybrid retriever (BM25 seeded from ChromaDB)
   5. Compile LangGraph agent
   6. Start session cleanup background task
 """
@@ -62,23 +62,22 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Port:  {settings.port}")
     logger.info("=" * 58)
 
-    # 1. Configure LangSmith tracing (optional — only enabled with a valid key)
+    # 1. Configure LangSmith tracing (optional — set LANGCHAIN_TRACING_V2=true)
     configure_langsmith(settings)
-    if settings.langsmith_enabled:
+    if settings.langchain_tracing_v2.lower() == "true" and settings.langchain_api_key:
         logger.info("[Startup] LangSmith tracing ENABLED ✓")
     else:
-        logger.info("[Startup] LangSmith tracing DISABLED (no valid key — set LANGCHAIN_API_KEY to enable)")
+        logger.info("[Startup] LangSmith tracing disabled (no API key set)")
 
-    # 2. Load (or lazily init) Vector Store (Pinecone or ChromaDB)
-    from src.ingestion.embedder import get_vectorstore, get_vector_count
+    # 2. Load (or lazily init) ChromaDB vector store
+    from src.ingestion.embedder import get_vectorstore
     vs = get_vectorstore()
-    count = get_vector_count()
-    store_name = "Pinecone" if settings.vector_store.lower() == "pinecone" else "ChromaDB"
-    logger.info(f"[Startup] {store_name} ready — {count} vectors ✓")
+    count = vs._collection.count()
+    logger.info(f"[Startup] ChromaDB ready — {count} vectors in '{settings.chroma_collection_name}' ✓")
 
     # 3. If empty, run automatic initial ingestion
     if count == 0:
-        logger.warning(f"[Startup] Vector store ({store_name}) is EMPTY — running initial ingestion …")
+        logger.warning("[Startup] Vector store is EMPTY — running initial ingestion …")
         logger.warning("[Startup] This may take a few minutes on first run.")
         try:
             from src.ingestion.loaders import load_all_documents
@@ -88,17 +87,17 @@ async def lifespan(app: FastAPI):
             if raw:
                 chunks = split_documents(raw)
                 build_vector_store(chunks)
-                count = get_vector_count()
-                logger.info(f"[Startup] Auto-ingestion complete — {len(chunks)} chunks, {count} vectors in {store_name} ✓")
+                count = vs._collection.count()
+                logger.info(f"[Startup] Auto-ingestion complete — {len(chunks)} chunks, {count} vectors ✓")
             else:
                 logger.warning("[Startup] No documents found from any source — check DB connections and .env")
         except Exception as e:
             logger.error(f"[Startup] Auto-ingestion failed: {e}")
             logger.warning("[Startup] Service will start but RAG quality may be degraded")
     else:
-        logger.info(f"[Startup] Skipping ingestion — {count} vectors already indexed in {store_name} ✓")
+        logger.info(f"[Startup] Skipping ingestion — {count} vectors already indexed ✓")
 
-    # 4. Build hybrid retriever (dense Pinecone + sparse BM25)
+    # 4. Build hybrid retriever (BM25 seeded from ChromaDB)
     from src.rag.retriever import build_hybrid_retriever
     build_hybrid_retriever()
     logger.info("[Startup] Hybrid retriever ready (dense 70% + BM25 30%) ✓")
@@ -155,18 +154,7 @@ from src.api.routes import router
 app.include_router(router)
 
 
-# ── Health & Root endpoints ───────────────────────────────────────────────
-@app.get("/", tags=["Root"])
-async def root():
-    """Root endpoint for Render health checks and uptime monitoring."""
-    return {
-        "service": "Code Campus AI Service",
-        "status": "UP",
-        "health": "/health",
-        "docs": "/docs",
-    }
-
-
+# ── Health endpoint ───────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
 async def health():
     """
@@ -174,10 +162,10 @@ async def health():
     Called by the API gateway and Docker health check.
     """
     try:
-        from src.ingestion.embedder import get_vectorstore, get_vector_count
+        from src.ingestion.embedder import get_vectorstore
         from src.agents.memory import active_session_count
-        get_vectorstore()
-        count = get_vector_count()
+        vs = get_vectorstore()
+        count = vs._collection.count()
         return {
             "service": "Code Campus AI Service",
             "status": "UP",

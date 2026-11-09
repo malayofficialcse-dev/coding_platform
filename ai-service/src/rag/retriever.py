@@ -1,63 +1,48 @@
 # src/rag/retriever.py
 """
-Hybrid retriever: dense semantic search (Pinecone MMR / ChromaDB) + sparse BM25.
+Hybrid retriever: dense semantic search (ChromaDB MMR) + sparse BM25.
 The EnsembleRetriever combines both for best recall + precision.
 
-BM25 is seeded from the existing vector store at startup when no docs are passed.
-For Pinecone (production), BM25 uses a placeholder until documents are explicitly loaded.
+At startup, BM25 is seeded from the existing ChromaDB collection so it
+works immediately without needing to pass raw documents.
 """
 from __future__ import annotations
 
 import logging
 from langchain_core.documents import Document
-
-try:
-    from langchain.retrievers import EnsembleRetriever
-except ImportError:
-    try:
-        from langchain_classic.retrievers import EnsembleRetriever
-    except ImportError:
-        from langchain_community.retrievers import EnsembleRetriever
-
+from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 
 from src.ingestion.embedder import get_vectorstore
-from src.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 # Singleton cache
 _hybrid_retriever: EnsembleRetriever | None = None
 _bm25_docs: list[Document] = []
 
 
-def _load_docs_from_store() -> list[Document]:
+def _load_docs_from_chroma() -> list[Document]:
     """
-    Fetch documents from VectorStore to seed BM25.
-    - ChromaDB: fetches all stored docs directly.
-    - Pinecone: returns empty (Pinecone doesn't support bulk fetch cheaply).
-      BM25 will run in fallback placeholder mode and dense-only retrieval is used.
+    Fetch all documents from ChromaDB to seed BM25.
+    This is called once at startup if no docs are passed explicitly.
     """
     try:
         vs = get_vectorstore()
-        # ChromaDB supports direct collection access
-        if hasattr(vs, "_collection"):
-            collection = vs._collection
-            total = collection.count()
-            if total == 0:
-                return []
-            result = collection.get(include=["documents", "metadatas"])
-            docs = []
-            for content, meta in zip(result["documents"], result["metadatas"]):
-                docs.append(Document(page_content=content, metadata=meta or {}))
-            logger.info(f"[Retriever] Loaded {len(docs)} docs from ChromaDB for BM25 seeding")
-            return docs
-        # Pinecone — no cheap bulk fetch, skip BM25 seeding
-        logger.info("[Retriever] Pinecone active — BM25 running in dense-fallback mode (expected)")
+        collection = vs._collection
+        total = collection.count()
+        if total == 0:
+            return []
+        # Fetch all stored documents (page_content + metadata)
+        result = collection.get(include=["documents", "metadatas"])
+        docs = []
+        for content, meta in zip(result["documents"], result["metadatas"]):
+            docs.append(Document(page_content=content, metadata=meta or {}))
+        logger.info(f"[Retriever] Loaded {len(docs)} docs from ChromaDB for BM25 seeding")
+        return docs
     except Exception as e:
         logger.warning(f"[Retriever] Could not load docs for BM25: {e}")
-    return []
+        return []
 
 
 def build_hybrid_retriever(
@@ -69,8 +54,8 @@ def build_hybrid_retriever(
     """
     Build and cache the hybrid retriever.
 
-    - At startup: BM25 is seeded from vector store (ChromaDB) or runs in placeholder mode (Pinecone)
-    - After re-ingestion: pass all_docs=new_chunks to rebuild BM25 with fresh data
+    - At first startup: call with all_docs=None → BM25 is seeded from ChromaDB
+    - After re-ingestion: call with all_docs=new_chunks → BM25 rebuilt with fresh data
     - Subsequent calls with no args: returns the cached instance
     """
     global _hybrid_retriever, _bm25_docs
@@ -80,7 +65,7 @@ def build_hybrid_retriever(
 
     vectorstore = get_vectorstore()
 
-    # ── Dense retriever ───────────────────────────────────────────────────
+    # ── Dense retriever (Chroma MMR) ───────────────────────────────────────
     dense_retriever = vectorstore.as_retriever(
         search_type="mmr",
         search_kwargs={
@@ -95,17 +80,15 @@ def build_hybrid_retriever(
         # Fresh ingestion: use the newly ingested docs
         _bm25_docs = all_docs
     elif not _bm25_docs:
-        # Startup: seed BM25 from existing collection (ChromaDB only)
-        _bm25_docs = _load_docs_from_store()
+        # Startup: seed BM25 from existing ChromaDB collection
+        _bm25_docs = _load_docs_from_chroma()
 
     if _bm25_docs:
         bm25_retriever = BM25Retriever.from_documents(_bm25_docs, k=k_sparse)
     else:
-        # Empty / Pinecone — BM25 runs in placeholder mode (dense retrieval carries the load)
-        logger.warning("[Retriever] BM25 has no documents — using dense-only mode (normal for Pinecone)")
-        bm25_retriever = BM25Retriever.from_texts(
-            ["Code Campus is an AI-powered coding and learning platform."], k=k_sparse
-        )
+        # Empty store — BM25 returns nothing but won't crash
+        logger.warning("[Retriever] BM25 has no documents — using dense-only mode")
+        bm25_retriever = BM25Retriever.from_texts(["Code Campus AI tutor placeholder"], k=k_sparse)
 
     # ── Ensemble ───────────────────────────────────────────────────────────
     _hybrid_retriever = EnsembleRetriever(

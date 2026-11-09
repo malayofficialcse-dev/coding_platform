@@ -19,13 +19,12 @@ export const initSocket = () => {
   socket = io(BACKEND_URL, {
     auth: { token: getAccessToken() },
     path: "/socket.io",
-    // Start with polling so cold-starting servers (Render) connect reliably, then upgrade to websocket
-    transports: ["polling", "websocket"],
+    transports: ["websocket", "polling"],
     withCredentials: true,
     reconnection: true,
-    reconnectionDelay: 2000,
-    reconnectionDelayMax: 10000,
-    reconnectionAttempts: 15,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
   });
 
   socket.on("connect", () => {
@@ -34,7 +33,7 @@ export const initSocket = () => {
   });
 
   socket.on("connect_error", (error) => {
-    // Avoid spamming error console while cloud backend wakes up
+    console.error("Socket connection error:", error);
     if (/token|jwt|expired|unauthorized/i.test(error.message || "")) {
       if (socketRefreshAttempted) {
         disconnectSocket();

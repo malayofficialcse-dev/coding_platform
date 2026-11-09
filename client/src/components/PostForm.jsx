@@ -19,7 +19,6 @@ import {
   FaChartBar,
   FaTags,
   FaQuestionCircle,
-  FaVideo,
 } from "react-icons/fa";
 
 const LANGUAGES = [
@@ -429,7 +428,7 @@ export default function PostForm({
         )}
         <div className="mt-2">
           <label className="cc-file-picker">
-            <FaVideo /> Choose a video
+            <FaFileImage /> Choose a video
             <input
               type="file"
               accept=".mp4,.mov,.avi,.mkv,.webm,.m4v"
@@ -437,11 +436,11 @@ export default function PostForm({
             />
           </label>
           <small className="d-block text-muted mt-1">
-            Supported formats: MP4, MOV, AVI, MKV, WebM, M4V (Stored on Neon Object Storage).
+            Supported formats: MP4, MOV, AVI, MKV, WebM, M4V.
           </small>
           {video && !videoFile && (
             <div className="mt-2">
-              <video src={video} controls preload="metadata" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8 }} />
+              <video src={video} controls preload="metadata" style={{ maxWidth: "100%", maxHeight: 220 }} />
               <button
                 type="button"
                 className="btn btn-sm btn-outline-danger d-block mt-1"
@@ -452,21 +451,13 @@ export default function PostForm({
             </div>
           )}
           {videoFile && (
-            <div className="mt-2">
-              <div className="cc-selected-files mb-2">
-                <span>
-                  <FaVideo /> {videoFile.name} ({(videoFile.size / (1024 * 1024)).toFixed(1)} MB)
-                  <button type="button" onClick={() => setVideoFile(null)} aria-label="Remove selected video">
-                    <FaTimes />
-                  </button>
-                </span>
-              </div>
-              <video
-                src={URL.createObjectURL(videoFile)}
-                controls
-                preload="metadata"
-                style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8 }}
-              />
+            <div className="cc-selected-files">
+              <span>
+                <FaFileImage /> {videoFile.name}
+                <button type="button" onClick={() => setVideoFile(null)} aria-label="Remove selected video">
+                  <FaTimes />
+                </button>
+              </span>
             </div>
           )}
         </div>

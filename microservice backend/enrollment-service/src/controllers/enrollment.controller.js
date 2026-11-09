@@ -75,7 +75,6 @@ async function attachCourseDetails(enrollmentList) {
         : typeof en.toObject === "function"
           ? en.toObject()
           : { ...(en.dataValues || en) };
-      enObj._id = enObj._id || enObj.id;
 
       const rawCourseId = String(enObj.course?._id || enObj.course || enObj.courseId || "");
       let courseInfo = courseCache.get(rawCourseId);
@@ -220,22 +219,11 @@ export const getMyEnrollmentNumber = async (req, res) => {
     if (!userId) {
       return res.status(401).json({ error: "User authentication required" });
     }
-    const options = {
+    const Enrollment = modelForUser(userId, "read");
+    const found = await Enrollment.findOne({
       where: { user: String(userId) },
       order: [["createdAt", "DESC"]],
-    };
-    let found;
-    try {
-      found = await modelForUser(userId, "read").findOne(options);
-    } catch (readError) {
-      console.warn("[getMyEnrollmentNumber read replica fallback]:", readError.message);
-      try {
-        found = await modelForUser(userId, "write").findOne(options);
-      } catch (writeError) {
-        console.error("[getMyEnrollmentNumber primary fallback failed]:", writeError.message);
-        return res.status(503).json({ error: "Enrollment data is temporarily unavailable." });
-      }
-    }
+    });
 
     res.json({
       enrollmentNumber: found?.enrollmentNumber || null,
@@ -316,29 +304,15 @@ export const getMyEnrollments = async (req, res) => {
       return res.status(401).json({ error: "User authentication required" });
     }
 
-    let enrollments = [];
-    try {
-      enrollments = await modelForUser(userId, "read").findAll({
-        where: { user: String(userId) },
-        order: [["createdAt", "DESC"]],
-      });
-    } catch (readErr) {
-      console.warn("[getMyEnrollments read replica fallback]:", readErr.message);
-      try {
-        enrollments = await modelForUser(userId, "write").findAll({
-          where: { user: String(userId) },
-          order: [["createdAt", "DESC"]],
-        });
-      } catch (writeErr) {
-        console.error("[getMyEnrollments primary fallback failed]:", writeErr.message);
-        return res.json([]);
-      }
-    }
+    const enrollments = await modelForUser(userId, "read").findAll({
+      where: { user: String(userId) },
+      order: [["createdAt", "DESC"]],
+    });
 
     res.json(await attachCourseDetails(enrollments));
   } catch (err) {
     console.error("[getMyEnrollments Error]:", err);
-    res.json([]);
+    res.status(500).json({ error: err.message });
   }
 };
 

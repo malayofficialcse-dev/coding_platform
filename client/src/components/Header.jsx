@@ -134,14 +134,12 @@ export default function Header() {
 
   useEffect(() => {
     api
-      .get("/users", { params: { limit: 50 }, timeout: 10000 })
+      .get("/users")
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : res.data?.users || [];
         setUsers(list);
       })
-      .catch((err) => {
-        console.warn("User search list deferral:", err.message);
-      });
+      .catch((err) => console.error("Error loading users for search:", err));
   }, []);
 
   // Close modals on Escape key

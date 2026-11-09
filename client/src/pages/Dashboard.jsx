@@ -96,8 +96,7 @@ export default function Dashboard() {
     let cancelled = false;
     setLoadingPosts(true);
     setDashboardError("");
-    // Request 10 posts initially for fast response time on production
-    executeGraphQL(HOME_DASHBOARD_QUERY, { first: 10 }, "HomeDashboard")
+    executeGraphQL(HOME_DASHBOARD_QUERY, { first: 20 }, "HomeDashboard")
       .then(({ homeDashboard }) => {
         if (cancelled) return;
         setPosts(homeDashboard.posts);
@@ -106,45 +105,14 @@ export default function Dashboard() {
         setPostsPage(1);
         setHasMorePosts(homeDashboard.feedHasMore);
       })
-      .catch(async (error) => {
+      .catch((error) => {
         if (cancelled) return;
-        console.warn("GraphQL dashboard query failed, attempting direct REST fallback:", error.message);
-        // Automatic REST fallback: fetch 10 posts directly from post service
-        try {
-          const [postsRes, usersRes] = await Promise.allSettled([
-            api.get("/posts", { params: { group: activeGroup, page: 1, limit: 10 } }),
-            api.get("/users"),
-          ]);
-
-          if (cancelled) return;
-
-          if (postsRes.status === "fulfilled" && Array.isArray(postsRes.value?.data)) {
-            const fallbackPosts = postsRes.value.data;
-            setPosts(fallbackPosts);
-            setPostsPage(1);
-            setHasMorePosts(fallbackPosts.length === 10);
-            setDashboardError("");
-          } else {
-            setDashboardError(
-              error instanceof GraphQLOperationError
-                ? error.message
-                : "Dashboard data could not be loaded. Please try again."
-            );
-          }
-
-          if (usersRes.status === "fulfilled" && Array.isArray(usersRes.value?.data)) {
-            setUsers(usersRes.value.data);
-          }
-        } catch (fallbackErr) {
-          if (!cancelled) {
-            console.error("REST fallback also failed:", fallbackErr);
-            setDashboardError(
-              error instanceof GraphQLOperationError
-                ? error.message
-                : "Dashboard data could not be loaded. Please try again."
-            );
-          }
-        }
+        console.error("Failed to load dashboard:", error);
+        setDashboardError(
+          error instanceof GraphQLOperationError
+            ? error.message
+            : "Dashboard data could not be loaded. Please try again."
+        );
       })
       .finally(() => {
         if (!cancelled) setLoadingPosts(false);
@@ -172,7 +140,7 @@ export default function Dashboard() {
       const params = {
         group: activeGroup,
         page: 1,
-        limit: 10,
+        limit: 20,
       };
       if (tab !== "all") params.type = tab;
       if (tag) params.tag = tag;
@@ -184,7 +152,7 @@ export default function Dashboard() {
       const hasMore =
         res.headers?.["x-has-more"] === "true" ||
         res.headers?.["X-Has-More"] === "true" ||
-        (Array.isArray(newPosts) && newPosts.length === 10);
+        (Array.isArray(newPosts) && newPosts.length === 20);
       setHasMorePosts(Boolean(hasMore));
     } catch (err) {
       console.error("Filter posts error:", err);
@@ -223,7 +191,7 @@ export default function Dashboard() {
       const params = {
         group: activeGroup,
         page: nextPage,
-        limit: 10,
+        limit: 20,
       };
       if (feedTab !== "all") params.type = feedTab;
       if (activeTag) params.tag = activeTag;
@@ -242,7 +210,7 @@ export default function Dashboard() {
       const hasMore =
         res.headers?.["x-has-more"] === "true" ||
         res.headers?.["X-Has-More"] === "true" ||
-        (Array.isArray(newPosts) && newPosts.length === 10);
+        (Array.isArray(newPosts) && newPosts.length === 20);
       setHasMorePosts(Boolean(hasMore));
     } catch (err) {
       console.error("Load more posts error:", err);
@@ -747,348 +715,348 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Initial Feed Loading Skeletons */}
-            {loadingPosts && posts.length === 0 && (
-              <div className="tw-mb-4">
-                <FeedSkeleton count={3} />
-              </div>
-            )}
+                {/* Initial Feed Loading Skeletons */}
+                {loadingPosts && posts.length === 0 && (
+                  <div className="tw-mb-4">
+                    <FeedSkeleton count={3} />
+                  </div>
+                )}
 
-            {/* Empty State */}
-            {!loadingPosts && posts.length === 0 && (
-              <div style={{
-                ...card, textAlign: "center", padding: "3rem 1rem",
-                color: C.inkMuted, fontSize: "0.95rem",
-              }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🏕️</div>
-                No posts yet. Be the first to share something!
-              </div>
-            )}
+                {/* Empty State */}
+                {!loadingPosts && posts.length === 0 && (
+                  <div style={{
+                    ...card, textAlign: "center", padding: "3rem 1rem",
+                    color: C.inkMuted, fontSize: "0.95rem",
+                  }}>
+                    <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🏕️</div>
+                    No posts yet. Be the first to share something!
+                  </div>
+                )}
 
-            {/* Loaded Posts */}
-            {posts.map((post) => (
-              <div key={post._id || post.id} className="tw-mb-4">
-                {renderPost(post)}
-              </div>
-            ))}
+                {/* Loaded Posts */}
+                {posts.map((post) => (
+                  <div key={post._id || post.id} className="tw-mb-4">
+                    {renderPost(post)}
+                  </div>
+                ))}
 
-            {/* Infinite Scroll Sentinel & Loading Indicator */}
-            <div ref={sentinelRef} className="w-100 py-2 text-center">
-              {loadingPosts && posts.length > 0 && (
-                <div className="tw-space-y-4 tw-mb-3 text-start">
-                  <PostSkeleton variant="standard" />
-                </div>
-              )}
+                {/* Infinite Scroll Sentinel & Loading Indicator */}
+                      <div ref={sentinelRef} className="w-100 py-2 text-center">
+                        {loadingPosts && posts.length > 0 && (
+                          <div className="tw-space-y-4 tw-mb-3 text-start">
+                            <PostSkeleton variant="standard" />
+                          </div>
+                        )}
 
-              {!loadingPosts && !hasMorePosts && posts.length > 0 && (
-                <div
-                  className="py-3 text-muted"
-                  style={{
-                    fontSize: "0.82rem",
-                    color: "var(--cc-muted, #64748b)",
-                    opacity: 0.85,
-                  }}
-                >
-                  🎉 You’re all caught up with the latest posts!
-                </div>
-              )}
-            </div>
-          </main>
+                        {!loadingPosts && !hasMorePosts && posts.length > 0 && (
+                          <div
+                            className="py-3 text-muted"
+                            style={{
+                              fontSize: "0.82rem",
+                              color: "var(--cc-muted, #64748b)",
+                              opacity: 0.85,
+                            }}
+                          >
+                            🎉 You’re all caught up with the latest posts!
+                          </div>
+                        )}
+                      </div>
+                    </main>
 
           {/* ══════════════════════════ RIGHT SIDEBAR (USER RECOMMENDATIONS) ═════════════════════════ */}
-          <aside className="cc-right-aside dashboard-right-aside">
-            <div style={{ ...card, overflow: "hidden" }}>
-              {/* Header Tabs */}
-              <div style={{
-                padding: "0.6rem 0.8rem 0.4rem",
-                borderBottom: `1px solid ${C.border}`,
-                display: "flex", gap: "6px",
-                background: C.surfaceMuted,
-              }}>
-                {user && <button
-                  type="button"
-                  onClick={() => setSidebarTab("recommended")}
-                  style={{
-                    flex: 1, padding: "6px 8px", fontSize: "0.78rem", fontWeight: 700,
-                    borderRadius: "6px", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
-                    background: sidebarTab === "recommended" ? C.primary : "transparent",
-                    color: sidebarTab === "recommended" ? "#fff" : C.inkMuted,
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <FaMagic size={11} /> Suggested
-                </button>}
-                <button
-                  type="button"
-                  onClick={() => setSidebarTab("all")}
-                  style={{
-                    flex: 1, padding: "6px 8px", fontSize: "0.78rem", fontWeight: 700,
-                    borderRadius: "6px", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
-                    background: sidebarTab === "all" ? C.primary : "transparent",
-                    color: sidebarTab === "all" ? "#fff" : C.inkMuted,
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <FaUserFriends size={12} /> Explore
-                </button>
-              </div>
+                  <aside className="cc-right-aside dashboard-right-aside">
+                    <div style={{ ...card, overflow: "hidden" }}>
+                      {/* Header Tabs */}
+                      <div style={{
+                        padding: "0.6rem 0.8rem 0.4rem",
+                        borderBottom: `1px solid ${C.border}`,
+                        display: "flex", gap: "6px",
+                        background: C.surfaceMuted,
+                      }}>
+                        {user && <button
+                          type="button"
+                          onClick={() => setSidebarTab("recommended")}
+                          style={{
+                            flex: 1, padding: "6px 8px", fontSize: "0.78rem", fontWeight: 700,
+                            borderRadius: "6px", border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                            background: sidebarTab === "recommended" ? C.primary : "transparent",
+                            color: sidebarTab === "recommended" ? "#fff" : C.inkMuted,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <FaMagic size={11} /> Suggested
+                        </button>}
+                        <button
+                          type="button"
+                          onClick={() => setSidebarTab("all")}
+                          style={{
+                            flex: 1, padding: "6px 8px", fontSize: "0.78rem", fontWeight: 700,
+                            borderRadius: "6px", border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                            background: sidebarTab === "all" ? C.primary : "transparent",
+                            color: sidebarTab === "all" ? "#fff" : C.inkMuted,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <FaUserFriends size={12} /> Explore
+                        </button>
+                      </div>
 
-              {/* Search (when in Explore tab) */}
-              {sidebarTab === "all" && (
-                <div style={{ padding: "0.6rem 0.8rem 0.3rem" }}>
-                  <input
-                    type="text"
-                    placeholder="Search campus peers…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    style={{
-                      width: "100%", border: `1px solid ${C.border}`, borderRadius: "4px",
-                      padding: "0.45rem 0.85rem", fontSize: "0.82rem", outline: "none",
-                      background: C.surface, color: C.ink,
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = C.primary)}
-                    onBlur={(e) => (e.target.style.borderColor = C.border)}
-                  />
+                      {/* Search (when in Explore tab) */}
+                      {sidebarTab === "all" && (
+                        <div style={{ padding: "0.6rem 0.8rem 0.3rem" }}>
+                          <input
+                            type="text"
+                            placeholder="Search campus peers…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{
+                              width: "100%", border: `1px solid ${C.border}`, borderRadius: "4px",
+                              padding: "0.45rem 0.85rem", fontSize: "0.82rem", outline: "none",
+                              background: C.surface, color: C.ink,
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = C.primary)}
+                            onBlur={(e) => (e.target.style.borderColor = C.border)}
+                          />
+                        </div>
+                      )}
+
+                      {/* List */}
+                      <div
+                        className="cc-scroll"
+                        style={{ maxHeight: 480, overflowY: "auto", padding: "0.5rem 0.6rem 0.75rem" }}
+                      >
+                          { loadingPosts && recommendations.length === 0 && users.length === 0 ? (
+                            <PeerSkeleton count={5} />
+                          ) : sidebarTab === "recommended" ? (
+                            recommendations.length === 0 ? (
+                              <div style={{ textAlign: "center", color: C.inkSoft, padding: "1.5rem 0", fontSize: "0.82rem" }}>
+                                No new graph recommendations right now.
+                              </div>
+                            ) : (
+                              recommendations.map((person) => {
+                                const personId = person._id || person.id;
+                                const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
+                                return (
+                                  <div
+                                    key={personId}
+                                    className="cc-people-row"
+                                    style={{
+                                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                                      padding: "0.5rem 0.4rem", borderRadius: "8px", marginBottom: 6,
+                                      transition: "background 0.15s", background: C.surfaceMuted,
+                                      border: `1px solid ${C.border}`,
+                                    }}
+                                  >
+                                    <Link
+                                      to={`/profile/${personId}`}
+                                      style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, textDecoration: "none", flex: 1 }}
+                                    >
+                                      <img
+                                        src={person.profileImage || DEFAULT_AVA}
+                                        alt="Profile"
+                                        style={{
+                                          width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+                                          border: `2px solid ${isFollowing ? C.primaryMid : C.border}`,
+                                        }}
+                                      />
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                          <span style={{
+                                            fontWeight: 700, color: C.ink, fontSize: "0.82rem",
+                                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                                          }}>
+                                            {person.name || person.username}
+                                          </span>
+                                          {person.degree && (
+                                            <ConnectionBadge degree={person.degree} size="xs" />
+                                          )}
+                                        </div>
+                                        <div style={{ color: C.primary, fontSize: "0.69rem", fontWeight: 600 }}>
+                                          {person.recommendationReason || `@${person.username}`}
+                                        </div>
+                                      </div>
+                                    </Link>
+
+                                    {user && (isFollowing ? (
+                                      <button
+                                        onClick={() => handleUnfollow(personId)}
+                                        title="Unfollow"
+                                        style={{
+                                          background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
+                                          borderRadius: "6px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
+                                          display: "flex", alignItems: "center",
+                                        }}
+                                      >
+                                        <img src={UserMinus} alt="Unfollow" style={{ height: 13, width: 13 }} />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleFollow(personId)}
+                                        title="Follow"
+                                        style={{
+                                          background: C.primary,
+                                          border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
+                                          display: "flex", alignItems: "center",
+                                          boxShadow: "0 2px 6px rgba(79,70,229,0.25)",
+                                        }}
+                                      >
+                                        <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                );
+                              })
+                            )
+                          ) : (
+                            filteredUsers.length === 0 ? (
+                              <div style={{ textAlign: "center", color: C.inkSoft, padding: "1.5rem 0", fontSize: "0.85rem" }}>
+                                No users found.
+                              </div>
+                            ) : (
+                              filteredUsers.map((person) => {
+                                const personId = person._id || person.id;
+                                const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
+                                return (
+                                  <div
+                                    key={personId}
+                                    className="cc-people-row"
+                                    style={{
+                                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                                      padding: "0.5rem 0.4rem", borderRadius: "8px", marginBottom: 4,
+                                      cursor: "pointer", transition: "background 0.15s",
+                                    }}
+                                  >
+                                    <Link
+                                      to={`/profile/${personId}`}
+                                      style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", flex: 1 }}
+                                    >
+                                      <img
+                                        src={person.profileImage || DEFAULT_AVA}
+                                        alt="Profile"
+                                        style={{
+                                          width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+                                          border: `2px solid ${isFollowing ? C.primaryMid : C.border}`,
+                                        }}
+                                      />
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{
+                                          fontWeight: 700, color: C.ink, fontSize: "0.82rem",
+                                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                                        }}>
+                                          {person.name || person.username}
+                                        </div>
+                                        <div style={{ color: C.inkSoft, fontSize: "0.72rem" }}>@{person.username}</div>
+                                      </div>
+                                    </Link>
+
+                                    {user && (isFollowing ? (
+                                      <button
+                                        onClick={() => handleUnfollow(personId)}
+                                        title="Unfollow"
+                                        style={{
+                                          background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
+                                          borderRadius: "4px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
+                                          display: "flex", alignItems: "center",
+                                        }}
+                                      >
+                                        <img src={UserMinus} alt="Unfollow" style={{ height: 13, width: 13 }} />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleFollow(personId)}
+                                        title="Follow"
+                                        style={{
+                                          background: C.primary,
+                                          border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
+                                          display: "flex", alignItems: "center",
+                                          boxShadow: "0 2px 8px rgba(79,70,229,0.3)",
+                                        }}
+                                      >
+                                        <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                );
+                              })
+                            )
+                          )}
+                      </div>
+                    </div>
+                  </aside>
                 </div>
-              )}
-
-              {/* List */}
-              <div
-                className="cc-scroll"
-                style={{ maxHeight: 480, overflowY: "auto", padding: "0.5rem 0.6rem 0.75rem" }}
-              >
-                {loadingPosts && recommendations.length === 0 && users.length === 0 ? (
-                  <PeerSkeleton count={5} />
-                ) : sidebarTab === "recommended" ? (
-                  recommendations.length === 0 ? (
-                    <div style={{ textAlign: "center", color: C.inkSoft, padding: "1.5rem 0", fontSize: "0.82rem" }}>
-                      No new graph recommendations right now.
-                    </div>
-                  ) : (
-                    recommendations.map((person) => {
-                      const personId = person._id || person.id;
-                      const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
-                      return (
-                        <div
-                          key={personId}
-                          className="cc-people-row"
-                          style={{
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                            padding: "0.5rem 0.4rem", borderRadius: "8px", marginBottom: 6,
-                            transition: "background 0.15s", background: C.surfaceMuted,
-                            border: `1px solid ${C.border}`,
-                          }}
-                        >
-                          <Link
-                            to={`/profile/${personId}`}
-                            style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, textDecoration: "none", flex: 1 }}
-                          >
-                            <img
-                              src={person.profileImage || DEFAULT_AVA}
-                              alt="Profile"
-                              style={{
-                                width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
-                                border: `2px solid ${isFollowing ? C.primaryMid : C.border}`,
-                              }}
-                            />
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                <span style={{
-                                  fontWeight: 700, color: C.ink, fontSize: "0.82rem",
-                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                                }}>
-                                  {person.name || person.username}
-                                </span>
-                                {person.degree && (
-                                  <ConnectionBadge degree={person.degree} size="xs" />
-                                )}
-                              </div>
-                              <div style={{ color: C.primary, fontSize: "0.69rem", fontWeight: 600 }}>
-                                {person.recommendationReason || `@${person.username}`}
-                              </div>
-                            </div>
-                          </Link>
-
-                          {user && (isFollowing ? (
-                            <button
-                              onClick={() => handleUnfollow(personId)}
-                              title="Unfollow"
-                              style={{
-                                background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
-                                borderRadius: "6px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
-                                display: "flex", alignItems: "center",
-                              }}
-                            >
-                              <img src={UserMinus} alt="Unfollow" style={{ height: 13, width: 13 }} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleFollow(personId)}
-                              title="Follow"
-                              style={{
-                                background: C.primary,
-                                border: "none", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
-                                display: "flex", alignItems: "center",
-                                boxShadow: "0 2px 6px rgba(79,70,229,0.25)",
-                              }}
-                            >
-                              <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })
-                  )
-                ) : (
-                  filteredUsers.length === 0 ? (
-                    <div style={{ textAlign: "center", color: C.inkSoft, padding: "1.5rem 0", fontSize: "0.85rem" }}>
-                      No users found.
-                    </div>
-                  ) : (
-                    filteredUsers.map((person) => {
-                      const personId = person._id || person.id;
-                      const isFollowing = (person.followers || []).map(String).includes(String(currentUserId)) || person.isFollowing === true;
-                      return (
-                        <div
-                          key={personId}
-                          className="cc-people-row"
-                          style={{
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                            padding: "0.5rem 0.4rem", borderRadius: "8px", marginBottom: 4,
-                            cursor: "pointer", transition: "background 0.15s",
-                          }}
-                        >
-                          <Link
-                            to={`/profile/${personId}`}
-                            style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", flex: 1 }}
-                          >
-                            <img
-                              src={person.profileImage || DEFAULT_AVA}
-                              alt="Profile"
-                              style={{
-                                width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
-                                border: `2px solid ${isFollowing ? C.primaryMid : C.border}`,
-                              }}
-                            />
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{
-                                fontWeight: 700, color: C.ink, fontSize: "0.82rem",
-                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                              }}>
-                                {person.name || person.username}
-                              </div>
-                              <div style={{ color: C.inkSoft, fontSize: "0.72rem" }}>@{person.username}</div>
-                            </div>
-                          </Link>
-
-                          {user && (isFollowing ? (
-                            <button
-                              onClick={() => handleUnfollow(personId)}
-                              title="Unfollow"
-                              style={{
-                                background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
-                                borderRadius: "4px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
-                                display: "flex", alignItems: "center",
-                              }}
-                            >
-                              <img src={UserMinus} alt="Unfollow" style={{ height: 13, width: 13 }} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleFollow(personId)}
-                              title="Follow"
-                              style={{
-                                background: C.primary,
-                                border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", flexShrink: 0,
-                                display: "flex", alignItems: "center",
-                                boxShadow: "0 2px 8px rgba(79,70,229,0.3)",
-                              }}
-                            >
-                              <img src={UserPlus} alt="Follow" style={{ height: 13, width: 13, filter: "brightness(10)" }} />
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })
-                  )
-                )}
               </div>
-            </div>
-          </aside>
-        </div>
-      </div>
 
       {/* Post modal */}
-      <PostFormModal
-        show={showPostModal}
-        onClose={() => setShowPostModal(false)}
-        onPost={handleNewPost}
-      />
+            <PostFormModal
+              show={showPostModal}
+              onClose={() => setShowPostModal(false)}
+              onPost={handleNewPost}
+            />
 
-      {/* Mobile people FAB */}
-      <div className="d-lg-none position-fixed" style={{ bottom: 16, right: 16, zIndex: 200 }}>
-        <button
-          style={{
-            background: C.primary,
-            border: "none", borderRadius: "4px", width: 52, height: 52,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 20px rgba(79,70,229,0.45)", cursor: "pointer",
-          }}
-          data-bs-toggle="offcanvas" data-bs-target="#userSidebar"
-        >
-          <img src={UsersLogo} alt="users" style={{ height: 20, width: 20, filter: "brightness(10)" }} />
-        </button>
+            {/* Mobile people FAB */}
+            <div className="d-lg-none position-fixed" style={{ bottom: 16, right: 16, zIndex: 200 }}>
+              <button
+                style={{
+                  background: C.primary,
+                  border: "none", borderRadius: "4px", width: 52, height: 52,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 4px 20px rgba(79,70,229,0.45)", cursor: "pointer",
+                }}
+                data-bs-toggle="offcanvas" data-bs-target="#userSidebar"
+              >
+                <img src={UsersLogo} alt="users" style={{ height: 20, width: 20, filter: "brightness(10)" }} />
+              </button>
 
-        <div className="offcanvas offcanvas-end" tabIndex="-1" id="userSidebar">
-          <div className="offcanvas-header" style={{ borderBottom: `1px solid ${C.border}` }}>
-            <h5 style={{ fontWeight: 800, color: C.ink }}>Suggested Network</h5>
-            <button type="button" className="btn-close" data-bs-dismiss="offcanvas" />
-          </div>
-          <div className="offcanvas-body" style={{ background: C.surface }}>
-            {recommendations.map((person) => {
-              const personId = person._id || person.id;
-              const isFollowing = (person.followers || []).includes(currentUserId);
-              return (
-                <div key={personId} className="d-flex align-items-center mb-3" style={{
-                  background: C.white, borderRadius: "8px", padding: "10px 12px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: `1px solid ${C.border}`,
-                }}>
-                  <Link to={`/profile/${personId}`} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, textDecoration: "none" }}>
-                    <img src={person.profileImage || DEFAULT_AVA} alt="Profile"
-                      className="rounded-circle me-2" style={{ width: 38, height: 38, objectFit: "cover" }} />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "0.88rem", color: C.ink, display: "flex", alignItems: "center", gap: 6 }}>
-                        {person.name || person.username}
-                        {person.degree && <ConnectionBadge degree={person.degree} size="xs" />}
-                      </div>
-                      <div style={{ fontSize: "0.72rem", color: C.primary, fontWeight: 600 }}>
-                        {person.recommendationReason || `@${person.username}`}
-                      </div>
-                    </div>
-                  </Link>
-                  {user && (isFollowing ? (
-                    <button onClick={() => handleUnfollow(personId)} style={{
-                      background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
-                      borderRadius: "0.5rem", padding: "4px 8px", cursor: "pointer",
-                    }}>
-                      <img src={UserMinus} alt="Unfollow" style={{ height: 14 }} />
-                    </button>
-                  ) : (
-                    <button onClick={() => handleFollow(personId)} style={{
-                      background: C.primary,
-                      border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer",
-                    }}>
-                      <img src={UserPlus} alt="Follow" style={{ height: 14, filter: "brightness(10)" }} />
-                    </button>
-                  ))}
+              <div className="offcanvas offcanvas-end" tabIndex="-1" id="userSidebar">
+                <div className="offcanvas-header" style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <h5 style={{ fontWeight: 800, color: C.ink }}>Suggested Network</h5>
+                  <button type="button" className="btn-close" data-bs-dismiss="offcanvas" />
                 </div>
-              );
-            })}
-          </div>
+                <div className="offcanvas-body" style={{ background: C.surface }}>
+                  {recommendations.map((person) => {
+                    const personId = person._id || person.id;
+                    const isFollowing = (person.followers || []).includes(currentUserId);
+                    return (
+                      <div key={personId} className="d-flex align-items-center mb-3" style={{
+                        background: C.white, borderRadius: "8px", padding: "10px 12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: `1px solid ${C.border}`,
+                      }}>
+                        <Link to={`/profile/${personId}`} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, textDecoration: "none" }}>
+                          <img src={person.profileImage || DEFAULT_AVA} alt="Profile"
+                            className="rounded-circle me-2" style={{ width: 38, height: 38, objectFit: "cover" }} />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: "0.88rem", color: C.ink, display: "flex", alignItems: "center", gap: 6 }}>
+                              {person.name || person.username}
+                              {person.degree && <ConnectionBadge degree={person.degree} size="xs" />}
+                            </div>
+                            <div style={{ fontSize: "0.72rem", color: C.primary, fontWeight: 600 }}>
+                              {person.recommendationReason || `@${person.username}`}
+                            </div>
+                          </div>
+                        </Link>
+                        {user && (isFollowing ? (
+                          <button onClick={() => handleUnfollow(personId)} style={{
+                            background: C.primaryLight, border: `1px solid ${C.primaryMid}`,
+                            borderRadius: "0.5rem", padding: "4px 8px", cursor: "pointer",
+                          }}>
+                            <img src={UserMinus} alt="Unfollow" style={{ height: 14 }} />
+                          </button>
+                        ) : (
+                          <button onClick={() => handleFollow(personId)} style={{
+                            background: C.primary,
+                            border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer",
+                          }}>
+                            <img src={UserPlus} alt="Follow" style={{ height: 14, filter: "brightness(10)" }} />
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+        );
 }
