@@ -16,16 +16,18 @@ import { validateAuthConfiguration } from "./controllers/auth.controller.js";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const allowedOrigins = (process.env.CLIENT_ORIGINS || [
+const allowedOrigins = new Set([
   "http://localhost:3000",
   "http://localhost:5173",
   "https://code-campus-malay1.onrender.com",
   "https://code-campus-htg4.vercel.app",
-].join(",")).split(",").map((origin) => origin.trim()).filter(Boolean);
+  "https://codecampus-eosin.vercel.app",
+  ...((process.env.CLIENT_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean)),
+]);
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.has(origin)) return true;
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
   return false;
 };

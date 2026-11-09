@@ -126,13 +126,15 @@ const clearRefreshCookie = (res) => {
 const assertAllowedOrigin = (req) => {
   const origin = req.get("Origin");
   if (!origin) return false;
-  const allowedOrigins = (process.env.CLIENT_ORIGINS || [
+  const allowedOrigins = new Set([
     "http://localhost:3000",
     "http://localhost:5173",
     "https://code-campus-malay1.onrender.com",
     "https://code-campus-htg4.vercel.app",
-  ].join(",")).split(",").map((value) => value.trim()).filter(Boolean);
-  return allowedOrigins.includes(origin);
+    "https://codecampus-eosin.vercel.app",
+    ...((process.env.CLIENT_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean)),
+  ]);
+  return allowedOrigins.has(origin);
 };
 
 export const validateAuthConfiguration = () => {
