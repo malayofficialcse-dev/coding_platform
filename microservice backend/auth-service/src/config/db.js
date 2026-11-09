@@ -53,6 +53,22 @@ export const connectDB = async () => {
   }
 
   await sequelize.sync();
+  await sequelize.query(`
+    ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password" VARCHAR(255);
+    ALTER TABLE "users" ALTER COLUMN "password" DROP NOT NULL;
+  `);
+
+  const [passwordColumns] = await sequelize.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_name = 'users'
+      AND column_name = 'password'
+      AND table_schema = ANY(current_schemas(false))
+  `);
+  if (passwordColumns.length === 0) {
+    throw new Error('Auth database migration failed: "users"."password" is unavailable on the active search path.');
+  }
+
   console.log("[Auth Service] PostgreSQL connected — Neon (auth_schema)");
 };
 
