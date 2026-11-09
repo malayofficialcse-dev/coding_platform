@@ -328,7 +328,7 @@ export const setApprovedMentorRole = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
@@ -340,6 +340,13 @@ export const login = async (req, res) => {
 
     if (user.isActive === false) {
       return res.status(403).json({ message: "Your account is deactivated. Please contact an administrator." });
+    }
+
+    if (
+      typeof user.password !== "string" ||
+      !/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(user.password)
+    ) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -474,8 +481,11 @@ export const logoutAll = async (req, res) => {
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: "Current and new passwords are required" });
+    if (typeof newPassword !== "string" || !newPassword) {
+      return res.status(400).json({ message: "A new password is required" });
+    }
+    if (currentPassword !== undefined && typeof currentPassword !== "string") {
+      return res.status(400).json({ message: "Current password must be a string" });
     }
     if (newPassword.length < 8) {
       return res.status(400).json({ message: "New password must be at least 8 characters" });
@@ -484,7 +494,13 @@ export const changePassword = async (req, res) => {
     const userId = req.user?._id || req.user?.id;
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (!(await bcrypt.compare(currentPassword, user.password))) {
+    if (typeof user.password === "string" && user.password.length > 0) {
+      if (!currentPassword || !(await bcrypt.compare(currentPassword, user.password))) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+    }
+
+    if (user.password && typeof user.password !== "string") {
       return res.status(400).json({ message: "Current password is incorrect" });
     }
 
