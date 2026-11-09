@@ -226,6 +226,7 @@ const wsProxy = createProxyMiddleware({
   target: SERVICES.chat,
   changeOrigin: true,
   ws: true,
+  pathRewrite: (_path, req) => req.originalUrl,
 });
 app.use("/socket.io", wsProxy);
 
