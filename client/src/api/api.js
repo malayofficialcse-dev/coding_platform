@@ -89,6 +89,24 @@ api.interceptors.response.use(
   async (error) => {
     const request = error.config;
     const isAuthEndpoint = /\/auth\/(login|register|refresh|logout)(?:\?|$)/.test(request?.url || "");
+
+    // 1. Automatic retry for cold-starting Render services (502, 503, 504, timeout)
+    const isIdempotent = (request?.method || "get").toLowerCase() === "get";
+    const status = error.response?.status;
+    const isColdStartError =
+      [502, 503, 504].includes(status) ||
+      error.code === "ECONNABORTED" ||
+      /timeout|network error|warming up/i.test(error.message || "");
+
+    if (isIdempotent && isColdStartError && request && (request._retryCount || 0) < 2) {
+      request._retryCount = (request._retryCount || 0) + 1;
+      const delay = request._retryCount === 1 ? 3000 : 5000;
+      console.warn(`[API] Service cold start (${status || error.code}). Retrying in ${delay / 1000}s... (attempt ${request._retryCount}/2)`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return api(request);
+    }
+
+    // 2. Token refresh handling on 401
     if (error.response?.status === 401 && request && !request._retried && !isAuthEndpoint) {
       request._retried = true;
       try {

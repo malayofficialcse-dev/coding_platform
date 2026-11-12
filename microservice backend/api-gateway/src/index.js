@@ -166,11 +166,26 @@ const createServiceProxy = (target) => {
       error: (err, req, res) => {
         console.error(`[Gateway Proxy Error] Target: ${target}`, err.message);
         if (!res.headersSent) {
-          res.status(503).json({
-            error: "Service Temporarily Unavailable",
-            targetService: target,
-            details: err.message,
-          });
+          // ECONNREFUSED / ETIMEDOUT → service is cold-starting on Render free tier
+          const isColdStart =
+            err.code === "ECONNREFUSED" ||
+            err.code === "ETIMEDOUT" ||
+            err.code === "ECONNRESET" ||
+            /timeout|ECONNREFUSED|ECONNRESET/i.test(err.message);
+          if (isColdStart) {
+            res.set("Retry-After", "30");
+            res.status(503).json({
+              error: "Service is warming up",
+              message: "The service is starting up on Render free tier. Please retry in ~30 seconds.",
+              retryAfter: 30,
+            });
+          } else {
+            res.status(502).json({
+              error: "Service Temporarily Unavailable",
+              targetService: target,
+              details: err.message,
+            });
+          }
         }
       },
     },
@@ -250,34 +265,37 @@ const server = app.listen(PORT, () => {
 
 // ── Keep-Alive Pinger ───────────────────────────────────────────────────────
 // On Render free tier, services sleep after 15 min of inactivity.
-// Every 10 minutes, the gateway pings each service's /health endpoint so they
-// stay warm.  Only runs when RENDER=true (skipped in local dev).
-if (process.env.RENDER === "true") {
-  const http = await import("http");
-  const https = await import("https");
-  const pingService = (name, url) => {
-    try {
-      const target = new URL(`${url}/health`);
-      const lib = target.protocol === "https:" ? https : http;
-      const req = lib.request({ hostname: target.hostname, path: target.pathname, method: "GET", timeout: 10000 }, (res) => {
-        res.resume(); // drain response
-        console.log(`[Gateway Pinger] ${name} → ${res.statusCode}`);
-      });
-      req.on("error", (err) => console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message));
-      req.end();
-    } catch (err) {
-      console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
+  // Pinging every 4 minutes keeps them continuously awake.
+  // A 60s timeout allows sleeping services to fully cold-start.
+  if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
+    const http = await import("http");
+    const https = await import("https");
+    const pingService = (name, url) => {
+      try {
+        const target = new URL(`${url}/health`);
+        const lib = target.protocol === "https:" ? https : http;
+          const req = lib.request({ hostname: target.hostname, path: target.pathname, method: "GET", timeout: 60000 }, (res) => {
+            res.resume(); // drain response
+            console.log(`[Gateway Pinger] ${name} → ${res.statusCode}`);
+          });
+          req.on("error", (err) => console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message));
+          req.end();
+        } catch (err) {
+          console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
+        }
+      };
+      const pingAll = () => Object.entries(SERVICES).forEach(([name, url]) => url && pingService(name, url));
+      // Ping 3s after startup to wake everything up, then ping every 4 minutes
+      setTimeout(() => {
+        pingAll();
+        setInterval(pingAll, 4 * 60 * 1000);
+      }, 3 * 1000);
+      console.log("[Gateway Pinger] Keep-alive enabled — pinging all services every 4 min (60s timeout)");
     }
-  };
-  const pingAll = () => Object.entries(SERVICES).forEach(([name, url]) => url && pingService(name, url));
-  // Stagger first ping by 60s after boot, then every 10 min
-  setTimeout(() => { pingAll(); setInterval(pingAll, 10 * 60 * 1000); }, 60 * 1000);
-  console.log("[Gateway Pinger] Keep-alive enabled — pinging all services every 10 min");
-}
 
-// Support WebSocket Upgrade on HTTP Server
-server.on("upgrade", (req, socket, head) => {
-  if (req.url?.startsWith("/mentor-socket.io")) return mentorWsProxy.upgrade(req, socket, head);
-  if (req.url?.startsWith("/socket.io")) return wsProxy.upgrade(req, socket, head);
-  socket.destroy();
-});
+    // Support WebSocket Upgrade on HTTP Server
+    server.on("upgrade", (req, socket, head) => {
+      if (req.url?.startsWith("/mentor-socket.io")) return mentorWsProxy.upgrade(req, socket, head);
+      if (req.url?.startsWith("/socket.io")) return wsProxy.upgrade(req, socket, head);
+      socket.destroy();
+    });

@@ -19,12 +19,16 @@ export const initSocket = () => {
   socket = io(BACKEND_URL, {
     auth: { token: getAccessToken() },
     path: "/socket.io",
-    transports: ["websocket", "polling"],
+    // Start with polling — it's more reliable behind Render's proxy than a
+    // raw WebSocket upgrade. Socket.IO will upgrade to WebSocket automatically
+    // once polling is established, avoiding the "upgrade storm" on cold starts.
+    transports: ["polling", "websocket"],
     withCredentials: true,
     reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: Infinity,
+    reconnectionDelay: 3000,       // start at 3 s (was 1 s)
+    reconnectionDelayMax: 60000,   // cap at 60 s to avoid hammering a cold service
+    randomizationFactor: 0.5,
+    reconnectionAttempts: 10,      // give up after 10 tries (~10 min with backoff)
   });
 
   socket.on("connect", () => {
