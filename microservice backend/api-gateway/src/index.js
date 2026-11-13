@@ -264,34 +264,51 @@ const server = app.listen(PORT, () => {
 });
 
 // ── Keep-Alive Pinger ───────────────────────────────────────────────────────
-// On Render free tier, services sleep after 15 min of inactivity.
-  // Pinging every 4 minutes keeps them continuously awake.
-  // A 60s timeout allows sleeping services to fully cold-start.
-  if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
-    const http = await import("http");
-    const https = await import("https");
-    const pingService = (name, url) => {
+// Render free instances sleep after inactivity. Retry unavailable services
+// frequently until they wake, then keep healthy services warm.
+if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
+  const http = await import("http");
+  const https = await import("https");
+  const healthyPingInterval = 4 * 60 * 1000;
+  const retryPingInterval = 30 * 1000;
+
+  const pingService = (name, url) => {
+    const ping = () => {
       try {
         const target = new URL(`${url}/health`);
         const lib = target.protocol === "https:" ? https : http;
-          const req = lib.request({ hostname: target.hostname, path: target.pathname, method: "GET", timeout: 60000 }, (res) => {
-            res.resume(); // drain response
+        const req = lib.request(
+          { hostname: target.hostname, path: target.pathname, method: "GET", timeout: 60000 },
+          (res) => {
+            res.resume();
+            const isHealthy = res.statusCode >= 200 && res.statusCode < 400;
             console.log(`[Gateway Pinger] ${name} → ${res.statusCode}`);
-          });
-          req.on("error", (err) => console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message));
-          req.end();
-        } catch (err) {
-          console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
-        }
-      };
-      const pingAll = () => Object.entries(SERVICES).forEach(([name, url]) => url && pingService(name, url));
-      // Ping 3s after startup to wake everything up, then ping every 4 minutes
-      setTimeout(() => {
-        pingAll();
-        setInterval(pingAll, 4 * 60 * 1000);
-      }, 3 * 1000);
-      console.log("[Gateway Pinger] Keep-alive enabled — pinging all services every 4 min (60s timeout)");
-    }
+            const timer = setTimeout(ping, isHealthy ? healthyPingInterval : retryPingInterval);
+            timer.unref();
+          }
+        );
+        req.on("timeout", () => req.destroy(new Error("Health check timed out")));
+        req.on("error", (err) => {
+          console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message);
+          const timer = setTimeout(ping, retryPingInterval);
+          timer.unref();
+        });
+        req.end();
+      } catch (err) {
+        console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
+        const timer = setTimeout(ping, retryPingInterval);
+        timer.unref();
+      }
+    };
+
+    ping();
+  };
+
+  Object.entries(SERVICES).forEach(([name, url]) => {
+    if (url) pingService(name, url);
+  });
+  console.log("[Gateway Pinger] Keep-alive enabled — retrying unavailable services every 30s");
+}
 
     // Support WebSocket Upgrade on HTTP Server
     server.on("upgrade", (req, socket, head) => {
