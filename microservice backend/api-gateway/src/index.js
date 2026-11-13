@@ -280,9 +280,27 @@ const wsProxy = createProxyMiddleware({
   target: SERVICES.chat,
   changeOrigin: true,
   ws: true,
-  // Allow Render cold-start for WebSocket too
+  // Express strips the mount prefix from req.url, so restore the full path
+  // Socket.IO expects when proxying both polling and websocket requests.
+  pathRewrite: (_path, req) => req.originalUrl || req.url,
+  // Allow Render cold-start for Socket.IO polling too.
   proxyTimeout: 90000,
   timeout: 90000,
+  on: {
+    error: (err, req, res) => {
+      console.error("[Gateway Socket.IO Proxy Error]", err.message);
+      // During an HTTP polling handshake we can return a retryable response.
+      // For an upgraded WebSocket, the response is already committed; close
+      // the socket so Socket.IO can reconnect with its backoff policy.
+      if (res && !res.headersSent) {
+        res.setHeader("Retry-After", "10");
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Chat service is temporarily unavailable", retryAfter: 10 }));
+      } else if (res?.destroy) {
+        res.destroy();
+      }
+    },
+  },
 });
 app.use("/socket.io", wsProxy);
 
