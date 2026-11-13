@@ -98,10 +98,18 @@ api.interceptors.response.use(
       error.code === "ECONNABORTED" ||
       /timeout|network error|warming up/i.test(error.message || "");
 
-    if (isIdempotent && isColdStartError && request && (request._retryCount || 0) < 2) {
+    // Render free instances can take close to a minute to wake. Keep GETs
+    // alive long enough to survive that startup window and honor Retry-After
+    // when the gateway explicitly tells us when to try again.
+    const maxColdStartRetries = 5;
+    if (isIdempotent && isColdStartError && request && (request._retryCount || 0) < maxColdStartRetries) {
       request._retryCount = (request._retryCount || 0) + 1;
-      const delay = request._retryCount === 1 ? 3000 : 5000;
-      console.warn(`[API] Service cold start (${status || error.code}). Retrying in ${delay / 1000}s... (attempt ${request._retryCount}/2)`);
+      const retryAfterSeconds = Number(error.response?.headers?.["retry-after"]);
+      const backoff = Math.min(3000 * (2 ** (request._retryCount - 1)), 20000);
+      const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? Math.min(retryAfterSeconds * 1000, 30000)
+        : backoff;
+      console.warn(`[API] Service unavailable (${status || error.code}). Retrying in ${Math.ceil(delay / 1000)}s... (attempt ${request._retryCount}/${maxColdStartRetries})`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       return api(request);
     }

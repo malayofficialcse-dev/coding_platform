@@ -28,7 +28,9 @@ export const initSocket = () => {
     reconnectionDelay: 3000,       // start at 3 s (was 1 s)
     reconnectionDelayMax: 60000,   // cap at 60 s to avoid hammering a cold service
     randomizationFactor: 0.5,
-    reconnectionAttempts: 10,      // give up after 10 tries (~10 min with backoff)
+    // Free instances can take over a minute to wake. Keep trying in the
+    // background so chat recovers without requiring a page refresh.
+    reconnectionAttempts: Infinity,
   });
 
   socket.on("connect", () => {
@@ -37,7 +39,7 @@ export const initSocket = () => {
   });
 
   socket.on("connect_error", (error) => {
-    console.error("Socket connection error:", error);
+    console.warn("Socket connection unavailable; Socket.IO will retry:", error.message);
     if (/token|jwt|expired|unauthorized/i.test(error.message || "")) {
       if (socketRefreshAttempted) {
         disconnectSocket();

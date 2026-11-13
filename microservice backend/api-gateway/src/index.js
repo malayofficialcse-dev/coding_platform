@@ -37,6 +37,10 @@ try {
     lazyConnect: true,
     enableOfflineQueue: false,
     maxRetriesPerRequest: 1,
+    connectTimeout: 3000,
+    // Redis is optional for the gateway. Do not let an unavailable cache
+    // prevent the HTTP server (and Render health check) from starting.
+    retryStrategy: () => null,
   });
   redis.on("error", (err) => {
     console.warn("[Gateway Redis] Connection error:", err.message, "— falling back to in-memory rate limiting");
