@@ -405,7 +405,12 @@ export default function Mentorship() {
     const socket = io(mentorSocketOrigin(), {
       path: "/mentor-socket.io",
       auth: { token: getAccessToken() },
-      transports: ["websocket", "polling"],
+      // polling-first avoids the WebSocket upgrade storm on Render cold starts
+      transports: ["polling", "websocket"],
+      reconnectionDelay: 5000,
+      reconnectionDelayMax: 60000,
+      randomizationFactor: 0.5,
+      reconnectionAttempts: 5,
     });
     socket.on("mentor:sessions-updated", load);
     socket.on("connect_error", async (err) => {

@@ -47,9 +47,11 @@ def main():
     logger.info(f"  → Created {len(chunks)} chunks")
 
     # Step 3: Embed and store
-    logger.info("\n[Step 3] Embedding and storing in ChromaDB …")
+    from src.config.settings import get_settings
+    settings = get_settings()
+    logger.info(f"\n[Step 3] Embedding and storing into {settings.vector_store.upper()} …")
     vs = build_vector_store(chunks)
-    logger.info(f"  → {vs._collection.count()} vectors stored")
+    logger.info("  → Vector store build complete!")
 
     # Step 4: Build retriever
     logger.info("\n[Step 4] Building hybrid retriever …")
