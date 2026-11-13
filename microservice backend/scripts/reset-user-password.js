@@ -59,38 +59,14 @@ const readHidden = (prompt) => {
 const resetPassword = async () => {
   if (process.argv.includes("--help")) {
     console.log("Usage: npm run reset:auth-password -- <account-email>");
-    console.log("Requires AUTH_DATABASE_URL; uses AUTH_DATABASE_URL_UNPOOLED when set.");
     return;
   }
   if (process.argv.length !== 3 || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error("Usage: npm run reset:auth-password -- <account-email>");
   }
-  const authDatabaseUrl = (
-    process.env.AUTH_DATABASE_URL_UNPOOLED || process.env.AUTH_DATABASE_URL || ""
-  ).replace(/^"|"$/g, "");
-  if (!authDatabaseUrl) {
-    throw new Error(
-      "Set AUTH_DATABASE_URL (or AUTH_DATABASE_URL_UNPOOLED) in microservice backend/.env."
-    );
+  if (!process.env.AUTH_DATABASE_URL && !process.env.DATABASE_URL) {
+    throw new Error("Set AUTH_DATABASE_URL in microservice backend/.env before running this script.");
   }
-
-  let authDatabaseTarget;
-  try {
-    authDatabaseTarget = new URL(authDatabaseUrl);
-  } catch {
-    throw new Error("AUTH_DATABASE_URL must be a valid PostgreSQL connection URL.");
-  }
-  if (!["postgres:", "postgresql:"].includes(authDatabaseTarget.protocol)) {
-    throw new Error("AUTH_DATABASE_URL must use the postgres:// or postgresql:// scheme.");
-  }
-  if (["localhost", "127.0.0.1", "::1", "[::1]"].includes(authDatabaseTarget.hostname)) {
-    throw new Error("Password resets must target a cloud database, not a local PostgreSQL server.");
-  }
-
-  process.env.AUTH_DATABASE_URL = authDatabaseUrl;
-  console.log(
-    `[Auth password reset] Target database: ${authDatabaseTarget.hostname}${authDatabaseTarget.pathname}`
-  );
 
   const confirmationPrompt = createInterface({
     input: process.stdin,
