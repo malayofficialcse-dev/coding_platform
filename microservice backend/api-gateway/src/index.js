@@ -89,6 +89,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: [
       "API-Version",
+      "Retry-After",
       "X-Has-More",
       "X-Total-Count",
       "X-Page",

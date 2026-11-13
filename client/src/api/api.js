@@ -101,11 +101,11 @@ api.interceptors.response.use(
     // Render free instances can take close to a minute to wake. Keep GETs
     // alive long enough to survive that startup window and honor Retry-After
     // when the gateway explicitly tells us when to try again.
-    const maxColdStartRetries = 5;
+    const maxColdStartRetries = 8;
     if (isIdempotent && isColdStartError && request && (request._retryCount || 0) < maxColdStartRetries) {
       request._retryCount = (request._retryCount || 0) + 1;
       const retryAfterSeconds = Number(error.response?.headers?.["retry-after"]);
-      const backoff = Math.min(3000 * (2 ** (request._retryCount - 1)), 20000);
+      const backoff = Math.min(3000 * (2 ** (request._retryCount - 1)), 30000);
       const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
         ? Math.min(retryAfterSeconds * 1000, 30000)
         : backoff;
