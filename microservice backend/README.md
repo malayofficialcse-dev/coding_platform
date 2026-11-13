@@ -96,11 +96,9 @@ URLs and do not include local environment files.
 Auth credentials live in the Auth database, while the User Service owns the
 profiles shown in Explore. Auth now synchronizes a user's public profile when
 creating a session, and User Service places it on the shard selected by that
-user ID. Profile sync runs in the background and does not block sign-in; set
-`USER_SERVICE_URL` on Auth and the same `INTERNAL_SERVICE_TOKEN` on Auth and User
-for it to succeed. Existing accounts synchronize the next time they sign in.
-To backfill all existing records sooner, run `node scripts/sync-user-db.js`
-from this directory only after verifying `AUTH_DATABASE_URL` and both
+user ID. Existing accounts synchronize the next time they sign in. To backfill
+all existing records sooner, run `node scripts/sync-user-db.js` from this
+directory only after verifying `AUTH_DATABASE_URL` and both
 `USER_SHARD_n_DATABASE_URL` values point to the intended production databases.
 
 ### 3. Local Development (All Services in 1 Command)

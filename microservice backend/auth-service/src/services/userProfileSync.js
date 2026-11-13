@@ -59,7 +59,7 @@ export const syncUserProfile = async (user) => {
     }
   } catch (error) {
     if (error.code === "USER_PROFILE_SYNC_FAILED") throw error;
-    throw syncError(`User Service profile synchronization could not be completed: ${error.message}`);
+    throw syncError("User Service profile synchronization could not be completed.");
   } finally {
     clearTimeout(timeout);
   }
