@@ -274,7 +274,10 @@ export const handleGoogleCallback = async (req, res) => {
     return res.redirect(`${clientUrl}/oauth-callback?token=${encodeURIComponent(session.accessToken)}`);
   } catch (err) {
     console.error("[Google OAuth Callback Exception]:", err);
-    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Server error during Google authentication.")}`);
+    const message = err.code === "USER_PROFILE_SYNC_FAILED"
+      ? "Your user profile could not be synchronized. Please try signing in again shortly."
+      : "Server error during Google authentication.";
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(message)}`);
   }
 };
 
@@ -318,6 +321,11 @@ export const handleGoogleCredential = async (req, res) => {
     return res.json(session);
   } catch (err) {
     console.error("[Google Credential Exception]:", err);
+    if (err.code === "USER_PROFILE_SYNC_FAILED") {
+      return res.status(503).json({
+        error: "Your user profile could not be synchronized. Please try signing in again shortly.",
+      });
+    }
     return res.status(500).json({ error: "Failed to authenticate Google credential." });
   }
 };
@@ -453,6 +461,9 @@ export const handleGitHubCallback = async (req, res) => {
     return res.redirect(`${clientUrl}/oauth-callback?token=${encodeURIComponent(session.accessToken)}`);
   } catch (err) {
     console.error("[GitHub OAuth Callback Exception]:", err);
-    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent("Server error during GitHub authentication.")}`);
+    const message = err.code === "USER_PROFILE_SYNC_FAILED"
+      ? "Your user profile could not be synchronized. Please try signing in again shortly."
+      : "Server error during GitHub authentication.";
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(message)}`);
   }
 };

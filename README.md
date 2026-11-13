@@ -403,9 +403,9 @@ internal URLs shown in each Render service:
   outside Render.
 - `REDIS_URL` for the gateway and the services that use Redis. Mentor requires
   it when `NODE_ENV=production`; set `NODE_ENV=production` on Mentor.
-- Set service-to-service URLs where used: `USER_SERVICE_URL` on Post and Chat,
-  `COURSE_SERVICE_URL` on Enrollment, `AUTH_SERVICE_URL` on Mentor, and
-  `CHAT_SERVICE_URL` on Notification. Use the private addresses from Render.
+- Set service-to-service URLs where used: `USER_SERVICE_URL` on Auth, Post,
+  and Chat, `COURSE_SERVICE_URL` on Enrollment, `AUTH_SERVICE_URL` on Mentor,
+  and `CHAT_SERVICE_URL` on Notification. Use the private addresses from Render.
 
 Configure each database with its own service-specific connection string:
 
@@ -414,6 +414,10 @@ Configure each database with its own service-specific connection string:
   when migrating existing user profiles),
   `EXAM_DATABASE_URL`, `ENROLLMENT_DATABASE_URL`, `CODING_DATABASE_URL`, and
   `MENTOR_DATABASE_URL`.
+- The Auth password-reset command reads `AUTH_DATABASE_URL_UNPOOLED` first when
+  set, otherwise `AUTH_DATABASE_URL`, from `microservice backend/.env`. It
+  rejects localhost targets and prints the destination host/database before
+  prompting. Keep database URLs out of source control.
 - MongoDB: `POST_MONGO_URI`, `COURSE_MONGO_URI`, `CODING_MONGO_URI`,
   `CHAT_MONGO_URI`, and `NOTIFICATION_MONGO_URI`.
 - User Service graph storage on the `cc-user` service: `NEO4J_URI`,
@@ -423,7 +427,7 @@ Configure each database with its own service-specific connection string:
   Aura username.
 - Event delivery: `RABBITMQ_URL` on the producer and notification services.
 
-Also set `INTERNAL_SERVICE_TOKEN` consistently for Auth, Mentor, Chat,
+Also set `INTERNAL_SERVICE_TOKEN` consistently for Auth, User, Mentor, Chat,
 Notification, and AI if deployed,
 `CLIENT_URL` and `PUBLIC_API_URL` for Auth, and
 `REFRESH_COOKIE_SAME_SITE=none`, `REFRESH_COOKIE_SECURE=true`, and

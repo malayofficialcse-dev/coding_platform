@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import RefreshSession from "../models/RefreshSession.js";
 import { sequelize } from "../config/db.js";
 import { getUserShardIndex, getUserShardUrls } from "../utils/userSharding.js";
+import { syncUserProfile } from "../services/userProfileSync.js";
 
 const ACCESS_TOKEN_ISSUER = "code-campus-auth";
 const ACCESS_TOKEN_AUDIENCE = "code-campus-api";
@@ -143,9 +144,18 @@ export const validateAuthConfiguration = () => {
   getTtlDays("REFRESH_TOKEN_IDLE_DAYS", 7, 30);
   getTtlDays("REFRESH_TOKEN_ABSOLUTE_DAYS", 30, 90);
   getCookieOptions();
+  if (process.env.NODE_ENV === "production" || process.env.RENDER === "true") {
+    if (!process.env.USER_SERVICE_URL) {
+      throw new Error("USER_SERVICE_URL must point to the private User Service in production.");
+    }
+    if (!process.env.INTERNAL_SERVICE_TOKEN) {
+      throw new Error("INTERNAL_SERVICE_TOKEN must be configured for Auth-to-User profile sync.");
+    }
+  }
 };
 
 export const createSession = async (user, req, res) => {
+  await syncUserProfile(user);
   const now = Date.now();
   const idleExpiry = now + getTtlDays("REFRESH_TOKEN_IDLE_DAYS", 7, 30) * DAY_MS;
   const absoluteExpiry = now + getTtlDays("REFRESH_TOKEN_ABSOLUTE_DAYS", 30, 90) * DAY_MS;
@@ -271,6 +281,11 @@ export const register = async (req, res) => {
     res.status(201).json(session);
   } catch (err) {
     console.error("[Auth Service Register Error]:", err);
+    if (err.code === "USER_PROFILE_SYNC_FAILED") {
+      return res.status(503).json({
+        message: "Your account was created, but its user profile could not be synchronized. Please try signing in again shortly.",
+      });
+    }
     res.status(500).json({ message: "Server error during registration." });
   }
 };
@@ -359,6 +374,11 @@ export const login = async (req, res) => {
     res.json(await createSession(user, req, res));
   } catch (err) {
     console.error("[Auth Service Login Error]:", err);
+    if (err.code === "USER_PROFILE_SYNC_FAILED") {
+      return res.status(503).json({
+        message: "Sign-in is temporarily unavailable while your user profile is synchronized. Please try again shortly.",
+      });
+    }
     res.status(500).json({ message: "Server error during login." });
   }
 };

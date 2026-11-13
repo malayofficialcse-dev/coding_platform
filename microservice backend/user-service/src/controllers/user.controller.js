@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import User, { Op } from "../models/User.js";
 import UserFollow from "../models/UserFollow.js";
 import { runCypher } from "../lib/neo4j.js";
@@ -83,6 +84,78 @@ export const getAllUsers = async (req, res) => {
     res.json(userList);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const syncAuthUserProfile = async (req, res) => {
+  const configuredToken = process.env.INTERNAL_SERVICE_TOKEN || "";
+  const suppliedToken = req.headers["x-internal-service-token"] || "";
+  const expected = Buffer.from(configuredToken);
+  const supplied = Buffer.from(String(suppliedToken));
+  if (!configuredToken || expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+    return res.status(403).json({ error: "Internal service authorization failed." });
+  }
+
+  try {
+    const source = req.body?.profile;
+    const id = typeof source?.id === "string" ? source.id.trim() : "";
+    const email = typeof source?.email === "string" ? source.email.trim().toLowerCase() : "";
+    const name = typeof source?.name === "string" ? source.name.trim() : "";
+    if (!id || !email || !name) {
+      return res.status(400).json({ error: "A profile id, name, and email are required." });
+    }
+
+    const profileFields = [
+      "name",
+      "username",
+      "email",
+      "role",
+      "college",
+      "degree",
+      "yearOfPassing",
+      "profileImage",
+      "bannerImage",
+      "isActive",
+      "createdBy",
+      "permissions",
+      "googleId",
+      "githubId",
+      "authProvider",
+    ];
+    const profile = Object.fromEntries(
+      profileFields
+        .filter((field) => source[field] !== undefined)
+        .map((field) => [field, source[field]])
+    );
+    profile.id = id;
+    profile.email = email;
+
+    let user = await User.findByPk(id);
+    let created = false;
+    if (user) {
+      const identityFields = ["email", "role", "isActive", "googleId", "githubId", "authProvider"];
+      const identity = Object.fromEntries(
+        identityFields
+          .filter((field) => profile[field] !== undefined)
+          .map((field) => [field, profile[field]])
+      );
+      await user.update(identity);
+    } else {
+      const emailMatch = await User.findOne({ where: { email } });
+      if (emailMatch) {
+        return res.status(409).json({
+          error: "A profile with this email already exists under a different user id.",
+        });
+      }
+      user = await User.create(profile);
+      created = true;
+    }
+
+    await deleteCached("users:directory");
+    return res.status(created ? 201 : 200).json({ id: user.id, created });
+  } catch (error) {
+    console.error("[User Service] Auth profile sync failed:", error.message);
+    return res.status(500).json({ error: "Could not synchronize the account profile." });
   }
 };
 

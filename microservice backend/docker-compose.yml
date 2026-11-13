@@ -250,6 +250,7 @@ services:
       - NODE_ENV=production
       - PORT=5001
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in microservice backend .env}
+      - USER_SERVICE_URL=http://user-service:5002
       - USER_DATABASE_URL=${USER_DATABASE_URL:-}
       - USER_SHARD_0_DATABASE_URL=${USER_SHARD_0_DATABASE_URL:?Set USER_SHARD_0_DATABASE_URL in microservice backend .env}
       - USER_SHARD_1_DATABASE_URL=${USER_SHARD_1_DATABASE_URL:?Set USER_SHARD_1_DATABASE_URL in microservice backend .env}
@@ -275,6 +276,7 @@ services:
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       - postgres-auth
+      - user-service
     networks:
       - code-campus-net
 
@@ -295,6 +297,7 @@ services:
       - USER_DATABASE_URL=${USER_DATABASE_URL:-}
       - USER_SHARD_0_DATABASE_URL=${USER_SHARD_0_DATABASE_URL:?Set USER_SHARD_0_DATABASE_URL in microservice backend .env}
       - USER_SHARD_1_DATABASE_URL=${USER_SHARD_1_DATABASE_URL:?Set USER_SHARD_1_DATABASE_URL in microservice backend .env}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?Set a strong random INTERNAL_SERVICE_TOKEN in the microservice backend .env file}
       - NEO4J_URI=${NEO4J_URI:?Set NEO4J_URI in microservice backend .env}
       - NEO4J_USER=${NEO4J_USER:?Set NEO4J_USER in microservice backend .env}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in microservice backend .env}
