@@ -1,5 +1,5 @@
 import { DataTypes, Model } from "sequelize";
-import { sequelize } from "../config/db.js";
+import { AUTH_SCHEMA, sequelize } from "../config/db.js";
 
 export const ROLES = [
   "student",
@@ -119,6 +119,7 @@ User.init(
   },
   {
     sequelize,
+    schema: AUTH_SCHEMA,
     modelName: "User",
     tableName: "users",
     timestamps: true,

@@ -1,5 +1,5 @@
 import { DataTypes, Model } from "sequelize";
-import { sequelize } from "../config/db.js";
+import { AUTH_SCHEMA, sequelize } from "../config/db.js";
 
 class RefreshSession extends Model {}
 
@@ -50,6 +50,7 @@ RefreshSession.init(
   },
   {
     sequelize,
+    schema: AUTH_SCHEMA,
     modelName: "RefreshSession",
     tableName: "refresh_sessions",
     timestamps: true,
