@@ -20,6 +20,13 @@ const app = express();
 const PORT = process.env.PORT || process.env.API_GATEWAY_PORT || 5100;
 
 const SERVICES = getServices();
+const isProduction =
+  process.env.RENDER === "true" ||
+  (process.env.APP_ENV || process.env.NODE_ENV || "local").toLowerCase() === "production";
+const serviceReadiness = new Map(
+  Object.values(SERVICES).map((url) => [url, !isProduction])
+);
+const SERVICE_READY_WAIT_MS = 80 * 1000;
 const trustProxy = process.env.TRUST_PROXY === "true" || process.env.RENDER === "true";
 app.set("trust proxy", trustProxy ? 1 : false);
 
@@ -135,13 +142,26 @@ await mountGraphQL(app);
 
 // 5. Health Check Endpoint
 app.get("/health", (req, res) => {
+  const readyServices = Object.fromEntries(
+    Object.entries(SERVICES).map(([name, url]) => [name, serviceReadiness.get(url) === true])
+  );
   res.json({
     status: "healthy",
     gateway: "Code Campus API Gateway",
     timestamp: new Date().toISOString(),
     services: SERVICES,
+    readyServices,
+    allServicesReady: Object.values(readyServices).every(Boolean),
   });
 });
+
+const waitForServiceReady = async (target) => {
+  const deadline = Date.now() + SERVICE_READY_WAIT_MS;
+  while (!serviceReadiness.get(target) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return serviceReadiness.get(target) === true;
+};
 
 // Pre-build one proxy instance per service target — avoids MaxListeners leak
 // and allows Render free-tier cold-start (services can take 50+ s to wake up).
@@ -190,8 +210,29 @@ const createServiceProxy = (target) => {
       },
     },
   });
-  proxyCache.set(target, proxy);
-  return proxy;
+  const readyProxy = (req, res, next) => {
+    if (!isProduction || serviceReadiness.get(target)) {
+      return proxy(req, res, next);
+    }
+
+    waitForServiceReady(target)
+      .then((isReady) => {
+        if (res.destroyed) return;
+        if (!isReady) {
+          res.set("Retry-After", "30");
+          res.status(503).json({
+            error: "Service is starting",
+            message: "The requested service is not ready yet. Please retry in 30 seconds.",
+            retryAfter: 30,
+          });
+          return;
+        }
+        proxy(req, res, next);
+      })
+      .catch(next);
+  };
+  proxyCache.set(target, readyProxy);
+  return readyProxy;
 };
 
 // 6. Microservice Routes
@@ -266,7 +307,7 @@ const server = app.listen(PORT, () => {
 // ── Keep-Alive Pinger ───────────────────────────────────────────────────────
 // Render free instances sleep after inactivity. Retry unavailable services
 // frequently until they wake, then keep healthy services warm.
-if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
+if (isProduction) {
   const http = await import("http");
   const https = await import("https");
   const healthyPingInterval = 4 * 60 * 1000;
@@ -281,7 +322,8 @@ if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
           { hostname: target.hostname, path: target.pathname, method: "GET", timeout: 60000 },
           (res) => {
             res.resume();
-            const isHealthy = res.statusCode >= 200 && res.statusCode < 400;
+            const isHealthy = res.statusCode >= 200 && res.statusCode < 300;
+            serviceReadiness.set(url, isHealthy);
             console.log(`[Gateway Pinger] ${name} → ${res.statusCode}`);
             const timer = setTimeout(ping, isHealthy ? healthyPingInterval : retryPingInterval);
             timer.unref();
@@ -289,12 +331,14 @@ if (process.env.RENDER === "true" || process.env.NODE_ENV === "production") {
         );
         req.on("timeout", () => req.destroy(new Error("Health check timed out")));
         req.on("error", (err) => {
+          serviceReadiness.set(url, false);
           console.warn(`[Gateway Pinger] ${name} ping failed:`, err.message);
           const timer = setTimeout(ping, retryPingInterval);
           timer.unref();
         });
         req.end();
       } catch (err) {
+        serviceReadiness.set(url, false);
         console.warn(`[Gateway Pinger] ${name} bad URL:`, err.message);
         const timer = setTimeout(ping, retryPingInterval);
         timer.unref();

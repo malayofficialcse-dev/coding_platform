@@ -338,6 +338,12 @@ names in Render. The current mixed-case `User_Service` entry points to an
 invalid Post Service host; the gateway intentionally ignores it. Set the
 verified User Service URL as `USER_SERVICE_URL` in Render.
 
+In production, the gateway waits up to 80 seconds for the requested downstream
+service's `/health` endpoint before forwarding an API request. It keeps its own
+`/health` endpoint available for Render and reports downstream readiness in
+`readyServices` and `allServicesReady`. If a service is still unavailable,
+the request receives `503` with `Retry-After: 30`.
+
 | Render service | Type | Root Directory | Health Check Path |
 |---|---|---|---|
 | `cc-api-gateway` | Web Service | `microservice backend/api-gateway` | `/health` |
