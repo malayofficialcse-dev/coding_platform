@@ -110,7 +110,27 @@ export const profileResolvers = {
   },
   ProfilePage: {
     profile: async ({ id }, _args, context) => {
-      const source = await requireProfileService("user", userPath(id), context);
+      let source = await optionalProfileService("user", userPath(id), context, null);
+      if (!source && context.viewer && context.viewer.id === String(id)) {
+        source = {
+          id: context.viewer.id,
+          name: context.viewer.name || "Student",
+          username: context.viewer.username || "student",
+          role: context.viewer.role || "student",
+          college: "",
+          degree: "",
+          yearOfPassing: "",
+          followers: [],
+          following: [],
+          followersCount: 0,
+          followingCount: 0,
+        };
+      }
+      if (!source) {
+        throw new GraphQLError("Profile not found.", {
+          extensions: { code: "NOT_FOUND" },
+        });
+      }
       return mapProfile(source);
     },
     posts: async ({ id, first }, _args, context) => {

@@ -90,12 +90,23 @@ export default function Profile() {
         if (active) setLoadingProfile(false);
       });
 
-    // Fetch detailed coding submissions & problem catalog for language and difficulty analytics
+    // Fetch attempts, enrollments, coding submissions, and problem catalog directly
+    // This ensures data loads reliably even if GraphQL experiences downstream timeouts
     Promise.all([
+      api.get("/attempts/my").catch(() => ({ data: [] })),
+      api.get("/enrollments/my").catch(() => ({ data: [] })),
       api.get("/coding/submissions/my").catch(() => ({ data: [] })),
       api.get("/coding/problems").catch(() => ({ data: [] })),
-    ]).then(([subsRes, probsRes]) => {
+      api.get(`/posts/user/${encodeURIComponent(userId)}`).catch(() => ({ data: [] })),
+      api.get(`/social/stats/${encodeURIComponent(userId)}`).catch(() => ({ data: null })),
+    ]).then(([attRes, enrRes, subsRes, probsRes, postsRes, statsRes]) => {
       if (!active) return;
+      if (Array.isArray(attRes?.data) && attRes.data.length > 0) {
+        setAttempts(attRes.data);
+      }
+      if (Array.isArray(enrRes?.data) && enrRes.data.length > 0) {
+        setEnrollments(enrRes.data);
+      }
       if (Array.isArray(subsRes?.data) && subsRes.data.length > 0) {
         setCodingSubmissions(subsRes.data);
         const acceptedIds = subsRes.data
@@ -105,6 +116,12 @@ export default function Profile() {
       }
       if (Array.isArray(probsRes?.data) && probsRes.data.length > 0) {
         setCodingProblems(probsRes.data);
+      }
+      if (Array.isArray(postsRes?.data) && postsRes.data.length > 0) {
+        setPosts(postsRes.data);
+      }
+      if (statsRes?.data) {
+        setGraphStats(statsRes.data);
       }
     });
 

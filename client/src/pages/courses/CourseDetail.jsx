@@ -611,11 +611,13 @@ export default function CourseDetail() {
 
   // Mark lesson complete
   const markSubtopicComplete = async () => {
-    if (!enrollment || !activeSubtopic || !flatList.length) return;
+    const enrollmentId = enrollment?._id || enrollment?.id;
+    const subtopicId = activeSubtopic?._id || activeSubtopic?.id;
+    if (!enrollmentId || !subtopicId || !flatList.length) return;
     try {
       const willBeCompleted = !currentSubtopicComplete;
-      const response = await api.patch(`/enrollments/${enrollment._id}/progress`, {
-        subtopicId: activeSubtopic._id,
+      const response = await api.patch(`/enrollments/${enrollmentId}/progress`, {
+        subtopicId,
         completed: willBeCompleted,
       });
       setEnrollment(response.data);
@@ -661,7 +663,10 @@ export default function CourseDetail() {
               ? user.username
               : "Student Name";
 
-      const response = await api.post(`/enrollments/${enrollment._id}/certificate`, {
+      const enrollmentId = enrollment._id || enrollment.id;
+      if (!enrollmentId) return;
+
+      const response = await api.post(`/enrollments/${enrollmentId}/certificate`, {
         studentName: resolvedStudent,
       });
       setCertData(response.data);
