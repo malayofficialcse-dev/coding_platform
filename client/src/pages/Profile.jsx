@@ -49,6 +49,8 @@ export default function Profile() {
   const [loadingCert, setLoadingCert] = useState(false);
   const [graphStats, setGraphStats] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [codingProblems, setCodingProblems] = useState([]);
+  const [langMetricMode, setLangMetricMode] = useState("accepted"); // "accepted" | "all"
 
   useEffect(() => {
     if (!user) return;
@@ -69,7 +71,9 @@ export default function Profile() {
         const submissions = learning.codingSubmissions || [];
         setEnrollments(learning.enrollments || []);
         setAttempts(learning.attempts || []);
-        setCodingSubmissions(submissions);
+        if (submissions.length > 0) {
+          setCodingSubmissions(submissions);
+        }
         const accepted = submissions
           .filter((submission) => submission.result === "Accepted")
           .map((submission) => submission.problem);
@@ -85,6 +89,24 @@ export default function Profile() {
       .finally(() => {
         if (active) setLoadingProfile(false);
       });
+
+    // Fetch detailed coding submissions & problem catalog for language and difficulty analytics
+    Promise.all([
+      api.get("/coding/submissions/my").catch(() => ({ data: [] })),
+      api.get("/coding/problems").catch(() => ({ data: [] })),
+    ]).then(([subsRes, probsRes]) => {
+      if (!active) return;
+      if (Array.isArray(subsRes?.data) && subsRes.data.length > 0) {
+        setCodingSubmissions(subsRes.data);
+        const acceptedIds = subsRes.data
+          .filter((s) => s.result === "Accepted")
+          .map((s) => String(s.problem?._id || s.problem?.id || s.problem));
+        setSolvedProblems([...new Set(acceptedIds)]);
+      }
+      if (Array.isArray(probsRes?.data) && probsRes.data.length > 0) {
+        setCodingProblems(probsRes.data);
+      }
+    });
 
     return () => {
       active = false;
@@ -134,6 +156,225 @@ export default function Profile() {
       ],
     };
   }, [attempts]);
+
+  // Problem map for fast ID lookup
+  const problemMap = useMemo(() => {
+    const map = {};
+    codingProblems.forEach((p) => {
+      const pid = String(p?._id || p?.id || "");
+      if (pid) map[pid] = p;
+    });
+    return map;
+  }, [codingProblems]);
+
+  // Language Breakdown Analytics
+  const codingLanguageStats = useMemo(() => {
+    const counts = {};
+    const acceptedOnly = langMetricMode === "accepted";
+    const relevantSubs = acceptedOnly
+      ? codingSubmissions.filter((s) => s.result === "Accepted")
+      : codingSubmissions;
+
+    relevantSubs.forEach((sub) => {
+      const rawLang = String(sub.language || "other").trim().toLowerCase();
+      const normLang =
+        rawLang === "python3"
+          ? "python"
+          : rawLang === "c++"
+            ? "cpp"
+            : rawLang || "other";
+      counts[normLang] = (counts[normLang] || 0) + 1;
+    });
+
+    const LANG_DISPLAY = {
+      javascript: { label: "JavaScript", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.85)" },
+      python: { label: "Python", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.85)" },
+      cpp: { label: "C++", color: "#6366f1", bg: "rgba(99, 102, 241, 0.85)" },
+      java: { label: "Java", color: "#f97316", bg: "rgba(249, 115, 22, 0.85)" },
+      c: { label: "C", color: "#06b6d4", bg: "rgba(6, 182, 212, 0.85)" },
+      go: { label: "Go", color: "#14b8a6", bg: "rgba(20, 184, 166, 0.85)" },
+      other: { label: "Other", color: "#a855f7", bg: "rgba(168, 85, 247, 0.85)" },
+    };
+
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const totalCount = entries.reduce((sum, [, count]) => sum + count, 0);
+
+    const labels = entries.map(([key]) => LANG_DISPLAY[key]?.label || key.toUpperCase());
+    const data = entries.map(([, count]) => count);
+    const backgroundColors = entries.map(([key]) => LANG_DISPLAY[key]?.bg || "rgba(168, 85, 247, 0.85)");
+    const borderColors = entries.map(([key]) => LANG_DISPLAY[key]?.color || "#a855f7");
+
+    const badges = entries.map(([key, count]) => ({
+      key,
+      label: LANG_DISPLAY[key]?.label || key.toUpperCase(),
+      color: LANG_DISPLAY[key]?.color || "#a855f7",
+      count,
+      percent: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0,
+    }));
+
+    return {
+      totalCount,
+      badges,
+      chartData: {
+        labels: labels.length ? labels : ["No data"],
+        datasets: [
+          {
+            label: acceptedOnly ? "Problems Solved" : "Submissions",
+            data: data.length ? data : [0],
+            backgroundColor: backgroundColors.length ? backgroundColors : ["rgba(100, 116, 139, 0.4)"],
+            borderColor: borderColors.length ? borderColors : ["#64748b"],
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+        ],
+      },
+    };
+  }, [codingSubmissions, langMetricMode]);
+
+  // Difficulty Analysis (Basic, Easy, Medium, Hard)
+  const codingDifficultyStats = useMemo(() => {
+    const DIFF_CONFIG = {
+      Basic: { color: "#38bdf8", bg: "rgba(56, 189, 248, 0.85)", lightBg: "rgba(56, 189, 248, 0.12)" },
+      Easy: { color: "#10b981", bg: "rgba(16, 185, 129, 0.85)", lightBg: "rgba(16, 185, 129, 0.12)" },
+      Medium: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.85)", lightBg: "rgba(245, 158, 11, 0.12)" },
+      Hard: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.85)", lightBg: "rgba(239, 68, 68, 0.12)" },
+    };
+
+    const diffKeys = ["Basic", "Easy", "Medium", "Hard"];
+    const totalByDiff = { Basic: 0, Easy: 0, Medium: 0, Hard: 0 };
+    const solvedSetByDiff = {
+      Basic: new Set(),
+      Easy: new Set(),
+      Medium: new Set(),
+      Hard: new Set(),
+    };
+    const attemptedSetByDiff = {
+      Basic: new Set(),
+      Easy: new Set(),
+      Medium: new Set(),
+      Hard: new Set(),
+    };
+
+    codingProblems.forEach((p) => {
+      const raw = String(p.difficulty || "Easy").trim();
+      const norm = diffKeys.find((k) => k.toLowerCase() === raw.toLowerCase()) || "Easy";
+      totalByDiff[norm] = (totalByDiff[norm] || 0) + 1;
+    });
+
+    codingSubmissions.forEach((sub) => {
+      const pId = String(sub.problem?._id || sub.problem?.id || sub.problem || "");
+      const prob = problemMap[pId] || sub.problem;
+      const raw = String(prob?.difficulty || "Easy").trim();
+      const norm = diffKeys.find((k) => k.toLowerCase() === raw.toLowerCase()) || "Easy";
+
+      if (pId) {
+        attemptedSetByDiff[norm]?.add(pId);
+        if (sub.result === "Accepted") {
+          solvedSetByDiff[norm]?.add(pId);
+        }
+      }
+    });
+
+    const cards = diffKeys.map((diff) => {
+      const solved = solvedSetByDiff[diff]?.size || 0;
+      const attempted = attemptedSetByDiff[diff]?.size || 0;
+      const total = totalByDiff[diff] || 0;
+      const percent = total > 0 ? Math.round((solved / total) * 100) : 0;
+      return {
+        diff,
+        solved,
+        attempted,
+        total,
+        percent,
+        config: DIFF_CONFIG[diff],
+      };
+    });
+
+    const totalSolved = Object.values(solvedSetByDiff).reduce((sum, set) => sum + set.size, 0);
+
+    const chartData = {
+      labels: diffKeys,
+      datasets: [
+        {
+          label: "Solved by You",
+          data: diffKeys.map((k) => solvedSetByDiff[k]?.size || 0),
+          backgroundColor: diffKeys.map((k) => DIFF_CONFIG[k].bg),
+          borderColor: diffKeys.map((k) => DIFF_CONFIG[k].color),
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: "Catalog Total",
+          data: diffKeys.map((k) => totalByDiff[k] || 0),
+          backgroundColor: "rgba(148, 163, 184, 0.22)",
+          borderColor: "rgba(148, 163, 184, 0.4)",
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+      ],
+    };
+
+    return {
+      totalSolved,
+      cards,
+      chartData,
+    };
+  }, [codingSubmissions, codingProblems, problemMap]);
+
+  const langChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1e293b",
+        titleColor: "#f8fafc",
+        bodyColor: "#f8fafc",
+        padding: 10,
+        cornerRadius: 6,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: "#64748b", font: { size: 11, weight: "600" } },
+        grid: { display: false },
+      },
+      y: {
+        ticks: { color: "#64748b", precision: 0, font: { size: 11 } },
+        grid: { color: "rgba(148, 163, 184, 0.12)" },
+        beginAtZero: true,
+      },
+    },
+  }), []);
+
+  const diffChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top",
+        labels: { color: "#64748b", boxWidth: 12, font: { size: 11, weight: "600" } },
+      },
+      tooltip: {
+        backgroundColor: "#1e293b",
+        titleColor: "#f8fafc",
+        bodyColor: "#f8fafc",
+        padding: 10,
+        cornerRadius: 6,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: "#64748b", font: { size: 11, weight: "600" } },
+        grid: { display: false },
+      },
+      y: {
+        ticks: { color: "#64748b", precision: 0, font: { size: 11 } },
+        grid: { color: "rgba(148, 163, 184, 0.12)" },
+        beginAtZero: true,
+      },
+    },
+  }), []);
 
   const profileStats = [
     { label: "Enrolled courses", value: enrollments.length, icon: FaBookOpen, tone: "blue" },
@@ -428,6 +669,121 @@ export default function Profile() {
           </section>
 
           <section className="cc-profile-card cc-profile-contributions"><div className="cc-profile-section-title"><div><h2>Learning &amp; coding contributions</h2><span>Course progress and coding activity over the last 12 months</span></div><span className="cc-live-status"><i /> Activity tracked</span></div><div className="cc-contribution-summary"><div><strong>{contributionData.total + enrollments.filter((enrollment) => Number(enrollment.progress) > 0).length}</strong><span>Total contributions</span></div><div><strong>{contributionData.activeDays}</strong><span>Active days</span></div><div><strong>{contributionData.currentStreak}</strong><span>Current streak</span></div></div><div className="cc-contribution-wrap"><div className="cc-contribution-months"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div><div className="cc-contribution-grid" aria-label="Learning and coding contribution graph">{contributionData.cells.map((cell) => { const level = cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / Math.max(contributionData.max, 1)) * 4)); return <span key={cell.key} className={`cc-contribution-cell level-${level}`} title={`${cell.count} contribution${cell.count === 1 ? "" : "s"} on ${cell.date.toLocaleDateString()}`} />; })}</div><div className="cc-contribution-legend"><span>Less</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><i className="level-4" /><span>More</span></div></div></section>
+
+          {/* ── Problem Solving & Language / Difficulty Analytics ── */}
+          <section className="cc-profile-card cc-profile-coding-analytics">
+            <div className="cc-profile-section-title">
+              <div>
+                <h2>Coding Practice &amp; Language Analysis</h2>
+                <span>Problem solving performance across programming languages and challenge difficulty levels</span>
+              </div>
+              <div className="cc-coding-analytics-head-actions">
+                <div className="cc-coding-lang-toggle">
+                  <button
+                    type="button"
+                    className={langMetricMode === "accepted" ? "active" : ""}
+                    onClick={() => setLangMetricMode("accepted")}
+                  >
+                    Accepted Solved
+                  </button>
+                  <button
+                    type="button"
+                    className={langMetricMode === "all" ? "active" : ""}
+                    onClick={() => setLangMetricMode("all")}
+                  >
+                    All Submissions
+                  </button>
+                </div>
+                <Link to="/coding" className="cc-profile-sub-link">
+                  <FaCode /> Practice DSA
+                </Link>
+              </div>
+            </div>
+
+            {codingSubmissions.length === 0 ? (
+              <div className="cc-profile-empty">
+                <FaCode />
+                <span>No coding submissions recorded yet. Solve DSA challenges in JavaScript, Python, C++, or Java to view your language and difficulty analytics.</span>
+                <Link to="/coding">Start practicing</Link>
+              </div>
+            ) : (
+              <div className="cc-coding-analytics-body">
+                <div className="cc-coding-analytics-grid">
+                  {/* Left Column: Languages Used Bar Graph */}
+                  <div className="cc-coding-graph-card">
+                    <div className="cc-coding-graph-header">
+                      <div className="cc-coding-graph-title">
+                        <FaCode style={{ color: "#38bdf8" }} />
+                        <strong>Languages Used</strong>
+                      </div>
+                      <span className="cc-coding-graph-pill">
+                        {codingLanguageStats.totalCount} {langMetricMode === "accepted" ? "Solved" : "Submissions"}
+                      </span>
+                    </div>
+
+                    <div className="cc-coding-chart-container">
+                      <Bar data={codingLanguageStats.chartData} options={langChartOptions} />
+                    </div>
+
+                    <div className="cc-coding-badges-wrap">
+                      {codingLanguageStats.badges.map((b) => (
+                        <div className="cc-coding-lang-badge" key={b.key}>
+                          <span className="cc-lang-dot" style={{ backgroundColor: b.color }} />
+                          <span className="cc-lang-name">{b.label}</span>
+                          <strong className="cc-lang-val">{b.count}</strong>
+                          <span className="cc-lang-pct">({b.percent}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Difficulties Analysis Bar Graph */}
+                  <div className="cc-coding-graph-card">
+                    <div className="cc-coding-graph-header">
+                      <div className="cc-coding-graph-title">
+                        <FaChartLine style={{ color: "#10b981" }} />
+                        <strong>Difficulty Analysis</strong>
+                      </div>
+                      <span className="cc-coding-graph-pill">
+                        {codingDifficultyStats.totalSolved} Solved Unique
+                      </span>
+                    </div>
+
+                    <div className="cc-coding-chart-container">
+                      <Bar data={codingDifficultyStats.chartData} options={diffChartOptions} />
+                    </div>
+
+                    {/* Difficulty Mini-Cards */}
+                    <div className="cc-difficulty-cards-wrap">
+                      {codingDifficultyStats.cards.map((c) => (
+                        <div
+                          className="cc-diff-mini-card"
+                          key={c.diff}
+                          style={{ borderColor: c.config.color, background: c.config.lightBg }}
+                        >
+                          <div className="cc-diff-mini-header">
+                            <span className="cc-diff-name" style={{ color: c.config.color }}>
+                              {c.diff}
+                            </span>
+                            <span className="cc-diff-ratio">
+                              <strong>{c.solved}</strong> / {c.total || "—"}
+                            </span>
+                          </div>
+                          <div className="cc-diff-progress-track">
+                            <i style={{ width: `${c.percent}%`, backgroundColor: c.config.color }} />
+                          </div>
+                          <div className="cc-diff-mini-footer">
+                            <span>{c.percent}% completed</span>
+                            <span>{c.attempted} tried</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
 
           <section className="cc-profile-card cc-profile-learning"><div className="cc-profile-section-title"><div><h2>Enrolled courses &amp; active learning tracks</h2><span>{enrollments.length} tracks connected to your profile</span></div><Link to="/courses">View courses <FaArrowRight /></Link></div>{enrollments.length === 0 ? <div className="cc-profile-empty"><FaBookOpen /><span>No courses yet. Start a learning track to see progress here.</span><Link to="/courses">Browse courses</Link></div> : <div className="cc-profile-course-list">{enrollments.slice(0, 5).map((enrollment) => { const progress = courseProgress(enrollment); const expired = enrollment.expiresAt && new Date(enrollment.expiresAt) < new Date(); return <div className="cc-profile-course" key={enrollment._id}><div className="cc-profile-course-top"><div><Link to={`/courses/${enrollment.course?._id}`}>{enrollment.course?.title || "Course"}</Link><span>{enrollment.course?.subtitle || "Structured learning path"}</span></div><b className={expired ? "expired" : "active"}>{expired ? "Expired" : `${progress}% complete`}</b></div><div className="cc-profile-course-bar"><i className={expired ? "expired" : ""} style={{ width: `${progress}%` }} /></div><div className="cc-profile-course-bottom"><span>{expired ? "Renew access to continue" : "Keep building momentum"}</span><div style={{ display: "flex", alignItems: "center", gap: "8px" }}>{progress === 100 && <button type="button" onClick={() => openCertificate(enrollment)} disabled={loadingCert} style={{ display: "inline-flex", alignItems: "center", gap: "4px", border: "1px solid #16a34a", background: "rgba(22, 163, 74, 0.12)", color: "#16a34a", borderRadius: "4px", padding: "3px 8px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}><FaAward /> Certificate</button>}<Link to={`/courses/${enrollment.course?._id}`}>Resume learning <FaArrowRight /></Link></div></div></div>; })}</div>}</section>
 
